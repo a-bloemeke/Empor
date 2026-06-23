@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  PLAYER
+  ORGANIZER
+}
+
+enum SeasonStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum SessionStatus {
+  SCHEDULED
+  CANCELLED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  CANCELLED
+}
+
+enum MatchStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum EndCondition {
+  GOALS
+  TIME
+  MANUAL
+}
+
+enum FeeStatus {
+  NOT_PAID
+  PAID
+}
+
+// ─── Auth.js required models ──────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user Player @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user Player @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Core models ──────────────────────────────────────────────────────────────
+
+model Player {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  emailVerified     DateTime?
+  passwordHash      String?
+  firstName         String    @default("")
+  lastName          String    @default("")
+  nickname          String?
+  dateOfBirth       DateTime?
+  addressStreet     String?
+  addressCity       String?
+  addressPostalCode String?
+  avatarUrl         String?
+  role              Role      @default(PLAYER)
+  createdAt         DateTime  @default(now())
+
+  accounts          Account[]
+  authSessions      AuthSession[]
+  registrations     SessionRegistration[]
+  teamPlayers       TeamPlayer[]
+  organizedSessions Session[]
+  goalsScored       Goal[]          @relation("scorer")
+  goalsAssisted     Goal[]          @relation("assister")
+  membershipFees    MembershipFee[]
+  feeRecordings     MembershipFee[] @relation("recordedBy")
+  statsPerSeason    PlayerStats[]
+  statsLifetime     PlayerStatsLifetime?
+}
+
+model Season {
+  id          String       @id @default(cuid())
+  year        Int          @unique
+  status      SeasonStatus @default(ACTIVE)
+  sessions    Session[]
+  playerStats PlayerStats[]
+}
+
+model Session {
+  id          String        @id @default(cuid())
+  seasonId    String
+  date        DateTime
+  status      SessionStatus @default(SCHEDULED)
+  organizerId String
+
+  season        Season                @relation(fields: [seasonId], references: [id])
+  organizer     Player                @relation(fields: [organizerId], references: [id])
+  registrations SessionRegistration[]
+  teams         Team[]
+  matches       Match[]
+}
+
+model SessionRegistration {
+  id             String             @id @default(cuid())
+  sessionId      String
+  playerId       String
+  status         RegistrationStatus @default(REGISTERED)
+  registeredAt   DateTime           @default(now())
+  cancelledAt    DateTime?
+  registeredById String
+
+  session  Session @relation(fields: [sessionId], references: [id])
+  player   Player  @relation(fields: [playerId], references: [id])
+
+  @@unique([sessionId, playerId])
+}
+
+model Team {
+  id        String @id @default(cuid())
+  sessionId String
+  name      String
+
+  session     Session      @relation(fields: [sessionId], references: [id])
+  players     TeamPlayer[]
+  homeMatches Match[]      @relation("homeTeam")
+  awayMatches Match[]      @relation("awayTeam")
+}
+
+model TeamPlayer {
+  teamId   String
+  playerId String
+
+  team   Team   @relation(fields: [teamId], references: [id])
+  player Player @relation(fields: [playerId], references: [id])
+
+  @@id([teamId, playerId])
+}
+
+model Match {
+  id           String        @id @default(cuid())
+  sessionId    String
+  roundNumber  Int?
+  homeTeamId   String
+  awayTeamId   String
+  startedAt    DateTime?
+  endedAt      DateTime?
+  endCondition EndCondition?
+  homeScore    Int           @default(0)
+  awayScore    Int           @default(0)
+  status       MatchStatus   @default(PENDING)
+
+  session  Session @relation(fields: [sessionId], references: [id])
+  homeTeam Team    @relation("homeTeam", fields: [homeTeamId], references: [id])
+  awayTeam Team    @relation("awayTeam", fields: [awayTeamId], references: [id])
+  goals    Goal[]
+}
+
+model Goal {
+  id                 String   @id @default(cuid())
+  matchId            String
+  scoredByPlayerId   String
+  assistedByPlayerId String?
+  teamId             String
+  scoredAt           DateTime @default(now())
+
+  match     Match   @relation(fields: [matchId], references: [id])
+  scoredBy  Player  @relation("scorer", fields: [scoredByPlayerId], references: [id])
+  assistedBy Player? @relation("assister", fields: [assistedByPlayerId], references: [id])
+}
+
+model MembershipFee {
+  id             String    @id @default(cuid())
+  playerId       String
+  year           Int
+  status         FeeStatus @default(NOT_PAID)
+  paidAt         DateTime?
+  recordedById   String
+
+  player     Player @relation(fields: [playerId], references: [id])
+  recordedBy Player @relation("recordedBy", fields: [recordedById], references: [id])
+
+  @@unique([playerId, year])
+}
+
+model PlayerStats {
+  id             String @id @default(cuid())
+  playerId       String
+  seasonId       String
+  sessionsPlayed Int    @default(0)
+  matchesPlayed  Int    @default(0)
+  goals          Int    @default(0)
+  assists        Int    @default(0)
+  score          Int    @default(0)
+  points         Int    @default(0)
+
+  player Player @relation(fields: [playerId], references: [id])
+  season Season @relation(fields: [seasonId], references: [id])
+
+  @@unique([playerId, seasonId])
+}
+
+model PlayerStatsLifetime {
+  playerId       String @id
+  sessionsPlayed Int    @default(0)
+  matchesPlayed  Int    @default(0)
+  goals          Int    @default(0)
+  assists        Int    @default(0)
+  score          Int    @default(0)
+  points         Int    @default(0)
+
+  player Player @relation(fields: [playerId], references: [id])
+}

@@ -1,0 +1,33 @@
+# Dependencies
+web/node_modules/
+
+# Next.js build output
+web/.next/
+web/out/
+
+# Prisma generated client
+web/src/generated/
+
+# Environment files — never commit secrets
+web/.env
+web/.env.local
+web/.env.*.local
+
+# Vercel
+.vercel/
+
+# TypeScript build cache
+web/tsconfig.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
