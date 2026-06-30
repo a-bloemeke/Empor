@@ -64,16 +64,15 @@ export async function deletePlayer(playerId: string) {
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
   if (authSession.user.id === playerId) throw new Error("You cannot delete your own account.")
 
-  const [goalCount, organizedCount, recordedFeesCount] = await Promise.all([
+  const [goalCount, recordedFeesCount] = await Promise.all([
     db.goal.count({ where: { OR: [{ scoredByPlayerId: playerId }, { assistedByPlayerId: playerId }] } }),
-    db.session.count({ where: { organizerId: playerId } }),
     db.membershipFee.count({ where: { recordedById: playerId, NOT: { playerId } } }),
   ])
   if (goalCount > 0) throw new Error("Cannot delete a player who has scored goals or assists.")
-  if (organizedCount > 0) throw new Error("Cannot delete a player who has organized sessions.")
   if (recordedFeesCount > 0) throw new Error("Cannot delete a player who has recorded membership fees for other players.")
 
   await db.$transaction([
+    db.session.updateMany({ where: { organizerId: playerId }, data: { organizerId: authSession.user.id } }),
     db.sessionRegistration.deleteMany({ where: { playerId } }),
     db.teamPlayer.deleteMany({ where: { playerId } }),
     db.membershipFee.deleteMany({ where: { playerId } }),
