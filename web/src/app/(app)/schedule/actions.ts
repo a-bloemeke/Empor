@@ -86,21 +86,34 @@ export async function cancelSelf(sessionId: string) {
 
   const s = await db.session.findUnique({ where: { id: sessionId } })
   if (!s) throw new Error("Session not found.")
+  if (s.status !== "SCHEDULED") throw new Error("Registration is closed for this session.")
 
   const cutoff = new Date(s.date.getTime() - 60 * 60 * 1000)
   if (new Date() >= cutoff) {
-    throw new Error("Cancellation is not allowed within 1 hour of the session.")
+    throw new Error("Absagen ist nicht mehr möglich (weniger als 1 Stunde vor Spielbeginn).")
   }
 
   const reg = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },
   })
-  if (!reg || reg.status === "CANCELLED") throw new Error("You are not registered for this session.")
 
-  await db.sessionRegistration.update({
-    where: { id: reg.id },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
-  })
+  if (reg) {
+    if (reg.status === "CANCELLED") throw new Error("Du hast bereits abgesagt.")
+    await db.sessionRegistration.update({
+      where: { id: reg.id },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    })
+  } else {
+    await db.sessionRegistration.create({
+      data: {
+        sessionId,
+        playerId: authSession.user.id,
+        registeredById: authSession.user.id,
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+      },
+    })
+  }
 
   revalidatePath("/schedule")
 }

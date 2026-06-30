@@ -82,7 +82,7 @@
     "gameDayScheduled": "Spieltag geplant.",
     "gameDayCancelled": "Spieltag abgesagt.",
     "youAreRegistered": "Du bist angemeldet.",
-    "registrationCancelled": "Anmeldung abgebrochen.",
+    "registrationCancelled": "Du hast abgesagt.",
     "noUpcomingGameDays": "Keine kommenden Spieltage.",
     "date": "Datum",
     "season": "Saison",
@@ -95,7 +95,7 @@
     "statusCancelled": "Abgesagt",
     "statusRegistered": "Angemeldet",
     "register": "Anmelden",
-    "cancel": "Abbrechen",
+    "cancel": "Absagen",
     "cancelGameDay": "Spieltag absagen",
     "pastGameDays": "Vergangene Spieltage"
   },

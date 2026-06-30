@@ -190,12 +190,12 @@ export function ScheduleClient({
                     <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {s.status === "SCHEDULED" && !isRegistered && (
+                        {s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
                             {busy ? "…" : t("register")}
                           </Button>
                         )}
-                        {s.status === "SCHEDULED" && isRegistered && !withinCutoff && (
+                        {s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (
                           <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleCancelReg(s.id)}>
                             {busy ? "…" : t("cancel")}
                           </Button>
