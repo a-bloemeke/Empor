@@ -302,6 +302,11 @@ Empor Lichtenberg`
     body,
     registeredCount: count,
     minPlayers: MIN_PLAYERS,
+    lists: {
+      registered: registered.map((p) => `${p.firstName} ${p.lastName}`.trim()),
+      cancelled: cancelled.map((p) => `${p.firstName} ${p.lastName}`.trim()),
+      noAnswer: noAnswer.map((p) => `${p.firstName} ${p.lastName}`.trim()),
+    },
     players: players.map((p) => ({
       id: p.id,
       name: `${p.firstName} ${p.lastName}`.trim(),

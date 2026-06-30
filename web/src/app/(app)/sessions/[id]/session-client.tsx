@@ -276,23 +276,25 @@ function RegistrationPanel({
           {registered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
           ) : (
-            <ul className="space-y-1">
-              {registered.map((r, i) => (
-                <li key={r.playerId} className="flex items-center gap-2 text-sm">
-                  <span className="w-5 text-right text-muted-foreground tabular-nums">{i + 1}.</span>
-                  <span className="flex-1">{r.playerName}</span>
-                  {isOrganizer && (
-                    <button
-                      className="text-muted-foreground hover:text-destructive"
-                      disabled={pending && actionId === r.playerId}
-                      onClick={() => handleRemove(r.playerId)}
-                    >
-                      ×
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {registered.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2">{r.playerName}</td>
+                    {isOrganizer && (
+                      <td className="py-1 px-2 text-right w-7">
+                        <button
+                          className="text-muted-foreground hover:text-destructive"
+                          disabled={pending && actionId === r.playerId}
+                          onClick={() => handleRemove(r.playerId)}
+                        >×</button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
@@ -302,14 +304,16 @@ function RegistrationPanel({
             <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1.5">
               Abgesagt ({cancelled.length})
             </p>
-            <ul className="space-y-1">
-              {cancelled.map((r) => (
-                <li key={r.playerId} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="w-5" />
-                  <span className="flex-1">{r.playerName}</span>
-                </li>
-              ))}
-            </ul>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {cancelled.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-muted-foreground">{r.playerName}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -319,14 +323,16 @@ function RegistrationPanel({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
               Noch keine Antwort ({noAnswer.length})
             </p>
-            <ul className="space-y-1">
-              {noAnswer.map((p) => (
-                <li key={p.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="w-5" />
-                  <span className="flex-1">{p.name}</span>
-                </li>
-              ))}
-            </ul>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {noAnswer.map((p, i) => (
+                  <tr key={p.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-muted-foreground">{p.name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -792,6 +798,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: str
   const [pending, startTransition] = useTransition()
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
+  const [lists, setLists] = useState<{ registered: string[]; cancelled: string[]; noAnswer: string[] }>({ registered: [], cancelled: [], noAnswer: [] })
   const [players, setPlayers] = useState<{ id: string; name: string; email: string; emailNotifications: boolean }[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loaded, setLoaded] = useState(false)
@@ -804,6 +811,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: str
           const data = await getStatusUpdateDefaults(sessionId)
           setSubject(data.subject)
           setBody(data.body)
+          setLists(data.lists)
           setPlayers(data.players)
           setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
           setLoaded(true)
@@ -827,16 +835,32 @@ function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: str
   }
 
   function handleSend() {
-    if (!subject.trim() || !body.trim()) { toast.error("Subject and message are required."); return }
-    if (selectedIds.size === 0) { toast.error("Select at least one recipient."); return }
+    if (!subject.trim()) { toast.error("Betreff ist erforderlich."); return }
+    if (selectedIds.size === 0) { toast.error("Mindestens einen Empfänger auswählen."); return }
     startTransition(async () => {
       try {
-        const count = await sendStatusUpdate(sessionId, subject.trim(), body.trim(), [...selectedIds])
-        toast.success(`Status update sent to ${count} player${count !== 1 ? "s" : ""}.`)
+        const count = await sendStatusUpdate(sessionId, subject.trim(), body, [...selectedIds])
+        toast.success(`Status-Update an ${count} Spieler gesendet.`)
         setOpen(false)
         setLoaded(false)
       } catch (e) { toast.error((e as Error).message) }
     })
+  }
+
+  function NameTable({ names, colorClass }: { names: string[]; colorClass: string }) {
+    if (names.length === 0) return null
+    return (
+      <table className="w-full text-sm border-collapse">
+        <tbody>
+          {names.map((name, i) => (
+            <tr key={name + i} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+              <td className={`py-1 px-2 w-7 text-right tabular-nums text-muted-foreground`}>{i + 1}.</td>
+              <td className={`py-1 px-2 ${colorClass}`}>{name}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )
   }
 
   return (
@@ -855,8 +879,37 @@ function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: str
 
             <TrafficLight count={registeredCount} />
 
+            {/* Registration tables */}
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1">
+                  Zugesagt ({lists.registered.length})
+                </p>
+                {lists.registered.length === 0
+                  ? <p className="text-sm text-muted-foreground">– noch niemand –</p>
+                  : <NameTable names={lists.registered} colorClass="" />
+                }
+              </div>
+              {lists.cancelled.length > 0 && (
+                <div className="border-t border-border/50 pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1">
+                    Abgesagt ({lists.cancelled.length})
+                  </p>
+                  <NameTable names={lists.cancelled} colorClass="text-muted-foreground" />
+                </div>
+              )}
+              {lists.noAnswer.length > 0 && (
+                <div className="border-t border-border/50 pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                    Noch keine Antwort ({lists.noAnswer.length})
+                  </p>
+                  <NameTable names={lists.noAnswer} colorClass="text-muted-foreground" />
+                </div>
+              )}
+            </div>
+
             {/* Recipients */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 border-t border-border/50 pt-3">
               <div className="flex items-center justify-between">
                 <Label>Empfänger ({selectedIds.size} / {players.length})</Label>
                 <button onClick={toggleAll} className="text-xs text-primary hover:underline">
@@ -885,27 +938,11 @@ function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: str
               <Label htmlFor="su-subject">Betreff</Label>
               <Input id="su-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
             </div>
-
-            {/* Body */}
-            <div className="space-y-1.5">
-              <Label htmlFor="su-body">Nachricht</Label>
-              <Textarea
-                id="su-body"
-                rows={10}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="font-mono text-sm resize-y"
-              />
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Ein „Jetzt anmelden"-Button zum Spieltag wird automatisch angehängt.
-            </p>
           </div>
         )}
         <DialogFooter>
           <Button onClick={handleSend} disabled={pending || !loaded}>
-            {pending ? "Wird gesendet…" : `Senden an ${selectedIds.size} Spieler${selectedIds.size !== 1 ? "" : ""}`}
+            {pending ? "Wird gesendet…" : `Senden an ${selectedIds.size} Spieler`}
           </Button>
         </DialogFooter>
       </DialogContent>
