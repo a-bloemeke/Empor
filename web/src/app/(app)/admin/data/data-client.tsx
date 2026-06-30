@@ -20,6 +20,7 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
   const jsonFileRef = useRef<HTMLInputElement>(null)
   const xlsxFileRef = useRef<HTMLInputElement>(null)
+  const csvFileRef = useRef<HTMLInputElement>(null)
   const [exportYear, setExportYear] = useState<string>("all")
   const [importYear, setImportYear] = useState<string>("all")
   const [importing, setImporting] = useState(false)
@@ -29,14 +30,17 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
     return exportYear === "all" ? base : `${base}?season=${exportYear}`
   }
 
-  function importUrl(format: "json" | "xlsx") {
-    const base = format === "json" ? "/api/admin/import" : "/api/admin/import-xlsx"
-    return importYear === "all" ? base : `${base}?season=${importYear}`
+  function importUrl(format: "json" | "xlsx" | "csv") {
+    const base = format === "json" ? "/api/admin/import" : format === "xlsx" ? "/api/admin/import-xlsx" : "/api/admin/import-csv"
+    const year = importYear === "all" ? String(new Date().getFullYear()) : importYear
+    return `${base}?season=${year}`
   }
 
-  async function handleImport(file: File, fmt: "json" | "xlsx") {
-    const scopeLabel = importYear === "all" ? t("allSeasons") : t("seasonN", { year: importYear })
-    if (!window.confirm(t("confirmImport", { scope: scopeLabel }))) return
+  async function handleImport(file: File, fmt: "json" | "xlsx" | "csv") {
+    if (fmt !== "csv") {
+      const scopeLabel = importYear === "all" ? t("allSeasons") : t("seasonN", { year: importYear })
+      if (!window.confirm(t("confirmImport", { scope: scopeLabel }))) return
+    }
 
     setImporting(true)
     try {
@@ -45,9 +49,12 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
       if (fmt === "json") {
         body = await file.text()
         contentType = "application/json"
-      } else {
+      } else if (fmt === "xlsx") {
         body = await file.arrayBuffer()
         contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      } else {
+        body = await file.text()
+        contentType = "text/csv"
       }
       const res = await fetch(importUrl(fmt), {
         method: "POST",
@@ -56,7 +63,16 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Import failed.")
-      toast.success(t("importSuccess"))
+      if (fmt === "csv") {
+        const imp = (json.imported as string[]).length
+        const skip = (json.skipped as string[]).length
+        toast.success(`${imp} Spieler importiert, ${skip} übersprungen.`)
+        if (json.skipped?.length > 0) {
+          toast.info(`Übersprungen: ${(json.skipped as string[]).join(", ")}`)
+        }
+      } else {
+        toast.success(t("importSuccess"))
+      }
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -141,12 +157,22 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleImport(f, "xlsx") }}
           />
+          <input
+            ref={csvFileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleImport(f, "csv") }}
+          />
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={importing} className="gap-2" onClick={() => jsonFileRef.current?.click()}>
               <UploadIcon className="size-4" /> {importing ? t("importing") : t("json")}
             </Button>
             <Button variant="outline" disabled={importing} className="gap-2" onClick={() => xlsxFileRef.current?.click()}>
               <UploadIcon className="size-4" /> {importing ? t("importing") : t("excel")}
+            </Button>
+            <Button variant="outline" disabled={importing} className="gap-2" onClick={() => csvFileRef.current?.click()}>
+              <UploadIcon className="size-4" /> {importing ? t("importing") : "CSV Stats"}
             </Button>
           </div>
         </div>
