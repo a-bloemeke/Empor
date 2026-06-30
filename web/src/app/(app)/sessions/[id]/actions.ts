@@ -242,9 +242,8 @@ export async function getStatusUpdateDefaults(sessionId: string) {
     where: { id: sessionId },
     include: {
       registrations: {
-        where: { status: "REGISTERED" },
         include: {
-          player: { select: { id: true, firstName: true, lastName: true, nickname: true } },
+          player: { select: { id: true, firstName: true, lastName: true, nickname: true, passwordHash: true } },
         },
         orderBy: { registeredAt: "asc" },
       },
@@ -254,22 +253,27 @@ export async function getStatusUpdateDefaults(sessionId: string) {
 
   const players = await db.player.findMany({
     where: { passwordHash: { not: null } },
-    select: { id: true, firstName: true, lastName: true, email: true, emailNotifications: true },
+    select: { id: true, firstName: true, lastName: true, nickname: true, email: true, emailNotifications: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
 
-  const registered = session.registrations.map((r) => r.player)
+  const registered = session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.player)
+  const cancelled = session.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
+  const respondedIds = new Set(session.registrations.map((r) => r.playerId))
+  const noAnswer = players.filter((p) => !respondedIds.has(p.id))
+
   const count = registered.length
   const MIN_PLAYERS = 8
 
-  // Build abbreviated name list: "Andreas B., Volker W., ..."
-  const nameList = registered
-    .map((p) => {
-      const display = p.nickname ?? p.firstName
-      const lastInitial = p.lastName ? ` ${p.lastName[0].toUpperCase()}.` : ""
-      return `${display}${lastInitial}`
-    })
-    .join(", ")
+  const abbrev = (p: { firstName: string; lastName: string; nickname: string | null }) => {
+    const display = p.nickname ?? p.firstName
+    const lastInitial = p.lastName ? ` ${p.lastName[0].toUpperCase()}.` : ""
+    return `${display}${lastInitial}`
+  }
+
+  const registeredList = registered.map(abbrev).join(", ") || "– noch niemand –"
+  const cancelledList = cancelled.map(abbrev).join(", ")
+  const noAnswerList = noAnswer.map(abbrev).join(", ")
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
@@ -286,9 +290,9 @@ kurzes Update zum Spieltag am ${dateStr}:
 ${trafficLight} Aktuell ${count} von mindestens ${MIN_PLAYERS} Spielern angemeldet.
 ${count >= MIN_PLAYERS ? "Der Spieltag findet voraussichtlich statt! 🎉" : count >= MIN_PLAYERS - 3 ? "Wir brauchen noch ein paar Spieler – bitte meldet euch an!" : "Leider zu wenig Spieler – der Spieltag droht auszufallen. Bitte meldet euch an!"}
 
-Angemeldete Spieler (${count}):
-${nameList || "– noch niemand –"}
-
+✅ Zugesagt (${count}):
+${registeredList}
+${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}
 ${link}
 
 Empor Lichtenberg`

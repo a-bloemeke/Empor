@@ -65,8 +65,9 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   })
   const lifetimeByPlayerId = new Map(lifetimeStatsRows.map((s) => [s.playerId, s]))
 
-  // All players (for registration management and "no answer" overview)
+  // All non-guest players (guests are always added explicitly; exclude from "no answer")
   const allPlayers = await db.player.findMany({
+    where: { passwordHash: { not: null } },
     select: { id: true, firstName: true, lastName: true, nickname: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
