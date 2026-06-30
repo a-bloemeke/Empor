@@ -28,10 +28,13 @@ export async function POST(req: NextRequest) {
     const matchday = cols[1]?.trim() ?? ""
     const players = cols.slice(2, 9).map((c) => c.trim()).filter(Boolean)
     const pts = parseInt(cols[9]?.trim() ?? "", 10)
+    const turnier = cols[10]?.trim().toLowerCase() === "ja"
     if (players.length === 0 || isNaN(pts)) continue
+    // A tournament row counts as 2 matches; otherwise pts > 3 means multiple games (4 = W+D, 6 = W+W)
+    const matchCount = turnier ? 2 : pts > 3 ? 2 : 1
     for (const name of players) {
       pointsMap.set(name, (pointsMap.get(name) ?? 0) + pts)
-      matchesMap.set(name, (matchesMap.get(name) ?? 0) + 1)
+      matchesMap.set(name, (matchesMap.get(name) ?? 0) + matchCount)
       if (!sessionDays.has(name)) sessionDays.set(name, new Set())
       sessionDays.get(name)!.add(matchday)
     }
