@@ -99,6 +99,77 @@ export async function sendGameDayInvitation(
   return recipientEmails.length
 }
 
+export async function sendStatusUpdateEmail(
+  session: { id: string; date: Date },
+  subject: string,
+  plainTextBody: string,
+  recipientEmails: string[],
+  lists: {
+    registered: string[]
+    cancelled: string[]
+    noAnswer: string[]
+  },
+) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("SMTP is not configured on this server.")
+  }
+  if (recipientEmails.length === 0) throw new Error("No recipients selected.")
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+  const link = `${appUrl}/sessions/${session.id}`
+
+  const introHtml = plainTextBody
+    .split("\n\n")[0]
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br/>")
+
+  const rowStyle = "padding:6px 12px;border-bottom:1px solid #e5e5e5;font-size:14px"
+  const headerStyle = "padding:6px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#fff"
+
+  function section(label: string, color: string, names: string[]) {
+    if (names.length === 0) return ""
+    const rows = names.map((n, i) =>
+      `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
+        <td style="${rowStyle};color:#666;width:28px;text-align:right">${i + 1}</td>
+        <td style="${rowStyle}">${n.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>
+      </tr>`
+    ).join("")
+    return `
+<table style="border-collapse:collapse;width:100%;margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+  <thead>
+    <tr style="background:${color}">
+      <th colspan="2" style="${headerStyle};text-align:left">${label} (${names.length})</th>
+    </tr>
+  </thead>
+  <tbody>${rows}</tbody>
+</table>`
+  }
+
+  const tablesHtml = [
+    section("✅ Zugesagt", "#166534", lists.registered),
+    section("❌ Abgesagt", "#991b1b", lists.cancelled),
+    section("⏳ Noch keine Antwort", "#92400e", lists.noAnswer),
+  ].join("")
+
+  const html = `
+<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${introHtml}</p>
+  ${tablesHtml}
+  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+</body>
+</html>`
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: recipientEmails, subject, text: plainTextBody, html })
+  return recipientEmails.length
+}
+
 export async function notifyOrganizersNewPlayer(player: { firstName: string; lastName: string; email: string }) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
 

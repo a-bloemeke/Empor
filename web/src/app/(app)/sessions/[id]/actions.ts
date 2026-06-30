@@ -7,7 +7,7 @@ import { computeAndSaveStats } from "@/lib/stats"
 import type { PointsScope } from "@/lib/types"
 import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
 import type { TeamRef, MatchRef } from "@/lib/game-logic"
-import { sendGameDayInvitation, buildDefaultInvitation } from "@/lib/email"
+import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation } from "@/lib/email"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
@@ -320,16 +320,42 @@ export async function sendStatusUpdate(
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
-  const session = await db.session.findUnique({ where: { id: sessionId } })
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      registrations: {
+        include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true, passwordHash: true } } },
+        orderBy: { registeredAt: "asc" },
+      },
+    },
+  })
   if (!session) throw new Error("Session not found.")
 
-  const players = await db.player.findMany({
+  const allNonGuests = await db.player.findMany({
+    where: { passwordHash: { not: null } },
+    select: { id: true, firstName: true, lastName: true, nickname: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+  })
+
+  const abbrev = (p: { firstName: string; lastName: string; nickname: string | null }) => {
+    const display = p.nickname ?? p.firstName
+    return `${display} ${p.lastName[0]?.toUpperCase() ?? ""}.`.trim()
+  }
+
+  const respondedIds = new Set(session.registrations.map((r) => r.playerId))
+  const lists = {
+    registered: session.registrations.filter((r) => r.status === "REGISTERED").map((r) => abbrev(r.player)),
+    cancelled: session.registrations.filter((r) => r.status === "CANCELLED").map((r) => abbrev(r.player)),
+    noAnswer: allNonGuests.filter((p) => !respondedIds.has(p.id)).map(abbrev),
+  }
+
+  const recipients = await db.player.findMany({
     where: { id: { in: recipientIds }, passwordHash: { not: null } },
     select: { email: true },
   })
-  const emails = players.map((p) => p.email).filter(Boolean) as string[]
+  const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
 
-  return sendGameDayInvitation({ id: session.id, date: session.date }, subject, body, emails)
+  return sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists)
 }
 
 function revalidate(sessionId: string) {
