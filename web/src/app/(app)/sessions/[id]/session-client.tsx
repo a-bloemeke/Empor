@@ -158,6 +158,9 @@ function RegistrationPanel({
   const [guestName, setGuestName] = useState("")
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
+  const cancelled = session.registrations.filter((r) => r.status === "CANCELLED")
+  const respondedIds = new Set(session.registrations.map((r) => r.playerId))
+  const noAnswer = session.allPlayers.filter((p) => !respondedIds.has(p.id))
   const registeredIds = new Set(registered.map((r) => r.playerId))
   const available = session.allPlayers.filter((p) => !registeredIds.has(p.id))
   const isScheduled = session.status === "SCHEDULED"
@@ -264,30 +267,71 @@ function RegistrationPanel({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {registered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
-        ) : (
-          <ul className="space-y-1">
-            {registered.map((r, i) => (
-              <li key={r.playerId} className="flex items-center gap-2 text-sm">
-                <span className="w-5 text-right text-muted-foreground tabular-nums">{i + 1}.</span>
-                <span className="flex-1">{r.playerName}</span>
-                {isOrganizer && (
-                  <button
-                    className="text-muted-foreground hover:text-destructive"
-                    disabled={pending && actionId === r.playerId}
-                    onClick={() => handleRemove(r.playerId)}
-                  >
-                    ×
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+      <CardContent className="space-y-4">
+        {/* Registered */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1.5">
+            Zugesagt ({registered.length})
+          </p>
+          {registered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
+          ) : (
+            <ul className="space-y-1">
+              {registered.map((r, i) => (
+                <li key={r.playerId} className="flex items-center gap-2 text-sm">
+                  <span className="w-5 text-right text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <span className="flex-1">{r.playerName}</span>
+                  {isOrganizer && (
+                    <button
+                      className="text-muted-foreground hover:text-destructive"
+                      disabled={pending && actionId === r.playerId}
+                      onClick={() => handleRemove(r.playerId)}
+                    >
+                      ×
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Cancelled */}
+        {cancelled.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1.5">
+              Abgesagt ({cancelled.length})
+            </p>
+            <ul className="space-y-1">
+              {cancelled.map((r) => (
+                <li key={r.playerId} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="w-5" />
+                  <span className="flex-1">{r.playerName}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
+
+        {/* No answer */}
+        {noAnswer.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+              Noch keine Antwort ({noAnswer.length})
+            </p>
+            <ul className="space-y-1">
+              {noAnswer.map((p) => (
+                <li key={p.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="w-5" />
+                  <span className="flex-1">{p.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {isOrganizer && (
-          <div className="flex items-center gap-2 pt-2 border-t border-border/50 mt-2">
+          <div className="flex items-center gap-2 pt-2 border-t border-border/50">
             <Input
               placeholder={t("guestNamePlaceholder")}
               value={guestName}

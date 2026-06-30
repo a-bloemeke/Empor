@@ -65,13 +65,11 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   })
   const lifetimeByPlayerId = new Map(lifetimeStatsRows.map((s) => [s.playerId, s]))
 
-  // All players (for organizer registration management)
-  const allPlayers = isOrganizer
-    ? await db.player.findMany({
-        select: { id: true, firstName: true, lastName: true, nickname: true },
-        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-      })
-    : []
+  // All players (for registration management and "no answer" overview)
+  const allPlayers = await db.player.findMany({
+    select: { id: true, firstName: true, lastName: true, nickname: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+  })
 
   const playerName = (p: { firstName: string; lastName: string; nickname: string | null }) =>
     p.nickname ? `${p.firstName} ${p.lastName} (${p.nickname})` : `${p.firstName} ${p.lastName}`
