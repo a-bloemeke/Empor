@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
+import { notifyOrganizersNewPlayer } from "@/lib/email"
 
 export async function POST(req: NextRequest) {
   const { firstName, lastName, email, password } = await req.json()
@@ -19,6 +20,8 @@ export async function POST(req: NextRequest) {
   await db.player.create({
     data: { firstName, lastName, email, passwordHash },
   })
+
+  await notifyOrganizersNewPlayer({ firstName, lastName, email })
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

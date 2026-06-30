@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getSeasonStats } from "./actions"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 
 type StatsRow = {
   playerId: string
@@ -36,30 +37,32 @@ type StatsRow = {
 
 type Season = { id: string; year: number; status: string }
 
-// ─── Points table (sorted by points, fixed) ───────────────────────────────────
+// ─── Points table ─────────────────────────────────────────────────────────────
 
 function PointsTable({ rows }: { rows: StatsRow[] }) {
+  const t = useTranslations("leaderboard")
   const sorted = [...rows].sort((a, b) =>
     b.points !== a.points ? b.points - a.points : b.score - a.score
   )
 
   if (sorted.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4">No stats yet.</p>
+    return <p className="text-sm text-muted-foreground py-4">{t("noStats")}</p>
   }
 
   return (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-8">#</TableHead>
-          <TableHead>Player</TableHead>
-          <TableHead className="text-right">Game Days</TableHead>
-          <TableHead className="text-right">Matches</TableHead>
-          <TableHead className="text-right">Goals</TableHead>
-          <TableHead className="text-right">Assists</TableHead>
-          <TableHead className="text-right">Score</TableHead>
-          <TableHead className="text-right">Pts</TableHead>
-          <TableHead className="text-right">Pts/GD</TableHead>
+          <TableHead className="w-8">{t("rank")}</TableHead>
+          <TableHead>{t("player")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("gameDays")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("matches")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("goals")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("assists")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("score")}</TableHead>
+          <TableHead className="text-right">{t("pts")}</TableHead>
+          <TableHead className="text-right">{t("ptsPerGD")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -71,11 +74,11 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
                 {row.playerName}
               </Link>
             </TableCell>
-            <TableCell className="text-right">{row.sessionsPlayed}</TableCell>
-            <TableCell className="text-right">{row.matchesPlayed}</TableCell>
-            <TableCell className="text-right">{row.goals}</TableCell>
-            <TableCell className="text-right">{row.assists}</TableCell>
-            <TableCell className="text-right">{row.score}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{row.matchesPlayed}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{row.goals}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{row.assists}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{row.score}</TableCell>
             <TableCell className="text-right font-semibold">{row.points}</TableCell>
             <TableCell className="text-right text-muted-foreground">
               {row.sessionsPlayed > 0 ? (row.points / row.sessionsPlayed).toFixed(1) : "—"}
@@ -84,20 +87,13 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
         ))}
       </TableBody>
     </Table>
+    </div>
   )
 }
 
 // ─── Strength table ───────────────────────────────────────────────────────────
-//
-// Strength = 0.6 × outcomePtsPerGD + 0.4 × scorePerGD
-//   where outcomePtsPerGD = (points - sessionsPlayed) / sessionsPlayed
-//         (removes the participation point so only win/draw pts count)
-//   and   scorePerGD      = (goals + assists) / sessionsPlayed
-//
-// Players below MIN_GD in the current season fall back to their lifetime stats.
-// The bar is rendered as a % of the top player's strength.
 
-const MIN_GD = 3  // minimum game days to qualify
+const MIN_GD = 3
 
 function strengthOf(row: StatsRow): number {
   if (row.sessionsPlayed < MIN_GD) return 0
@@ -107,7 +103,7 @@ function strengthOf(row: StatsRow): number {
 }
 
 function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?: StatsRow[] }) {
-  // Build effective row per player: use season row if qualified, else lifetime fallback
+  const t = useTranslations("leaderboard")
   const fallbackById = new Map(fallbackRows?.map((r) => [r.playerId, r]) ?? [])
 
   const effective: Array<{ row: StatsRow; usingFallback: boolean }> = rows.map((r) => {
@@ -117,30 +113,26 @@ function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?
     return { row: r, usingFallback: false }
   })
 
-  // Add any lifetime-only players (not in season rows at all) — only for lifetime tab
-  if (!fallbackRows) {
-    // no-op: lifetime tab passes rows directly without fallback
-  }
-
   const qualified = effective.filter(({ row }) => row.sessionsPlayed >= MIN_GD)
   const sorted = [...qualified].sort((a, b) => strengthOf(b.row) - strengthOf(a.row))
   const maxStrength = sorted.length > 0 ? strengthOf(sorted[0].row) || 1 : 1
 
   if (sorted.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4">Not enough data yet (min. {MIN_GD} game days required).</p>
+    return <p className="text-sm text-muted-foreground py-4">{t("notEnoughData", { min: MIN_GD })}</p>
   }
 
   return (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-8">#</TableHead>
-          <TableHead>Player</TableHead>
-          <TableHead className="text-right">GDs</TableHead>
-          <TableHead className="text-right">Pts/GD</TableHead>
-          <TableHead className="text-right">Score/GD</TableHead>
-          <TableHead className="text-right">Strength</TableHead>
-          <TableHead className="w-36">Rating</TableHead>
+          <TableHead className="w-8">{t("rank")}</TableHead>
+          <TableHead>{t("player")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("gds")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("ptsPerGD")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("scorePerGD")}</TableHead>
+          <TableHead className="text-right">{t("strength")}</TableHead>
+          <TableHead className="w-28 sm:w-36">{t("rating")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -159,17 +151,17 @@ function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?
                   </Link>
                   {usingFallback && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/60 leading-none">
-                      lifetime
+                      {t("lifetimeBadge")}
                     </span>
                   )}
                 </div>
               </TableCell>
-              <TableCell className="text-right text-muted-foreground">{row.sessionsPlayed}</TableCell>
-              <TableCell className="text-right text-muted-foreground">{outcomePtsPerGD.toFixed(2)}</TableCell>
-              <TableCell className="text-right text-muted-foreground">{scorePerGD.toFixed(2)}</TableCell>
+              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
+              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{outcomePtsPerGD.toFixed(2)}</TableCell>
+              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{scorePerGD.toFixed(2)}</TableCell>
               <TableCell className="text-right font-bold tabular-nums">{s.toFixed(2)}</TableCell>
               <TableCell>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full"
@@ -179,7 +171,7 @@ function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?
                       }}
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
+                  <span className="text-xs text-muted-foreground w-7 sm:w-8 text-right">{pct}%</span>
                 </div>
               </TableCell>
             </TableRow>
@@ -187,6 +179,7 @@ function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?
         })}
       </TableBody>
     </Table>
+    </div>
   )
 }
 
@@ -199,17 +192,19 @@ function SortableHead({
   current,
   dir,
   onSort,
+  extraClass,
 }: {
   label: string
   sortKey: SortKey
   current: SortKey
   dir: SortDir
   onSort: (k: SortKey) => void
+  extraClass?: string
 }) {
   const active = current === sortKey
   return (
     <TableHead
-      className="text-right cursor-pointer select-none hover:text-foreground"
+      className={`text-right cursor-pointer select-none hover:text-foreground${extraClass ? ` ${extraClass}` : ""}`}
       onClick={() => onSort(sortKey)}
     >
       <span className="inline-flex items-center justify-end gap-1">
@@ -225,6 +220,7 @@ function SortableHead({
 }
 
 function ScorersTable({ rows }: { rows: StatsRow[] }) {
+  const t = useTranslations("leaderboard")
   const [sortKey, setSortKey] = useState<SortKey>("goals")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
 
@@ -250,7 +246,6 @@ function ScorersTable({ rows }: { rows: StatsRow[] }) {
   const sorted = [...rows].sort((a, b) => {
     const diff = sortDir === "desc" ? sortVal(b, sortKey) - sortVal(a, sortKey) : sortVal(a, sortKey) - sortVal(b, sortKey)
     if (diff !== 0) return diff
-    // secondary: score → goals → assists
     const secondary: SortKey[] = ["score", "goals", "assists"].filter((k) => k !== sortKey) as SortKey[]
     for (const k of secondary) {
       const d = sortVal(b, k) - sortVal(a, k)
@@ -260,21 +255,22 @@ function ScorersTable({ rows }: { rows: StatsRow[] }) {
   })
 
   if (sorted.length === 0) {
-    return <p className="text-sm text-muted-foreground py-4">No stats yet.</p>
+    return <p className="text-sm text-muted-foreground py-4">{t("noStats")}</p>
   }
 
   return (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-8">#</TableHead>
-          <TableHead>Player</TableHead>
-          <SortableHead label="Goals"      sortKey="goals"        current={sortKey} dir={sortDir} onSort={handleSort} />
-          <SortableHead label="Assists"    sortKey="assists"      current={sortKey} dir={sortDir} onSort={handleSort} />
-          <SortableHead label="Score"      sortKey="score"        current={sortKey} dir={sortDir} onSort={handleSort} />
-          <SortableHead label="Goals/GD"   sortKey="goalsPerGD"   current={sortKey} dir={sortDir} onSort={handleSort} />
-          <SortableHead label="Assists/GD" sortKey="assistsPerGD" current={sortKey} dir={sortDir} onSort={handleSort} />
-          <SortableHead label="Score/GD"   sortKey="scorePerGD"   current={sortKey} dir={sortDir} onSort={handleSort} />
+          <TableHead className="w-8">{t("rank")}</TableHead>
+          <TableHead>{t("player")}</TableHead>
+          <SortableHead label={t("goals")}        sortKey="goals"        current={sortKey} dir={sortDir} onSort={handleSort} />
+          <SortableHead label={t("assists")}      sortKey="assists"      current={sortKey} dir={sortDir} onSort={handleSort} />
+          <SortableHead label={t("score")}        sortKey="score"        current={sortKey} dir={sortDir} onSort={handleSort} />
+          <SortableHead label={t("goalsPerGD")}   sortKey="goalsPerGD"   current={sortKey} dir={sortDir} onSort={handleSort} extraClass="hidden sm:table-cell" />
+          <SortableHead label={t("assistsPerGD")} sortKey="assistsPerGD" current={sortKey} dir={sortDir} onSort={handleSort} extraClass="hidden sm:table-cell" />
+          <SortableHead label={t("scorePerGD")}   sortKey="scorePerGD"   current={sortKey} dir={sortDir} onSort={handleSort} extraClass="hidden sm:table-cell" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -289,19 +285,20 @@ function ScorersTable({ rows }: { rows: StatsRow[] }) {
             <TableCell className="text-right font-semibold">{row.goals}</TableCell>
             <TableCell className="text-right">{row.assists}</TableCell>
             <TableCell className="text-right">{row.score}</TableCell>
-            <TableCell className="text-right text-muted-foreground tabular-nums">
+            <TableCell className="text-right text-muted-foreground tabular-nums hidden sm:table-cell">
               {row.sessionsPlayed > 0 ? perGD(row, "goals").toFixed(2) : "—"}
             </TableCell>
-            <TableCell className="text-right text-muted-foreground tabular-nums">
+            <TableCell className="text-right text-muted-foreground tabular-nums hidden sm:table-cell">
               {row.sessionsPlayed > 0 ? perGD(row, "assists").toFixed(2) : "—"}
             </TableCell>
-            <TableCell className="text-right text-muted-foreground tabular-nums">
+            <TableCell className="text-right text-muted-foreground tabular-nums hidden sm:table-cell">
               {row.sessionsPlayed > 0 ? perGD(row, "score").toFixed(2) : "—"}
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+    </div>
   )
 }
 
@@ -318,6 +315,7 @@ export function LeaderboardClient({
   initialSeasonStats: StatsRow[]
   lifetimeStats: StatsRow[]
 }) {
+  const t = useTranslations("leaderboard")
   const [selectedSeasonId, setSelectedSeasonId] = useState(currentSeasonId ?? seasons[0]?.id ?? "")
   const [seasonStats, setSeasonStats] = useState(initialSeasonStats)
   const [pending, startTransition] = useTransition()
@@ -336,63 +334,77 @@ export function LeaderboardClient({
 
   const selectedSeason = seasons.find((s) => s.id === selectedSeasonId)
 
+  const strengthHeader = (
+    <>
+      <span>{t("playerStrength")}</span>
+      <span className="ml-2 font-normal opacity-70 text-[10px]">{t("strengthFormula", { min: MIN_GD })}</span>
+    </>
+  )
+
+  const legend = [
+    [t("legendGDLabel"), t("legendGD")],
+    [t("pts"),      t("legendPts")],
+    [t("ptsPerGD"), t("legendPtsPerGD")],
+    [t("score"),    t("legendScore")],
+    [t("scorePerGD"), t("legendScorePerGD")],
+    [t("strength"), t("legendStrength")],
+    [t("rating"),   t("legendRating")],
+  ]
+
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">Leaderboard</h1>
-      <p className="text-muted-foreground mb-6">Season and lifetime rankings.</p>
+      <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
+      <p className="text-muted-foreground mb-6">{t("subtitle")}</p>
 
       <Tabs defaultValue="season">
         <TabsList className="mb-4">
-          <TabsTrigger value="season">Season</TabsTrigger>
-          <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
+          <TabsTrigger value="season">{t("season")}</TabsTrigger>
+          <TabsTrigger value="lifetime">{t("lifetime")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="season" className="space-y-8">
           <div className="flex items-center gap-3">
             <Select value={selectedSeasonId} onValueChange={(v) => { if (v) handleSeasonChange(v) }}>
               <SelectTrigger className="w-36">
-                <SelectValue placeholder="Select season">
+                <SelectValue placeholder={t("selectSeason")}>
                   {(v: string) => {
                     const s = seasons.find((s) => s.id === v)
-                    return s ? `${s.year}${s.status === "ACTIVE" ? " (active)" : ""}` : "Select season"
+                    return s ? `${s.year}${s.status === "ACTIVE" ? ` ${t("active")}` : ""}` : t("selectSeason")
                   }}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {seasons.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.year}{s.status === "ACTIVE" ? " (active)" : ""}
+                    {s.year}{s.status === "ACTIVE" ? ` ${t("active")}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {selectedSeason && (
-              <span className="text-sm text-muted-foreground">Season {selectedSeason.year}</span>
+              <span className="text-sm text-muted-foreground">{t("season")} {selectedSeason.year}</span>
             )}
           </div>
           {pending ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
           ) : (
             <>
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-                >Points Ranking</div>
+                >{t("pointsRanking")}</div>
                 <PointsTable rows={seasonStats} />
               </div>
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-                >Top Scorers</div>
+                >{t("topScorers")}</div>
                 <ScorersTable rows={seasonStats} />
               </div>
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-                >
-                  <span>Player Strength</span>
-                  <span className="ml-2 font-normal opacity-70 text-[10px]">= 60% win rate + 40% score/GD · min. {MIN_GD} game days</span>
-                </div>
+                >{strengthHeader}</div>
                 <StrengthTable rows={seasonStats} fallbackRows={lifetimeStats} />
               </div>
             </>
@@ -403,22 +415,19 @@ export function LeaderboardClient({
           <div className="overflow-hidden rounded-xl border border-border shadow-sm">
             <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
               style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-            >Points Ranking</div>
+            >{t("pointsRanking")}</div>
             <PointsTable rows={lifetimeStats} />
           </div>
           <div className="overflow-hidden rounded-xl border border-border shadow-sm">
             <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
               style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-            >Top Scorers</div>
+            >{t("topScorers")}</div>
             <ScorersTable rows={lifetimeStats} />
           </div>
           <div className="overflow-hidden rounded-xl border border-border shadow-sm">
             <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
               style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-            >
-              <span>Player Strength</span>
-              <span className="ml-2 font-normal opacity-70 text-[10px]">= 60% win rate + 40% score/GD · min. {MIN_GD} game days</span>
-            </div>
+            >{strengthHeader}</div>
             <StrengthTable rows={lifetimeStats} />
           </div>
         </TabsContent>
@@ -426,15 +435,7 @@ export function LeaderboardClient({
 
       {/* Abbreviation legend */}
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground mt-8 border rounded-lg px-4 py-2.5 bg-muted/30">
-        {[
-          ["GD / GDs", "Game Day / Game Days — one weekly session"],
-          ["Pts",      "Total points (1 per GD participated + match outcome points)"],
-          ["Pts/GD",   "Average outcome points per game day (win/draw only, participation excluded)"],
-          ["Score",    "Goals + Assists"],
-          ["Score/GD", "Average goals + assists per game day"],
-          ["Strength", "0.6 × Pts/GD + 0.4 × Score/GD — overall player rating"],
-          ["Rating",   "Strength as % of the top-rated player"],
-        ].map(([abbr, desc]) => (
+        {legend.map(([abbr, desc]) => (
           <span key={abbr}>
             <span className="font-semibold text-foreground">{abbr}</span>
             {" — "}{desc}

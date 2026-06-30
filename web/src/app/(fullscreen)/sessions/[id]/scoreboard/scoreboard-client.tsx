@@ -18,6 +18,7 @@ import { recordGoal, deleteGoal, updateGoal } from "@/app/(app)/sessions/[id]/ac
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { disambiguateNames } from "@/lib/game-logic"
+import { useTranslations } from "next-intl"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,16 +90,7 @@ function playLastTenSeconds() {
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
 
-const DURATION_OPTIONS = [
-  { label: "1 min", value: 1 },
-  { label: "2 min", value: 2 },
-  { label: "5 min", value: 5 },
-  { label: "6 min", value: 6 },
-  { label: "7 min", value: 7 },
-  { label: "8 min", value: 8 },
-  { label: "9 min", value: 9 },
-  { label: "10 min", value: 10 },
-]
+const DURATION_OPTIONS = [1, 2, 5, 6, 7, 8, 9, 10]
 
 type TimerState = "idle" | "running" | "paused" | "expired"
 
@@ -208,6 +200,7 @@ function GoalDrawer({
   teamName: string
   players: Player[]
 }) {
+  const t = useTranslations("scoreboard")
   const router = useRouter()
   const [scorerId, setScorerId] = useState("")
   const [assisterId, setAssisterId] = useState("")
@@ -218,11 +211,11 @@ function GoalDrawer({
   }, [open])
 
   function handleRecord() {
-    if (!scorerId) { toast.error("Select the scorer."); return }
+    if (!scorerId) { toast.error(t("selectScorer2")); return }
     startTransition(async () => {
       try {
         await recordGoal(matchId, scorerId, teamId, assisterId || undefined)
-        toast.success("Goal recorded.")
+        toast.success(t("goalRecorded"))
         onOpenChange(false)
         router.refresh()
       } catch (e) { toast.error((e as Error).message) }
@@ -237,14 +230,14 @@ function GoalDrawer({
         <Drawer.Backdrop className="fixed inset-0 z-40 bg-black/40" />
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
-          <h2 className="mb-6 text-lg font-semibold">Goal — {teamName}</h2>
+          <h2 className="mb-6 text-lg font-semibold">{t("goalTitle", { team: teamName })}</h2>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Scorer</Label>
+              <Label>{t("scorer")}</Label>
               <Select value={scorerId} onValueChange={(v) => { if (v) setScorerId(v) }}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select scorer…">
-                    {(v: string) => players.find((p) => p.id === v)?.name ?? "Select scorer…"}
+                  <SelectValue placeholder={t("selectScorer")}>
+                    {(v: string) => players.find((p) => p.id === v)?.name ?? t("selectScorer")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -255,15 +248,15 @@ function GoalDrawer({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Assist (optional)</Label>
+              <Label>{t("assist")}</Label>
               <Select value={assisterId} onValueChange={(v) => setAssisterId(v ?? "")}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="No assist">
-                    {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.name ?? "No assist") : "No assist"}
+                  <SelectValue placeholder={t("noAssist")}>
+                    {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.name ?? t("noAssist")) : t("noAssist")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No assist</SelectItem>
+                  <SelectItem value="">{t("noAssist")}</SelectItem>
                   {assistCandidates.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
@@ -272,9 +265,9 @@ function GoalDrawer({
             </div>
           </div>
           <div className="mt-6 flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>{t("cancel")}</Button>
             <Button className="flex-1" onClick={handleRecord} disabled={pending || !scorerId}>
-              {pending ? "Saving…" : "Record Goal"}
+              {pending ? t("saving") : t("recordGoal")}
             </Button>
           </div>
         </Drawer.Popup>
@@ -290,7 +283,7 @@ function EditGoalDrawer({
   onOpenChange,
   goal,
   matchId,
-  allPlayers,  // all players from both teams
+  allPlayers,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -298,15 +291,14 @@ function EditGoalDrawer({
   matchId: string
   allPlayers: Player[]
 }) {
+  const t = useTranslations("scoreboard")
   const router = useRouter()
   const [scorerId, setScorerId] = useState(goal.id ? "" : "")
   const [assisterId, setAssisterId] = useState("")
   const [pending, startTransition] = useTransition()
 
-  // Pre-fill on open
   useEffect(() => {
     if (open) {
-      // Find scorer by name match — we have name but not id in GoalEntry
       const scorer = allPlayers.find((p) => p.name === goal.scoredByName || p.displayName === goal.scoredByName)
       const assister = goal.assistedByName
         ? allPlayers.find((p) => p.name === goal.assistedByName || p.displayName === goal.assistedByName)
@@ -317,7 +309,7 @@ function EditGoalDrawer({
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSave() {
-    if (!scorerId) { toast.error("Select the scorer."); return }
+    if (!scorerId) { toast.error(t("selectScorer2")); return }
     startTransition(async () => {
       try {
         await updateGoal(goal.id, scorerId, assisterId || undefined)
@@ -347,14 +339,14 @@ function EditGoalDrawer({
         <Drawer.Backdrop className="fixed inset-0 z-40 bg-black/40" />
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
-          <h2 className="mb-4 text-lg font-semibold">Edit Goal</h2>
+          <h2 className="mb-4 text-lg font-semibold">{t("editGoal")}</h2>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label>Scorer</Label>
+              <Label>{t("scorer")}</Label>
               <Select value={scorerId} onValueChange={(v) => { if (v) setScorerId(v) }}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select scorer…">
-                    {(v: string) => allPlayers.find((p) => p.id === v)?.displayName ?? "Select scorer…"}
+                  <SelectValue placeholder={t("selectScorer")}>
+                    {(v: string) => allPlayers.find((p) => p.id === v)?.displayName ?? t("selectScorer")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -365,15 +357,15 @@ function EditGoalDrawer({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Assist (optional)</Label>
+              <Label>{t("assist")}</Label>
               <Select value={assisterId} onValueChange={(v) => setAssisterId(v ?? "")}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="No assist">
-                    {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.displayName ?? "No assist") : "No assist"}
+                  <SelectValue placeholder={t("noAssist")}>
+                    {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.displayName ?? t("noAssist")) : t("noAssist")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No assist</SelectItem>
+                  <SelectItem value="">{t("noAssist")}</SelectItem>
                   {assistCandidates.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.displayName}</SelectItem>
                   ))}
@@ -383,13 +375,13 @@ function EditGoalDrawer({
           </div>
           <div className="mt-6 flex gap-3">
             <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleDelete} disabled={pending}>
-              Remove
+              {t("remove")}
             </Button>
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button className="flex-1" onClick={handleSave} disabled={pending || !scorerId}>
-              {pending ? "Saving…" : "Save"}
+              {pending ? t("saving") : t("save")}
             </Button>
           </div>
         </Drawer.Popup>
@@ -401,6 +393,7 @@ function EditGoalDrawer({
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
 export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams }: Props) {
+  const t = useTranslations("scoreboard")
   const router = useRouter()
   const [drawerSide, setDrawerSide] = useState<"home" | "away" | null>(null)
   const [editGoal, setEditGoal] = useState<GoalEntry | null>(null)
@@ -418,7 +411,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
   if (!activeMatch) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground text-lg">No active match right now.</p>
+        <p className="text-muted-foreground text-lg">{t("noActiveMatch")}</p>
       </div>
     )
   }
@@ -466,14 +459,14 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-4 pb-2">
         <span className={cn("text-sm", inv ? "text-white/80" : "text-muted-foreground")}>
-          {activeMatch.roundNumber != null ? `Round ${activeMatch.roundNumber} · ` : ""}
+          {activeMatch.roundNumber != null ? `${t("round", { round: activeMatch.roundNumber })} · ` : ""}
           {activeMatch.homeTeamName} vs {activeMatch.awayTeamName}
         </span>
         <a
           href={`/sessions/${sessionId}`}
           className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
         >
-          ← Session
+          {t("sessionLink")}
         </a>
       </div>
 
@@ -493,7 +486,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
             </SelectTrigger>
             <SelectContent>
               {DURATION_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                <SelectItem key={o} value={String(o)}>{t("minOption", { min: o })}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -510,17 +503,17 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
         {/* Controls */}
         {timer.state === "idle" && (
           <Button size="sm" onClick={timer.start} className="gap-1.5">
-            ▶ Start
+            {t("start")}
           </Button>
         )}
         {isRunning && (
           <Button size="sm" variant="ghost" onClick={timer.pause}>
-            ⏸ Pause
+            {t("pause")}
           </Button>
         )}
         {isPaused && (
           <Button size="sm" onClick={timer.start} className="gap-1.5">
-            ▶ Resume
+            {t("resume")}
           </Button>
         )}
         {(isRunning || isPaused || isExpired) && (
@@ -532,14 +525,14 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
               ? "border-white/70 text-white bg-white/10 hover:bg-white/25"
               : isRunning || isPaused ? "border-border text-foreground" : ""}
           >
-            Reset
+            {t("reset")}
           </Button>
         )}
 
         {/* Expired label */}
         {isExpired && (
           <span className="font-bold text-white text-sm uppercase tracking-widest animate-pulse">
-            Time!
+            {t("timeUp")}
           </span>
         )}
       </div>
@@ -557,7 +550,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
-          aria-label={`Record goal for ${activeMatch.homeTeamName}`}
+          aria-label={t("recordGoalFor", { team: activeMatch.homeTeamName })}
         >
           <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
             {activeMatch.homeScore}
@@ -598,7 +591,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
-          aria-label={`Record goal for ${activeMatch.awayTeamName}`}
+          aria-label={t("recordGoalFor", { team: activeMatch.awayTeamName })}
         >
           <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
             {activeMatch.awayScore}

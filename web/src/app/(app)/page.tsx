@@ -1,9 +1,34 @@
 import Link from "next/link"
 import { auth } from "@/auth"
+import { getTranslations } from "next-intl/server"
 
 export default async function HomePage() {
   const session = await auth()
   const isLoggedIn = !!session?.user
+  const t = await getTranslations("home")
+
+  const features = [
+    { icon: "📅", title: t("feature1Title"), body: t("feature1Desc") },
+    { icon: "🎲", title: t("feature2Title"), body: t("feature2Desc") },
+    { icon: "⚽", title: t("feature3Title"), body: t("feature3Desc") },
+    { icon: "📊", title: t("feature4Title"), body: t("feature4Desc") },
+    { icon: "🏆", title: t("feature5Title"), body: t("feature5Desc") },
+    { icon: "🗓️", title: t("feature6Title"), body: t("feature6Desc") },
+  ]
+
+  const steps = [
+    { n: "1", icon: "📅", title: t("step1Title"), body: t("step1Desc") },
+    { n: "2", icon: "🎲", title: t("step2Title"), body: t("step2Desc") },
+    { n: "3", icon: "⚽", title: t("step3Title"), body: t("step3Desc") },
+    { n: "4", icon: "🏆", title: t("step4Title"), body: t("step4Desc") },
+  ]
+
+  const stats = [
+    { label: t("statGameDays"), value: t("statGameDaysFreq") },
+    { label: t("statTeamSize"), value: t("statTeamSizeVal") },
+    { label: t("statFormats"), value: t("statFormatsVal") },
+    { label: t("statRecords"), value: t("statRecordsVal") },
+  ]
 
   return (
     <div className="space-y-20 pb-20 -mt-6">
@@ -28,29 +53,28 @@ export default async function HomePage() {
         <div className="relative space-y-6 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white/80 backdrop-blur-sm">
             <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-            Season 2026 is live
+            {t("seasonLive", { year: new Date().getFullYear() })}
           </div>
           <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-6xl leading-none">
-            Your Football<br />
-            <span style={{ color: "oklch(0.78 0.18 145)" }}>Crew App</span>
+            {t("headline1")}<br />
+            <span style={{ color: "oklch(0.78 0.18 145)" }}>{t("headline2")}</span>
           </h1>
           <p className="text-lg text-white/70 leading-relaxed">
-            Schedule game days, form teams, track every goal and assist,
-            and keep season standings — all in one place.
+            {t("subline")}
           </p>
-          <div className="flex flex-wrap justify-center gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 pt-2">
             <Link
               href={isLoggedIn ? "/schedule" : "/login"}
               className="rounded-lg px-7 py-3 text-sm font-bold transition-all shadow-lg hover:scale-105"
               style={{ background: "oklch(0.60 0.18 150)", color: "white" }}
             >
-              {isLoggedIn ? "Open Schedule →" : "Sign in →"}
+              {isLoggedIn ? t("ctaSchedule") : t("ctaSignIn")}
             </Link>
             <Link
               href="/leaderboard"
               className="rounded-lg border border-white/30 bg-white/10 px-7 py-3 text-sm font-semibold text-white hover:bg-white/20 transition-all backdrop-blur-sm"
             >
-              Leaderboard
+              {t("statGameDays")}
             </Link>
           </div>
         </div>
@@ -58,12 +82,7 @@ export default async function HomePage() {
 
       {/* ── Stats strip ───────────────────────────────────────────────── */}
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Game Days", value: "weekly" },
-          { label: "Team Size", value: "4 to ∞" },
-          { label: "Formats", value: "2 or 3 teams" },
-          { label: "Records", value: "goals, assists & points" },
-        ].map(({ label, value }) => (
+        {stats.map(({ label, value }) => (
           <div key={label}
             className="rounded-xl border border-primary/20 bg-card p-4 text-center shadow-sm"
           >
@@ -75,17 +94,10 @@ export default async function HomePage() {
 
       {/* ── Features ─────────────────────────────────────────────────── */}
       <section>
-        <h2 className="text-2xl font-extrabold mb-2">Everything your crew needs</h2>
-        <p className="text-muted-foreground text-sm mb-8">Built for casual weekly football. No fuss, just football.</p>
+        <h2 className="text-2xl font-extrabold mb-2">{t("featuresHeadline")}</h2>
+        <p className="text-muted-foreground text-sm mb-8">{t("featuresSubline")}</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[
-            { icon: "📅", title: "Game Day Scheduling", body: "Plan your next match with a single tap. Players register themselves until the cutoff — no group-chat chaos." },
-            { icon: "🎲", title: "Smart Team Formation", body: "Shuffle teams randomly or build balanced sides based on each player's season rating." },
-            { icon: "⚽", title: "Live Scoreboard", body: "Tap to record goals. Open the scoreboard on any screen and watch it update live." },
-            { icon: "📊", title: "Season Statistics", body: "Points for won matches, goals, assists and rankings — automatically computed after every game day." },
-            { icon: "🏆", title: "Tournament Mode", body: "Three teams? Run a full round-robin tournament with automatic standings and tie-breaking." },
-            { icon: "🗓️", title: "Full History", body: "Every game day archived. Export as Excel or JSON at any time." },
-          ].map(({ icon, title, body }) => (
+          {features.map(({ icon, title, body }) => (
             <div key={title}
               className="group relative rounded-xl border border-border bg-card p-5 shadow-sm hover:shadow-md hover:border-primary/40 transition-all overflow-hidden"
             >
@@ -102,19 +114,13 @@ export default async function HomePage() {
 
       {/* ── How it works ─────────────────────────────────────────────── */}
       <section className="rounded-2xl overflow-hidden border border-border shadow-sm">
-        {/* Header bar */}
         <div className="px-6 py-4 text-white font-bold text-lg"
           style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
         >
-          How a game day works
+          {t("howHeadline")}
         </div>
         <div className="divide-y divide-border">
-          {[
-            { n: "1", icon: "📅", title: "Schedule", body: "The organizer creates a game day. Players register themselves — or the organizer adds them." },
-            { n: "2", icon: "🎲", title: "Form teams", body: "Choose random or balanced team formation with one click. Teams are named automatically." },
-            { n: "3", icon: "⚽", title: "Play", body: "Start the match. Tap the scoreboard to record goals and assists as the game unfolds." },
-            { n: "4", icon: "🏆", title: "End the day", body: "Close the session. Points, goals and assists are tallied and the leaderboard updates." },
-          ].map(({ n, icon, title, body }, i) => (
+          {steps.map(({ n, icon, title, body }, i) => (
             <div key={n} className={`flex items-start gap-5 px-6 py-5 ${i % 2 === 1 ? "bg-muted/30" : "bg-card"}`}>
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white text-sm font-bold shadow-sm"
                 style={{ background: "oklch(0.46 0.16 150)" }}
@@ -139,16 +145,16 @@ export default async function HomePage() {
         />
         <div className="relative space-y-4">
           <div className="text-4xl">🏟️</div>
-          <h2 className="text-2xl font-extrabold">Ready to kick off?</h2>
+          <h2 className="text-2xl font-extrabold">{t("ctaHeadline")}</h2>
           <p className="text-white/70 max-w-md mx-auto text-sm">
-            Join your crew, register for the next game day, and start climbing the leaderboard.
+            {t("ctaDesc")}
           </p>
           <Link
             href={isLoggedIn ? "/schedule" : "/login"}
             className="inline-block rounded-lg px-8 py-3 text-sm font-bold transition-all hover:scale-105 shadow-lg"
             style={{ background: "oklch(0.60 0.18 150)", color: "white" }}
           >
-            {isLoggedIn ? "Open Schedule →" : "Sign in →"}
+            {isLoggedIn ? t("ctaSchedule") : t("ctaSignIn")}
           </Link>
         </div>
       </section>

@@ -23,6 +23,7 @@ import { setFeeStatus } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { SportsTable } from "@/components/app/sports-table"
+import { useTranslations } from "next-intl"
 
 type PlayerRow = {
   id: string
@@ -38,6 +39,7 @@ export function MembershipClient({
   players: PlayerRow[]
   defaultYear: number
 }) {
+  const t = useTranslations("admin.membership")
   const [year, setYear] = useState(defaultYear)
   const [filter, setFilter] = useState<"ALL" | "PAID" | "NOT_PAID">("ALL")
   const [localStatus, setLocalStatus] = useState<Record<string, string>>({})
@@ -66,7 +68,7 @@ export function MembershipClient({
         await setFeeStatus(p.id, year, next as "PAID" | "NOT_PAID")
         setLocalStatus((s) => ({ ...s, [key]: next }))
         setLocalPaidAt((s) => ({ ...s, [key]: next === "PAID" ? new Date().toISOString() : null }))
-        toast.success(`${p.name} marked as ${next === "PAID" ? "paid" : "not paid"}.`)
+        toast.success(t("markedAs", { name: p.name, status: next === "PAID" ? t("paid") : t("notPaid") }))
       } catch (e) {
         toast.error((e as Error).message)
       } finally {
@@ -87,9 +89,9 @@ export function MembershipClient({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold mb-1">Membership Fees</h1>
+        <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
         <p className="text-muted-foreground">
-          {paidCount} of {players.length} players paid for {year}.
+          {t("paidCount", { paid: paidCount, total: players.length, year })}
         </p>
       </div>
 
@@ -110,23 +112,23 @@ export function MembershipClient({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All</SelectItem>
-            <SelectItem value="PAID">Paid</SelectItem>
-            <SelectItem value="NOT_PAID">Not paid</SelectItem>
+            <SelectItem value="ALL">{t("filterAll")}</SelectItem>
+            <SelectItem value="PAID">{t("filterPaid")}</SelectItem>
+            <SelectItem value="NOT_PAID">{t("filterNotPaid")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No players match the filter.</p>
+        <p className="text-sm text-muted-foreground">{t("noMatch")}</p>
       ) : (
-        <SportsTable title={`Membership ${year}`}>
+        <SportsTable title={t("membershipYear", { year })}>
           <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Player</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date paid</TableHead>
+              <TableHead>{t("player")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
+              <TableHead>{t("datePaid")}</TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -144,9 +146,9 @@ export function MembershipClient({
                   </TableCell>
                   <TableCell>
                     {status === "PAID" ? (
-                      <Badge variant="secondary">Paid</Badge>
+                      <Badge variant="secondary">{t("paid")}</Badge>
                     ) : (
-                      <Badge variant="outline">Not paid</Badge>
+                      <Badge variant="outline">{t("notPaid")}</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
@@ -159,7 +161,7 @@ export function MembershipClient({
                       disabled={busy}
                       onClick={() => handleToggle(p)}
                     >
-                      {busy ? "…" : status === "PAID" ? "Mark not paid" : "Mark paid"}
+                      {busy ? "…" : status === "PAID" ? t("markNotPaid") : t("markPaid")}
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -33,6 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { updateProfile, updateProfileAdmin, changePassword } from "./actions"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 
 type PlayerData = {
   id: string
@@ -80,17 +81,18 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 }
 
 function StatsCard({ data }: { data: NonNullable<LifetimeStat> }) {
+  const t = useTranslations("player")
   return (
     <Card>
       <CardContent className="pt-4">
-        <StatRow label="Game days played" value={data.sessionsPlayed} />
-        <StatRow label="Matches played" value={data.matchesPlayed} />
-        <StatRow label="Goals" value={data.goals} />
-        <StatRow label="Assists" value={data.assists} />
-        <StatRow label="Score (G+A)" value={data.score} />
-        <StatRow label="Points" value={data.points} />
+        <StatRow label={t("gameDaysPlayed")} value={data.sessionsPlayed} />
+        <StatRow label={t("matchesPlayed")} value={data.matchesPlayed} />
+        <StatRow label={t("goals")} value={data.goals} />
+        <StatRow label={t("assists")} value={data.assists} />
+        <StatRow label={t("scoreGA")} value={data.score} />
+        <StatRow label={t("points")} value={data.points} />
         <StatRow
-          label="Pts / game day"
+          label={t("ptsPerGameDay")}
           value={data.sessionsPlayed > 0 ? (data.points / data.sessionsPlayed).toFixed(1) : "—"}
         />
       </CardContent>
@@ -107,6 +109,7 @@ function EditProfileDialog({
   canEdit: boolean
   isOrganizer: boolean
 }) {
+  const t = useTranslations("player")
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [form, setForm] = useState({
@@ -127,14 +130,14 @@ function EditProfileDialog({
 
   function handleSave() {
     if (!form.firstName.trim() || !form.lastName.trim()) {
-      toast.error("First and last name are required.")
+      toast.error(t("nameRequired"))
       return
     }
     startTransition(async () => {
       try {
         await updateProfile(player.id, form)
         if (isOrganizer) await updateProfileAdmin(player.id, adminForm)
-        toast.success("Profile updated.")
+        toast.success(t("profileUpdated"))
         setOpen(false)
       } catch (e) { toast.error((e as Error).message) }
     })
@@ -142,15 +145,15 @@ function EditProfileDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>Edit Profile</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>{t("editProfile")}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Edit Profile</DialogTitle>
+          <DialogTitle>{t("editProfile")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="firstName">First name *</Label>
+              <Label htmlFor="firstName">{t("firstName")}</Label>
               <Input
                 id="firstName"
                 value={form.firstName}
@@ -158,7 +161,7 @@ function EditProfileDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lastName">Last name *</Label>
+              <Label htmlFor="lastName">{t("lastName")}</Label>
               <Input
                 id="lastName"
                 value={form.lastName}
@@ -167,7 +170,7 @@ function EditProfileDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="nickname">Nickname</Label>
+            <Label htmlFor="nickname">{t("nickname")}</Label>
             <Input
               id="nickname"
               value={form.nickname}
@@ -175,7 +178,7 @@ function EditProfileDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dob">Date of birth</Label>
+            <Label htmlFor="dob">{t("dateOfBirth")}</Label>
             <Input
               id="dob"
               type="date"
@@ -184,7 +187,7 @@ function EditProfileDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="street">Street</Label>
+            <Label htmlFor="street">{t("street")}</Label>
             <Input
               id="street"
               value={form.addressStreet}
@@ -193,7 +196,7 @@ function EditProfileDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="postal">Postal code</Label>
+              <Label htmlFor="postal">{t("postalCode")}</Label>
               <Input
                 id="postal"
                 value={form.addressPostalCode}
@@ -201,7 +204,7 @@ function EditProfileDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="city">City</Label>
+              <Label htmlFor="city">{t("city")}</Label>
               <Input
                 id="city"
                 value={form.addressCity}
@@ -212,9 +215,9 @@ function EditProfileDialog({
           {isOrganizer && (
             <>
               <div className="border-t pt-3 space-y-3">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Organizer fields</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("organizerFields")}</p>
                 <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">{t("email")}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -223,16 +226,16 @@ function EditProfileDialog({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="role">Role</Label>
+                  <Label htmlFor="role">{t("role")}</Label>
                   <Select value={adminForm.role} onValueChange={(v) => { if (v) setAdminForm((f) => ({ ...f, role: v })) }}>
                     <SelectTrigger id="role" className="w-full">
                       <SelectValue>
-                        {(v: string) => v === "ORGANIZER" ? "Organizer" : "Player"}
+                        {(v: string) => v === "ORGANIZER" ? t("organizer") : t("player")}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="PLAYER">Player</SelectItem>
-                      <SelectItem value="ORGANIZER">Organizer</SelectItem>
+                      <SelectItem value="PLAYER">{t("player")}</SelectItem>
+                      <SelectItem value="ORGANIZER">{t("organizer")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -242,7 +245,7 @@ function EditProfileDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={pending}>
-            {pending ? "Saving…" : "Save"}
+            {pending ? t("saving") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -257,6 +260,7 @@ function ChangePasswordDialog({
   playerId: string
   canEdit: boolean
 }) {
+  const t = useTranslations("player")
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [newPassword, setNewPassword] = useState("")
@@ -265,12 +269,12 @@ function ChangePasswordDialog({
   if (!canEdit) return null
 
   function handleSave() {
-    if (newPassword.length < 8) { toast.error("Password must be at least 8 characters."); return }
-    if (newPassword !== confirm) { toast.error("Passwords do not match."); return }
+    if (newPassword.length < 8) { toast.error(t("passwordTooShort")); return }
+    if (newPassword !== confirm) { toast.error(t("passwordMismatch")); return }
     startTransition(async () => {
       try {
         await changePassword(playerId, { newPassword })
-        toast.success("Password changed.")
+        toast.success(t("passwordChanged"))
         setOpen(false)
         setNewPassword("")
         setConfirm("")
@@ -280,24 +284,24 @@ function ChangePasswordDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>Change Password</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>{t("changePassword")}</DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Change Password</DialogTitle>
+          <DialogTitle>{t("changePassword")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="newPassword">New password</Label>
+            <Label htmlFor="newPassword">{t("newPassword")}</Label>
             <Input
               id="newPassword"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Min. 8 characters"
+              placeholder={t("passwordHint")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="confirm">Confirm password</Label>
+            <Label htmlFor="confirm">{t("confirmPassword")}</Label>
             <Input
               id="confirm"
               type="password"
@@ -308,7 +312,7 @@ function ChangePasswordDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleSave} disabled={pending || !newPassword || !confirm}>
-            {pending ? "Saving…" : "Change Password"}
+            {pending ? t("saving") : t("changePassword")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -337,6 +341,7 @@ export function PlayerClient({
   isOrganizer: boolean
   canEdit: boolean
 }) {
+  const t = useTranslations("player")
   const [selectedYear, setSelectedYear] = useState(
     String(seasonStats[0]?.year ?? seasons[0]?.year ?? currentYear),
   )
@@ -360,7 +365,7 @@ export function PlayerClient({
             <h1 className="text-2xl font-bold">{displayName}</h1>
             <p className="text-muted-foreground text-sm">{player.email}</p>
             {player.role === "ORGANIZER" && (
-              <Badge className="mt-1">Organizer</Badge>
+              <Badge className="mt-1">{t("organizerBadge")}</Badge>
             )}
           </div>
         </div>
@@ -370,19 +375,19 @@ export function PlayerClient({
         </div>
       </div>
 
-      {/* Personal details (visible to own user or organizer) */}
+      {/* Personal details */}
       {canEdit && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Personal details</CardTitle>
+            <CardTitle className="text-base">{t("personalDetails")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
             {player.dateOfBirth && (
-              <StatRow label="Date of birth" value={format(new Date(player.dateOfBirth), "d MMMM yyyy")} />
+              <StatRow label={t("dateOfBirth")} value={format(new Date(player.dateOfBirth), "d MMMM yyyy")} />
             )}
             {(player.addressStreet || player.addressCity || player.addressPostalCode) && (
               <StatRow
-                label="Address"
+                label={t("address")}
                 value={[player.addressStreet, player.addressPostalCode, player.addressCity]
                   .filter(Boolean)
                   .join(", ")}
@@ -394,17 +399,17 @@ export function PlayerClient({
 
       {/* Stats */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Statistics</h2>
+        <h2 className="text-lg font-semibold mb-3">{t("statistics")}</h2>
         <Tabs defaultValue="lifetime">
           <TabsList className="mb-4">
-            <TabsTrigger value="lifetime">Lifetime</TabsTrigger>
-            <TabsTrigger value="season">By Season</TabsTrigger>
+            <TabsTrigger value="lifetime">{t("lifetimeStats")}</TabsTrigger>
+            <TabsTrigger value="season">{t("bySeason")}</TabsTrigger>
           </TabsList>
           <TabsContent value="lifetime">
             {lifetimeStats ? (
               <StatsCard data={lifetimeStats} />
             ) : (
-              <p className="text-sm text-muted-foreground">No stats recorded yet.</p>
+              <p className="text-sm text-muted-foreground">{t("noStats")}</p>
             )}
           </TabsContent>
           <TabsContent value="season" className="space-y-4">
@@ -423,11 +428,11 @@ export function PlayerClient({
                 {selectedStat ? (
                   <StatsCard data={selectedStat} />
                 ) : (
-                  <p className="text-sm text-muted-foreground">No stats for {selectedYear}.</p>
+                  <p className="text-sm text-muted-foreground">{t("noStatsForYear", { year: selectedYear })}</p>
                 )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">No seasons yet.</p>
+              <p className="text-sm text-muted-foreground">{t("noSeasons")}</p>
             )}
           </TabsContent>
         </Tabs>
@@ -437,13 +442,13 @@ export function PlayerClient({
       {(isCurrentUser || isOrganizer) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Membership Fee {currentYear}</CardTitle>
+            <CardTitle className="text-base">{t("membershipFee", { year: currentYear })}</CardTitle>
           </CardHeader>
           <CardContent>
             {currentFee ? (
               currentFee.status === "PAID" ? (
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">Paid</Badge>
+                  <Badge variant="secondary">{t("paid")}</Badge>
                   {currentFee.paidAt && (
                     <span className="text-sm text-muted-foreground">
                       on {format(new Date(currentFee.paidAt), "d MMM yyyy")}
@@ -451,20 +456,20 @@ export function PlayerClient({
                   )}
                 </div>
               ) : (
-                <Badge variant="outline">Not paid</Badge>
+                <Badge variant="outline">{t("notPaid")}</Badge>
               )
             ) : (
-              <Badge variant="outline">Not paid</Badge>
+              <Badge variant="outline">{t("notPaid")}</Badge>
             )}
             {fees.length > 1 && (
               <div className="mt-4">
-                <p className="text-sm font-medium mb-2">History</p>
+                <p className="text-sm font-medium mb-2">{t("history")}</p>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date paid</TableHead>
+                      <TableHead>{t("year")}</TableHead>
+                      <TableHead>{t("status")}</TableHead>
+                      <TableHead>{t("datePaid")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -473,9 +478,9 @@ export function PlayerClient({
                         <TableCell>{f.year}</TableCell>
                         <TableCell>
                           {f.status === "PAID" ? (
-                            <Badge variant="secondary">Paid</Badge>
+                            <Badge variant="secondary">{t("paid")}</Badge>
                           ) : (
-                            <Badge variant="outline">Not paid</Badge>
+                            <Badge variant="outline">{t("notPaid")}</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">

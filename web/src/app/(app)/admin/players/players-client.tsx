@@ -18,8 +18,9 @@ import { SportsTable } from "@/components/app/sports-table"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { createGuest, createPlayer, deletePlayer } from "./actions"
+import { createGuest, createPlayer, deletePlayer, setEmailNotifications } from "./actions"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 
 type Player = {
   id: string
@@ -28,20 +29,22 @@ type Player = {
   email: string
   role: string
   isGuest: boolean
+  emailNotifications: boolean
 }
 
 function CreateGuestDialog() {
+  const t = useTranslations("admin.players")
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
 
   function handleCreate() {
-    if (!firstName.trim()) { toast.error("First name is required."); return }
+    if (!firstName.trim()) { toast.error(t("firstNameRequired")); return }
     startTransition(async () => {
       try {
         await createGuest(firstName, lastName)
-        toast.success("Guest created.")
+        toast.success(t("guestCreated"))
         setFirstName(""); setLastName(""); setOpen(false)
       } catch (e) { toast.error((e as Error).message) }
     })
@@ -49,25 +52,23 @@ function CreateGuestDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>+ Add guest</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>{t("addGuest")}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
-        <DialogHeader><DialogTitle>Add guest player</DialogTitle></DialogHeader>
-        <p className="text-xs text-muted-foreground">
-          Guests have no login. They can be assigned to teams and have goals/assists recorded.
-        </p>
+        <DialogHeader><DialogTitle>{t("addGuestTitle")}</DialogTitle></DialogHeader>
+        <p className="text-xs text-muted-foreground">{t("addGuestDesc")}</p>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="g-fn">First name *</Label>
-            <Input id="g-fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="e.g. Thomas" />
+            <Label htmlFor="g-fn">{t("firstName")}</Label>
+            <Input id="g-fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={t("firstNamePlaceholder")} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="g-ln">Last name</Label>
-            <Input id="g-ln" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="optional" />
+            <Label htmlFor="g-ln">{t("lastName")}</Label>
+            <Input id="g-ln" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={t("lastNameOptional")} />
           </div>
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={pending || !firstName.trim()}>
-            {pending ? "Creating…" : "Create guest"}
+            {pending ? t("creating") : t("createGuest")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -76,6 +77,7 @@ function CreateGuestDialog() {
 }
 
 function CreatePlayerDialog() {
+  const t = useTranslations("admin.players")
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [form, setForm] = useState({ email: "", firstName: "", lastName: "", password: "" })
@@ -86,7 +88,7 @@ function CreatePlayerDialog() {
     startTransition(async () => {
       try {
         await createPlayer(form)
-        toast.success("Player created.")
+        toast.success(t("playerCreated"))
         setForm({ email: "", firstName: "", lastName: "", password: "" }); setOpen(false)
       } catch (e) { toast.error((e as Error).message) }
     })
@@ -94,32 +96,32 @@ function CreatePlayerDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>+ Add player</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" />}>{t("addPlayer")}</DialogTrigger>
       <DialogContent className="sm:max-w-xs">
-        <DialogHeader><DialogTitle>Add player</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("addPlayerTitle")}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label>Email *</Label>
+            <Label>{t("emailRequired")}</Label>
             <Input type="email" value={form.email} onChange={f("email")} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
-              <Label>First name *</Label>
+              <Label>{t("firstNameRequired2")}</Label>
               <Input value={form.firstName} onChange={f("firstName")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Last name *</Label>
+              <Label>{t("lastNameRequired")}</Label>
               <Input value={form.lastName} onChange={f("lastName")} />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Password *</Label>
-            <Input type="password" value={form.password} onChange={f("password")} placeholder="Min. 8 chars" />
+            <Label>{t("passwordRequired")}</Label>
+            <Input type="password" value={form.password} onChange={f("password")} placeholder={t("passwordHint")} />
           </div>
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={pending}>
-            {pending ? "Creating…" : "Create player"}
+            {pending ? t("creating") : t("createPlayer")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -128,8 +130,10 @@ function CreatePlayerDialog() {
 }
 
 export function PlayersClient({ players }: { players: Player[] }) {
+  const t = useTranslations("admin.players")
   const [pending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   function handleDelete(id: string, name: string) {
     if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return
@@ -143,29 +147,41 @@ export function PlayersClient({ players }: { players: Player[] }) {
     })
   }
 
+  function handleToggleEmail(id: string, current: boolean) {
+    setTogglingId(id)
+    startTransition(async () => {
+      try {
+        await setEmailNotifications(id, !current)
+        toast.success(!current ? "E-Mail-Benachrichtigungen aktiviert." : "E-Mail-Benachrichtigungen deaktiviert.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setTogglingId(null) }
+    })
+  }
+
   const regular = players.filter((p) => !p.isGuest)
   const guests = players.filter((p) => p.isGuest)
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold mb-1">Players</h1>
-        <p className="text-muted-foreground text-sm">Manage registered players and guest accounts.</p>
+        <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
+        <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
       </div>
 
       {/* Regular players */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Players ({regular.length})</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("registeredPlayers", { count: regular.length })}</h2>
           <CreatePlayerDialog />
         </div>
-        <SportsTable title="Registered Players">
+        <SportsTable title={t("registeredPlayersTitle")}>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>{t("name")}</TableHead>
+                <TableHead>{t("email")}</TableHead>
+                <TableHead>{t("role")}</TableHead>
+                <TableHead className="text-center">✉ E-Mails</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -180,8 +196,18 @@ export function PlayersClient({ players }: { players: Player[] }) {
                   <TableCell className="text-muted-foreground">{p.email}</TableCell>
                   <TableCell>
                     {p.role === "ORGANIZER"
-                      ? <Badge>Organizer</Badge>
-                      : <Badge variant="secondary">Player</Badge>}
+                      ? <Badge>{t("organizer")}</Badge>
+                      : <Badge variant="secondary">{t("player")}</Badge>}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      title={p.emailNotifications ? "E-Mails deaktivieren" : "E-Mails aktivieren"}
+                      disabled={pending && togglingId === p.id}
+                      onClick={() => handleToggleEmail(p.id, p.emailNotifications)}
+                      className="text-base leading-none transition-opacity hover:opacity-70 disabled:opacity-40"
+                    >
+                      {p.emailNotifications ? "🔔" : "🔕"}
+                    </button>
                   </TableCell>
                   <TableCell className="text-right">
                     <button
@@ -189,7 +215,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
                       disabled={pending && deletingId === p.id}
                       onClick={() => handleDelete(p.id, `${p.firstName} ${p.lastName}`)}
                     >
-                      Delete
+                      {t("delete")}
                     </button>
                   </TableCell>
                 </TableRow>
@@ -202,18 +228,18 @@ export function PlayersClient({ players }: { players: Player[] }) {
       {/* Guest accounts */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Guests ({guests.length})</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("guests", { count: guests.length })}</h2>
           <CreateGuestDialog />
         </div>
         {guests.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No guest accounts yet.</p>
+          <p className="text-sm text-muted-foreground">{t("noGuests")}</p>
         ) : (
-          <SportsTable title="Guest Accounts">
+          <SportsTable title={t("guestAccounts")}>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Profile</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("profile")}</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -223,7 +249,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
                     <TableCell className="font-medium">{p.firstName} {p.lastName}</TableCell>
                     <TableCell>
                       <Link href={`/players/${p.id}`} className="text-xs text-primary hover:underline">
-                        View stats ↗
+                        {t("viewStats")}
                       </Link>
                     </TableCell>
                     <TableCell className="text-right">
@@ -232,7 +258,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
                         disabled={pending && deletingId === p.id}
                         onClick={() => handleDelete(p.id, `${p.firstName} ${p.lastName}`)}
                       >
-                        Delete
+                        {t("delete")}
                       </button>
                     </TableCell>
                   </TableRow>

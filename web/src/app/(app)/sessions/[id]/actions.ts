@@ -5,7 +5,328 @@ import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { computeAndSaveStats } from "@/lib/stats"
 import type { PointsScope } from "@/lib/types"
-import { nextTeamNames, optimalPartition2 } from "@/lib/game-logic"
+import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
+import type { TeamRef, MatchRef } from "@/lib/game-logic"
+import { sendGameDayInvitation, buildDefaultInvitation } from "@/lib/email"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
+
+export async function getDefaultInvitation(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const [defaults, players, usedQuotes] = await Promise.all([
+    Promise.resolve(buildDefaultInvitation({ id: session.id, date: session.date })),
+    db.player.findMany({
+      where: { passwordHash: { not: null } },
+      select: { id: true, firstName: true, lastName: true, email: true, emailNotifications: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    }),
+    db.invitationQuote.findMany({
+      orderBy: { usedAt: "desc" },
+      take: 20,
+      select: { quote: true, author: true, usedAt: true },
+    }),
+  ])
+
+  return {
+    ...defaults,
+    players: players.map((p: { id: string; firstName: string; lastName: string; email: string; emailNotifications: boolean }) => ({
+      id: p.id,
+      name: `${p.firstName} ${p.lastName}`.trim(),
+      email: p.email,
+      emailNotifications: p.emailNotifications,
+    })),
+    usedQuotes,
+  }
+}
+
+export async function sendInvitation(
+  sessionId: string,
+  subject: string,
+  body: string,
+  recipientIds: string[],
+  quote?: { text: string; author: string },
+) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const players = await db.player.findMany({
+    where: { id: { in: recipientIds }, passwordHash: { not: null } },
+    select: { email: true },
+  })
+  const emails = players.map((p) => p.email).filter(Boolean) as string[]
+
+  const count = await sendGameDayInvitation(
+    { id: session.id, date: session.date },
+    subject,
+    body,
+    emails,
+    quote,
+  )
+  return count
+}
+
+// ─── Summary helpers ──────────────────────────────────────────────────────────
+
+type SummarySession = {
+  date: Date
+  teams: {
+    id: string
+    name: string
+    players: { playerId: string; player: { firstName: string; lastName: string; nickname: string | null } }[]
+  }[]
+  matches: {
+    roundNumber: number | null
+    homeTeamId: string
+    awayTeamId: string
+    homeScore: number
+    awayScore: number
+    status: string
+    homeTeam: { name: string }
+    awayTeam: { name: string }
+    goals: { scoredByPlayerId: string; assistedByPlayerId: string | null }[]
+  }[]
+}
+
+function buildSummaryText(session: SummarySession, dateStr: string): string {
+  const teamRefs: TeamRef[] = session.teams.map((t) => ({
+    id: t.id,
+    playerIds: t.players.map((tp) => tp.playerId),
+  }))
+
+  const playersByTeamId = new Map(session.teams.map((t) => [t.id, t.players.map((tp) => tp.playerId)]))
+  const completedMatches = session.matches.filter((m) => m.status === "COMPLETED")
+  const matchRefs: MatchRef[] = completedMatches.map((m) => ({
+    id: `${m.homeTeamId}-${m.awayTeamId}`,
+    roundNumber: m.roundNumber,
+    homeTeamId: m.homeTeamId,
+    awayTeamId: m.awayTeamId,
+    homeScore: m.homeScore,
+    awayScore: m.awayScore,
+    homePlayers: playersByTeamId.get(m.homeTeamId) ?? [],
+    awayPlayers: playersByTeamId.get(m.awayTeamId) ?? [],
+    goals: m.goals,
+  }))
+
+  const playerName = (tp: { player: { firstName: string; lastName: string; nickname: string | null } }) =>
+    tp.player.nickname ?? tp.player.firstName
+
+  const nameById = new Map(
+    session.teams.flatMap((t) => t.players.map((tp) => [tp.playerId, playerName(tp)]))
+  )
+
+  const deltas = computePlayerDeltas(teamRefs, matchRefs, "all")
+  const sorted = [...deltas].sort((a, b) => {
+    const scoreA = a.goals + a.assists + a.points
+    const scoreB = b.goals + b.assists + b.points
+    if (scoreB !== scoreA) return scoreB - scoreA
+    if (b.goals !== a.goals) return b.goals - a.goals
+    return b.assists - a.assists
+  })
+
+  const lines: string[] = []
+  lines.push(`Spieltag-Zusammenfassung — ${dateStr}`)
+  lines.push("")
+
+  lines.push("=== Ergebnisse ===")
+  for (const m of completedMatches) {
+    const prefix = m.roundNumber != null ? `Runde ${m.roundNumber}  ` : ""
+    lines.push(`${prefix}${m.homeTeam.name} ${m.homeScore}:${m.awayScore} ${m.awayTeam.name}`)
+  }
+  lines.push("")
+
+  lines.push("=== Spieler-Statistiken ===")
+  sorted.forEach((row, i) => {
+    const name = nameById.get(row.playerId) ?? row.playerId
+    lines.push(`${i + 1}. ${name.padEnd(20)} ${row.goals}T  ${row.assists}V  ${row.goals + row.assists} Score  ${row.points} Pkt`)
+  })
+  lines.push("")
+
+  if (sorted.length > 0 && (sorted[0].goals + sorted[0].assists + sorted[0].points) > 0) {
+    const mvp = sorted[0]
+    const mvpName = nameById.get(mvp.playerId) ?? mvp.playerId
+    lines.push(`👑 MVP: ${mvpName} (${mvp.goals} Tore, ${mvp.assists} Vorlagen, ${mvp.points} Punkte)`)
+    lines.push("")
+  }
+
+  lines.push("Empor Lichtenberg")
+  return lines.join("\n")
+}
+
+export async function getSummaryEmailDefaults(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      teams: {
+        include: {
+          players: {
+            include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
+          },
+        },
+      },
+      matches: {
+        where: { status: "COMPLETED" },
+        include: {
+          homeTeam: { select: { id: true, name: true } },
+          awayTeam: { select: { id: true, name: true } },
+          goals: { select: { scoredByPlayerId: true, assistedByPlayerId: true } },
+        },
+        orderBy: [{ roundNumber: "asc" }, { startedAt: "asc" }],
+      },
+    },
+  })
+  if (!session) throw new Error("Session not found.")
+
+  const playerIdsOnTeam = new Set(session.teams.flatMap((t) => t.players.map((tp) => tp.playerId)))
+  const players = await db.player.findMany({
+    where: { id: { in: [...playerIdsOnTeam] }, passwordHash: { not: null } },
+    select: { id: true, firstName: true, lastName: true, nickname: true, email: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+  })
+
+  const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
+  const subject = `📊 Spieltag-Zusammenfassung – ${dateStr}`
+  const body = buildSummaryText(session, dateStr)
+
+  return {
+    subject,
+    body,
+    players: players.map((p) => ({
+      id: p.id,
+      name: p.nickname
+        ? `${p.firstName} ${p.lastName} (${p.nickname})`
+        : `${p.firstName} ${p.lastName}`.trim(),
+      email: p.email,
+    })),
+  }
+}
+
+export async function sendSummaryEmail(
+  sessionId: string,
+  subject: string,
+  body: string,
+  recipientIds: string[],
+) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const players = await db.player.findMany({
+    where: { id: { in: recipientIds }, passwordHash: { not: null } },
+    select: { email: true },
+  })
+  const emails = players.map((p) => p.email).filter(Boolean) as string[]
+
+  return sendGameDayInvitation({ id: session.id, date: session.date }, subject, body, emails)
+}
+
+// ─── Status-Update Email ──────────────────────────────────────────────────────
+
+export async function getStatusUpdateDefaults(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      registrations: {
+        where: { status: "REGISTERED" },
+        include: {
+          player: { select: { id: true, firstName: true, lastName: true, nickname: true } },
+        },
+        orderBy: { registeredAt: "asc" },
+      },
+    },
+  })
+  if (!session) throw new Error("Session not found.")
+
+  const players = await db.player.findMany({
+    where: { passwordHash: { not: null } },
+    select: { id: true, firstName: true, lastName: true, email: true, emailNotifications: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+  })
+
+  const registered = session.registrations.map((r) => r.player)
+  const count = registered.length
+  const MIN_PLAYERS = 8
+
+  // Build abbreviated name list: "Andreas B., Volker W., ..."
+  const nameList = registered
+    .map((p) => {
+      const display = p.nickname ?? p.firstName
+      const lastInitial = p.lastName ? ` ${p.lastName[0].toUpperCase()}.` : ""
+      return `${display}${lastInitial}`
+    })
+    .join(", ")
+
+  const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+  const link = `${appUrl}/sessions/${session.id}`
+
+  const trafficLight = count >= MIN_PLAYERS ? "🟢" : count >= MIN_PLAYERS - 3 ? "🟡" : "🔴"
+
+  const subject = `${trafficLight} Spieltag ${dateStr} – ${count} von ${MIN_PLAYERS} Spielern`
+
+  const body = `Hey Kicker,
+
+kurzes Update zum Spieltag am ${dateStr}:
+
+${trafficLight} Aktuell ${count} von mindestens ${MIN_PLAYERS} Spielern angemeldet.
+${count >= MIN_PLAYERS ? "Der Spieltag findet voraussichtlich statt! 🎉" : count >= MIN_PLAYERS - 3 ? "Wir brauchen noch ein paar Spieler – bitte meldet euch an!" : "Leider zu wenig Spieler – der Spieltag droht auszufallen. Bitte meldet euch an!"}
+
+Angemeldete Spieler (${count}):
+${nameList || "– noch niemand –"}
+
+${link}
+
+Empor Lichtenberg`
+
+  return {
+    subject,
+    body,
+    registeredCount: count,
+    minPlayers: MIN_PLAYERS,
+    players: players.map((p) => ({
+      id: p.id,
+      name: `${p.firstName} ${p.lastName}`.trim(),
+      email: p.email,
+      emailNotifications: p.emailNotifications,
+    })),
+  }
+}
+
+export async function sendStatusUpdate(
+  sessionId: string,
+  subject: string,
+  body: string,
+  recipientIds: string[],
+) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const players = await db.player.findMany({
+    where: { id: { in: recipientIds }, passwordHash: { not: null } },
+    select: { email: true },
+  })
+  const emails = players.map((p) => p.email).filter(Boolean) as string[]
+
+  return sendGameDayInvitation({ id: session.id, date: session.date }, subject, body, emails)
+}
 
 function revalidate(sessionId: string) {
   revalidatePath(`/sessions/${sessionId}`)

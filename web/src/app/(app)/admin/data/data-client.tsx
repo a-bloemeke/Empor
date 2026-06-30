@@ -12,10 +12,12 @@ import {
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { DownloadIcon, UploadIcon } from "lucide-react"
+import { useTranslations } from "next-intl"
 
 type Season = { year: number; status: string }
 
 export function DataClient({ seasons }: { seasons: Season[] }) {
+  const t = useTranslations("admin.data")
   const jsonFileRef = useRef<HTMLInputElement>(null)
   const xlsxFileRef = useRef<HTMLInputElement>(null)
   const [exportYear, setExportYear] = useState<string>("all")
@@ -32,31 +34,29 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
     return importYear === "all" ? base : `${base}?season=${importYear}`
   }
 
-  async function handleImport(file: File, format: "json" | "xlsx") {
-    const scopeLabel = importYear === "all" ? "ALL data" : `season ${importYear}`
-    if (!window.confirm(
-      `This will replace ${scopeLabel} with the contents of the selected file. Auth accounts are preserved. Continue?`
-    )) return
+  async function handleImport(file: File, fmt: "json" | "xlsx") {
+    const scopeLabel = importYear === "all" ? t("allSeasons") : t("seasonN", { year: importYear })
+    if (!window.confirm(t("confirmImport", { scope: scopeLabel }))) return
 
     setImporting(true)
     try {
       let body: BodyInit
       let contentType: string
-      if (format === "json") {
+      if (fmt === "json") {
         body = await file.text()
         contentType = "application/json"
       } else {
         body = await file.arrayBuffer()
         contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       }
-      const res = await fetch(importUrl(format), {
+      const res = await fetch(importUrl(fmt), {
         method: "POST",
         headers: { "Content-Type": contentType },
         body,
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Import failed.")
-      toast.success("Data imported successfully.")
+      toast.success(t("importSuccess"))
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
@@ -66,7 +66,7 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
 
   const seasonOptions = (
     <>
-      <SelectItem value="all">All seasons</SelectItem>
+      <SelectItem value="all">{t("allSeasons")}</SelectItem>
       {seasons.map((s) => (
         <SelectItem key={s.year} value={String(s.year)}>
           {s.year}{s.status === "ACTIVE" ? " (active)" : ""}
@@ -78,25 +78,23 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold mb-1">Data</h1>
-        <p className="text-muted-foreground">Export or restore app data.</p>
+        <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Export */}
         <div className="rounded-xl border p-5 space-y-4">
           <div>
-            <h2 className="font-semibold">Export</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Download a snapshot of players, sessions, matches, goals, stats, and fees. Passwords are not included.
-            </p>
+            <h2 className="font-semibold">{t("exportTitle")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("exportDesc")}</p>
           </div>
           <div className="space-y-1.5">
-            <Label>Scope</Label>
+            <Label>{t("scope")}</Label>
             <Select value={exportYear} onValueChange={(v) => { if (v) setExportYear(v) }}>
               <SelectTrigger className="w-48">
                 <SelectValue>
-                  {(v: string) => v === "all" ? "All seasons" : `Season ${v}`}
+                  {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>{seasonOptions}</SelectContent>
@@ -104,10 +102,10 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" className="gap-2" onClick={() => { window.location.href = exportUrl("json") }}>
-              <DownloadIcon className="size-4" /> JSON
+              <DownloadIcon className="size-4" /> {t("json")}
             </Button>
             <Button variant="outline" className="gap-2" onClick={() => { window.location.href = exportUrl("xlsx") }}>
-              <DownloadIcon className="size-4" /> Excel
+              <DownloadIcon className="size-4" /> {t("excel")}
             </Button>
           </div>
         </div>
@@ -115,17 +113,15 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
         {/* Import */}
         <div className="rounded-xl border p-5 space-y-4">
           <div>
-            <h2 className="font-semibold">Import</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Restore from a previously exported file. Select a season to import only that season's data from the file, or "All seasons" to restore everything.
-            </p>
+            <h2 className="font-semibold">{t("importTitle")}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t("importDesc")}</p>
           </div>
           <div className="space-y-1.5">
-            <Label>Scope</Label>
+            <Label>{t("scope")}</Label>
             <Select value={importYear} onValueChange={(v) => { if (v) setImportYear(v) }}>
               <SelectTrigger className="w-48">
                 <SelectValue>
-                  {(v: string) => v === "all" ? "All seasons" : `Season ${v}`}
+                  {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>{seasonOptions}</SelectContent>
@@ -147,10 +143,10 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
           />
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={importing} className="gap-2" onClick={() => jsonFileRef.current?.click()}>
-              <UploadIcon className="size-4" /> {importing ? "Importing…" : "JSON"}
+              <UploadIcon className="size-4" /> {importing ? t("importing") : t("json")}
             </Button>
             <Button variant="outline" disabled={importing} className="gap-2" onClick={() => xlsxFileRef.current?.click()}>
-              <UploadIcon className="size-4" /> {importing ? "Importing…" : "Excel"}
+              <UploadIcon className="size-4" /> {importing ? t("importing") : t("excel")}
             </Button>
           </div>
         </div>

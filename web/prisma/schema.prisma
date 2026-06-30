@@ -102,6 +102,7 @@ model Player {
   addressPostalCode String?
   avatarUrl         String?
   role              Role      @default(PLAYER)
+  emailNotifications Boolean  @default(true)
   createdAt         DateTime  @default(now())
 
   accounts          Account[]
@@ -248,4 +249,16 @@ model PlayerStatsLifetime {
   points         Int    @default(0)
 
   player Player @relation(fields: [playerId], references: [id])
+}
+
+model AppConfig {
+  key   String @id
+  value String
+}
+
+model InvitationQuote {
+  id        String   @id @default(cuid())
+  quote     String
+  author    String
+  usedAt    DateTime @default(now())
 }

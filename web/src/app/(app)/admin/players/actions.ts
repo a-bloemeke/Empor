@@ -52,17 +52,34 @@ export async function createPlayer(data: {
   revalidate()
 }
 
+export async function setEmailNotifications(playerId: string, enabled: boolean) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  await db.player.update({ where: { id: playerId }, data: { emailNotifications: enabled } })
+  revalidate()
+}
+
 export async function deletePlayer(playerId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
   if (authSession.user.id === playerId) throw new Error("You cannot delete your own account.")
 
-  // Check for any played matches (goals scored or assisted)
-  const goalCount = await db.goal.count({
-    where: { OR: [{ scoredByPlayerId: playerId }, { assistedByPlayerId: playerId }] },
-  })
-  if (goalCount > 0) throw new Error("Cannot delete a player who has scored goals or assists. Remove their stats first via data export/import.")
+  const [goalCount, organizedCount, recordedFeesCount] = await Promise.all([
+    db.goal.count({ where: { OR: [{ scoredByPlayerId: playerId }, { assistedByPlayerId: playerId }] } }),
+    db.session.count({ where: { organizerId: playerId } }),
+    db.membershipFee.count({ where: { recordedById: playerId, NOT: { playerId } } }),
+  ])
+  if (goalCount > 0) throw new Error("Cannot delete a player who has scored goals or assists.")
+  if (organizedCount > 0) throw new Error("Cannot delete a player who has organized sessions.")
+  if (recordedFeesCount > 0) throw new Error("Cannot delete a player who has recorded membership fees for other players.")
 
-  await db.player.delete({ where: { id: playerId } })
+  await db.$transaction([
+    db.sessionRegistration.deleteMany({ where: { playerId } }),
+    db.teamPlayer.deleteMany({ where: { playerId } }),
+    db.membershipFee.deleteMany({ where: { playerId } }),
+    db.playerStats.deleteMany({ where: { playerId } }),
+    db.playerStatsLifetime.deleteMany({ where: { playerId } }),
+    db.player.delete({ where: { id: playerId } }),
+  ])
   revalidate()
 }

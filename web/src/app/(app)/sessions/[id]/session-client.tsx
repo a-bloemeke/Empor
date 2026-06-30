@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -49,11 +50,19 @@ import {
   addRematch,
   addNewMatch,
   deleteTeam,
+  getDefaultInvitation,
+  sendInvitation,
+  getSummaryEmailDefaults,
+  sendSummaryEmail,
+  getStatusUpdateDefaults,
+  sendStatusUpdate,
 } from "./actions"
 import type { PointsScope } from "@/lib/types"
 import { toast } from "sonner"
 import { SportsTable } from "@/components/app/sports-table"
-import { disambiguateNames, nextTeamNames, optimalPartition2 } from "@/lib/game-logic"
+import { disambiguateNames, nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
+import type { TeamRef, MatchRef } from "@/lib/game-logic"
+import { useTranslations } from "next-intl"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,6 +150,7 @@ function RegistrationPanel({
   session: SessionData
   isOrganizer: boolean
 }) {
+  const t = useTranslations("session")
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -150,6 +160,7 @@ function RegistrationPanel({
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
   const registeredIds = new Set(registered.map((r) => r.playerId))
   const available = session.allPlayers.filter((p) => !registeredIds.has(p.id))
+  const isScheduled = session.status === "SCHEDULED"
 
   function handleAddGuest() {
     if (!guestName.trim()) return
@@ -202,14 +213,23 @@ function RegistrationPanel({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Registered players ({registered.length})</CardTitle>
-          {isOrganizer && available.length > 0 && (
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-base">Angemeldete Spieler ({registered.length})</CardTitle>
+            {isScheduled && (
+              <TrafficLight count={registered.length} />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isOrganizer && isScheduled && (
+              <SendStatusUpdateDialog sessionId={session.id} registeredCount={registered.length} />
+            )}
+            {isOrganizer && available.length > 0 && (
             <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) setSelected(new Set()) }}>
-              <DialogTrigger render={<Button size="sm" variant="outline" />}>Add players</DialogTrigger>
+              <DialogTrigger render={<Button size="sm" variant="outline" />}>{t("addPlayers")}</DialogTrigger>
               <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
-                  <DialogTitle>Add players</DialogTitle>
+                  <DialogTitle>{t("addPlayers")}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
                   <label className="flex items-center gap-2 text-sm py-1 cursor-pointer select-none border-b pb-2 mb-1">
@@ -219,7 +239,7 @@ function RegistrationPanel({
                       onChange={toggleAll}
                       className="h-4 w-4 rounded border"
                     />
-                    <span className="font-medium">Select all ({available.length})</span>
+                    <span className="font-medium">{t("selectAll", { count: available.length })}</span>
                   </label>
                   {available.map((p) => (
                     <label key={p.id} className="flex items-center gap-2 text-sm py-1 cursor-pointer select-none hover:bg-muted/50 rounded px-1">
@@ -235,17 +255,18 @@ function RegistrationPanel({
                 </div>
                 <DialogFooter>
                   <Button onClick={handleAddBulk} disabled={pending || selected.size === 0}>
-                    {pending ? "Adding…" : `Add ${selected.size > 0 ? selected.size : ""} player${selected.size !== 1 ? "s" : ""}`}
+                    {pending ? t("adding") : selected.size > 0 ? `${t("addPlayers")} (${selected.size})` : t("addPlayer_singular")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {registered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No players registered yet.</p>
+          <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
         ) : (
           <ul className="space-y-1">
             {registered.map((r, i) => (
@@ -268,14 +289,14 @@ function RegistrationPanel({
         {isOrganizer && (
           <div className="flex items-center gap-2 pt-2 border-t border-border/50 mt-2">
             <Input
-              placeholder="Guest name (e.g. Thomas)…"
+              placeholder={t("guestNamePlaceholder")}
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") handleAddGuest() }}
               className="flex-1 h-8 text-sm"
             />
             <Button size="sm" variant="outline" disabled={!guestName.trim() || pending} onClick={handleAddGuest}>
-              Add guest
+              {t("addGuest")}
             </Button>
           </div>
         )}
@@ -400,6 +421,7 @@ function buildNewMatchSplit(registered: Registration[], mode: NewMatchMode): Reg
 }
 
 function NewMatchDialog({ session, disabled }: { session: SessionData; disabled: boolean }) {
+  const t = useTranslations("session")
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -443,19 +465,19 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size="sm" disabled={disabled} />}>
-        New Match
+        {t("newMatch")}
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>New Match — choose formation</DialogTitle>
+          <DialogTitle>{t("newMatchFormation")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {/* Mode picker */}
           <div className="grid grid-cols-3 gap-2">
             {([
-              { value: "RANDOM",   label: "Random",   desc: "Shuffle players" },
-              { value: "BALANCED", label: "By Points", desc: "Balance by Pts/GD" },
-              { value: "STRENGTH", label: "By Strength", desc: "Balance by Strength" },
+              { value: "RANDOM",   label: t("random"),    desc: t("shufflePlayers") },
+              { value: "BALANCED", label: t("byPoints"),  desc: t("balanceByPoints") },
+              { value: "STRENGTH", label: t("byStrength"), desc: t("balanceByStrength") },
             ] as { value: NewMatchMode; label: string; desc: string }[]).map(({ value, label, desc }) => (
               <button
                 key={value}
@@ -503,7 +525,7 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
             </Button>
           )}
           <Button disabled={pending} onClick={handleConfirm}>
-            {pending ? "Creating…" : "Start with these teams"}
+            {pending ? t("generating") : t("startMatch")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -511,7 +533,542 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
   )
 }
 
+type InvitationPlayer = { id: string; name: string; email: string; emailNotifications: boolean }
+type UsedQuote = { quote: string; author: string; usedAt: Date | string }
+
+function SendInvitationDialog({ sessionId }: { sessionId: string }) {
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [subject, setSubject] = useState("")
+  const [body, setBody] = useState("")
+  const [quoteText, setQuoteText] = useState("")
+  const [quoteAuthor, setQuoteAuthor] = useState("")
+  const [players, setPlayers] = useState<InvitationPlayer[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [usedQuotes, setUsedQuotes] = useState<UsedQuote[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  function handleOpen(isOpen: boolean) {
+    setOpen(isOpen)
+    if (isOpen && !loaded) {
+      startTransition(async () => {
+        try {
+          const data = await getDefaultInvitation(sessionId)
+          setSubject(data.subject)
+          setBody(data.body)
+          setPlayers(data.players)
+          setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
+          setUsedQuotes(data.usedQuotes as UsedQuote[])
+          setLoaded(true)
+        } catch (e) { toast.error((e as Error).message) }
+      })
+    }
+  }
+
+  function togglePlayer(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelectedIds((prev) =>
+      prev.size === players.length ? new Set() : new Set(players.map((p) => p.id))
+    )
+  }
+
+  const quoteAlreadyUsed = quoteText.trim() && quoteAuthor.trim() &&
+    usedQuotes.some(
+      (q) => q.quote.toLowerCase() === quoteText.trim().toLowerCase() &&
+             q.author.toLowerCase() === quoteAuthor.trim().toLowerCase()
+    )
+
+  function handleSend() {
+    if (!subject.trim() || !body.trim()) { toast.error("Subject and message are required."); return }
+    if (selectedIds.size === 0) { toast.error("Select at least one recipient."); return }
+    if (quoteAlreadyUsed) { toast.error("This quote/author combination was already used. Change it or leave it empty."); return }
+
+    const quote = quoteText.trim() && quoteAuthor.trim()
+      ? { text: quoteText.trim(), author: quoteAuthor.trim() }
+      : undefined
+
+    startTransition(async () => {
+      try {
+        const count = await sendInvitation(sessionId, subject.trim(), body.trim(), [...selectedIds], quote)
+        toast.success(`Invitation sent to ${count} player${count !== 1 ? "s" : ""}.`)
+        setOpen(false)
+        setLoaded(false)
+        setQuoteText("")
+        setQuoteAuthor("")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        ✉ Send Invitation
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Send Game Day Invitation</DialogTitle>
+        </DialogHeader>
+        {pending && !loaded ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+        ) : (
+          <div className="space-y-4">
+
+            {/* Recipients */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Recipients ({selectedIds.size} / {players.length})</Label>
+                <button
+                  onClick={toggleAll}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {selectedIds.size === players.length ? "Deselect all" : "Select all"}
+                </button>
+              </div>
+              <div className="rounded-lg border border-border max-h-36 overflow-y-auto divide-y divide-border/40">
+                {players.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40 select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onChange={() => togglePlayer(p.id)}
+                      className="h-3.5 w-3.5 rounded border"
+                    />
+                    <span className="flex-1">{p.name}</span>
+                    {!p.emailNotifications && <span title="E-Mails deaktiviert" className="text-xs">🔕</span>}
+                    <span className="text-xs text-muted-foreground truncate max-w-[140px]">{p.email}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Subject */}
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-subject">Subject</Label>
+              <Input id="inv-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+
+            {/* Body */}
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-body">Message</Label>
+              <Textarea
+                id="inv-body"
+                rows={7}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="font-mono text-sm resize-y"
+              />
+            </div>
+
+            {/* Quote */}
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Optional quote
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inv-quote" className="text-sm">Quote</Label>
+                <Textarea
+                  id="inv-quote"
+                  rows={2}
+                  placeholder='e.g. "Der Ball ist rund."'
+                  value={quoteText}
+                  onChange={(e) => setQuoteText(e.target.value)}
+                  className="text-sm resize-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inv-author" className="text-sm">Author</Label>
+                <Input
+                  id="inv-author"
+                  placeholder="e.g. Sepp Herberger"
+                  value={quoteAuthor}
+                  onChange={(e) => setQuoteAuthor(e.target.value)}
+                />
+              </div>
+              {quoteAlreadyUsed && (
+                <p className="text-xs text-destructive">
+                  This quote by {quoteAuthor} was already used. Pick a different one.
+                </p>
+              )}
+              {usedQuotes.length > 0 && (
+                <details className="mt-1">
+                  <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                    Previously used quotes ({usedQuotes.length})
+                  </summary>
+                  <ul className="mt-1.5 space-y-1">
+                    {usedQuotes.map((q, i) => (
+                      <li key={i} className="text-xs text-muted-foreground italic">
+                        "{q.quote}" — {q.author}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              A "Register now" button linking to this game day is always appended.
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={handleSend} disabled={pending || !loaded || !!quoteAlreadyUsed}>
+            {pending ? "Sending…" : `Send to ${selectedIds.size} player${selectedIds.size !== 1 ? "s" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Status Update Email ──────────────────────────────────────────────────────
+
+const MIN_PLAYERS = 8
+
+function TrafficLight({ count }: { count: number }) {
+  const color = count >= MIN_PLAYERS ? "#22c55e" : count >= MIN_PLAYERS - 3 ? "#eab308" : "#ef4444"
+  const label = count >= MIN_PLAYERS ? "Findet statt" : count >= MIN_PLAYERS - 3 ? "Ungewiss" : "Droht auszufallen"
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block h-3 w-3 rounded-full" style={{ background: color }} />
+      <span className="text-sm font-medium" style={{ color }}>{label}</span>
+      <span className="text-sm text-muted-foreground">({count} / {MIN_PLAYERS} Spieler)</span>
+    </div>
+  )
+}
+
+function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: string; registeredCount: number }) {
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [subject, setSubject] = useState("")
+  const [body, setBody] = useState("")
+  const [players, setPlayers] = useState<{ id: string; name: string; email: string; emailNotifications: boolean }[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [loaded, setLoaded] = useState(false)
+
+  function handleOpen(isOpen: boolean) {
+    setOpen(isOpen)
+    if (isOpen && !loaded) {
+      startTransition(async () => {
+        try {
+          const data = await getStatusUpdateDefaults(sessionId)
+          setSubject(data.subject)
+          setBody(data.body)
+          setPlayers(data.players)
+          setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
+          setLoaded(true)
+        } catch (e) { toast.error((e as Error).message) }
+      })
+    }
+  }
+
+  function togglePlayer(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelectedIds((prev) =>
+      prev.size === players.length ? new Set() : new Set(players.map((p) => p.id))
+    )
+  }
+
+  function handleSend() {
+    if (!subject.trim() || !body.trim()) { toast.error("Subject and message are required."); return }
+    if (selectedIds.size === 0) { toast.error("Select at least one recipient."); return }
+    startTransition(async () => {
+      try {
+        const count = await sendStatusUpdate(sessionId, subject.trim(), body.trim(), [...selectedIds])
+        toast.success(`Status update sent to ${count} player${count !== 1 ? "s" : ""}.`)
+        setOpen(false)
+        setLoaded(false)
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        🚦 Status-Update
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Spieltag-Status an alle senden</DialogTitle>
+        </DialogHeader>
+        {pending && !loaded ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Lädt…</p>
+        ) : (
+          <div className="space-y-4">
+
+            <TrafficLight count={registeredCount} />
+
+            {/* Recipients */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Empfänger ({selectedIds.size} / {players.length})</Label>
+                <button onClick={toggleAll} className="text-xs text-primary hover:underline">
+                  {selectedIds.size === players.length ? "Alle abwählen" : "Alle auswählen"}
+                </button>
+              </div>
+              <div className="rounded-lg border border-border max-h-36 overflow-y-auto divide-y divide-border/40">
+                {players.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40 select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onChange={() => togglePlayer(p.id)}
+                      className="h-3.5 w-3.5 rounded border"
+                    />
+                    <span className="flex-1">{p.name}</span>
+                    {!p.emailNotifications && <span title="E-Mails deaktiviert" className="text-xs">🔕</span>}
+                    <span className="text-xs text-muted-foreground truncate max-w-[140px]">{p.email}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Subject */}
+            <div className="space-y-1.5">
+              <Label htmlFor="su-subject">Betreff</Label>
+              <Input id="su-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+
+            {/* Body */}
+            <div className="space-y-1.5">
+              <Label htmlFor="su-body">Nachricht</Label>
+              <Textarea
+                id="su-body"
+                rows={10}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="font-mono text-sm resize-y"
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Ein „Jetzt anmelden"-Button zum Spieltag wird automatisch angehängt.
+            </p>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={handleSend} disabled={pending || !loaded}>
+            {pending ? "Wird gesendet…" : `Senden an ${selectedIds.size} Spieler${selectedIds.size !== 1 ? "" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Game Day Summary ─────────────────────────────────────────────────────────
+
+function buildClientMatchRefs(teams: Team[], matches: Match[]): { teamRefs: TeamRef[]; matchRefs: MatchRef[] } {
+  const teamRefs: TeamRef[] = teams.map((t) => ({ id: t.id, playerIds: t.players.map((p) => p.id) }))
+  const playersByTeamId = new Map(teams.map((t) => [t.id, t.players.map((p) => p.id)]))
+  const matchRefs: MatchRef[] = matches
+    .filter((m) => m.status === "COMPLETED")
+    .map((m) => ({
+      id: m.id,
+      roundNumber: m.roundNumber,
+      homeTeamId: m.homeTeamId,
+      awayTeamId: m.awayTeamId,
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      homePlayers: playersByTeamId.get(m.homeTeamId) ?? [],
+      awayPlayers: playersByTeamId.get(m.awayTeamId) ?? [],
+      goals: m.goals.map((g) => ({ scoredByPlayerId: g.scoredByPlayerId, assistedByPlayerId: g.assistedByPlayerId })),
+    }))
+  return { teamRefs, matchRefs }
+}
+
+type SummaryPlayer = { id: string; name: string; email: string }
+
+function SendSummaryDialog({ sessionId }: { sessionId: string }) {
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [subject, setSubject] = useState("")
+  const [body, setBody] = useState("")
+  const [players, setPlayers] = useState<SummaryPlayer[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [loaded, setLoaded] = useState(false)
+
+  function handleOpen(isOpen: boolean) {
+    setOpen(isOpen)
+    if (isOpen && !loaded) {
+      startTransition(async () => {
+        try {
+          const data = await getSummaryEmailDefaults(sessionId)
+          setSubject(data.subject)
+          setBody(data.body)
+          setPlayers(data.players)
+          setSelectedIds(new Set(data.players.map((p) => p.id)))
+          setLoaded(true)
+        } catch (e) { toast.error((e as Error).message) }
+      })
+    }
+  }
+
+  function togglePlayer(id: string) {
+    setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  }
+
+  function toggleAll() {
+    setSelectedIds((prev) => prev.size === players.length ? new Set() : new Set(players.map((p) => p.id)))
+  }
+
+  function handleSend() {
+    if (!subject.trim() || !body.trim()) { toast.error("Subject and message are required."); return }
+    if (selectedIds.size === 0) { toast.error("Select at least one recipient."); return }
+    startTransition(async () => {
+      try {
+        const count = await sendSummaryEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
+        toast.success(`Summary sent to ${count} player${count !== 1 ? "s" : ""}.`)
+        setOpen(false)
+        setLoaded(false)
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+        📊 Send Summary
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Send Game Day Summary</DialogTitle>
+        </DialogHeader>
+        {pending && !loaded ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label>Recipients ({selectedIds.size} / {players.length})</Label>
+                <button onClick={toggleAll} className="text-xs text-primary hover:underline">
+                  {selectedIds.size === players.length ? "Deselect all" : "Select all"}
+                </button>
+              </div>
+              <div className="rounded-lg border border-border max-h-36 overflow-y-auto divide-y divide-border/40">
+                {players.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40 select-none">
+                    <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => togglePlayer(p.id)} className="h-3.5 w-3.5 rounded border" />
+                    <span className="flex-1">{p.name}</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[160px]">{p.email}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sum-subject">Subject</Label>
+              <Input id="sum-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sum-body">Message</Label>
+              <Textarea id="sum-body" rows={14} value={body} onChange={(e) => setBody(e.target.value)} className="font-mono text-xs resize-y" />
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={handleSend} disabled={pending || !loaded}>
+            {pending ? "Sending…" : `Send to ${selectedIds.size} player${selectedIds.size !== 1 ? "s" : ""}`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrganizer: boolean }) {
+  const { teamRefs, matchRefs } = useMemo(
+    () => buildClientMatchRefs(session.teams, session.matches),
+    [session.teams, session.matches]
+  )
+
+  const rows = useMemo(() => {
+    const deltas = computePlayerDeltas(teamRefs, matchRefs, "all")
+    return [...deltas].sort((a, b) => {
+      const sa = a.goals + a.assists + a.points
+      const sb = b.goals + b.assists + b.points
+      if (sb !== sa) return sb - sa
+      if (b.goals !== a.goals) return b.goals - a.goals
+      return b.assists - a.assists
+    })
+  }, [teamRefs, matchRefs])
+
+  const allPlayers = session.teams.flatMap((t) => t.players)
+  const shortNames = disambiguateNames(allPlayers.map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
+
+  const mvp = rows.length > 0 && (rows[0].goals + rows[0].assists + rows[0].points) > 0 ? rows[0] : null
+  const mvpName = mvp ? (shortNames.get(mvp.playerId) ?? mvp.playerId) : null
+
+  if (rows.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Spieltag-Zusammenfassung</CardTitle>
+          {isOrganizer && <SendSummaryDialog sessionId={session.id} />}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {mvp && mvpName && (
+          <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-white"
+            style={{ background: "linear-gradient(135deg, oklch(0.22 0.09 150) 0%, oklch(0.40 0.14 155) 100%)" }}
+          >
+            <span className="text-2xl">👑</span>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide opacity-70">MVP</div>
+              <div className="font-bold">{mvpName}</div>
+              <div className="text-xs opacity-80 mt-0.5">
+                {mvp.goals}G · {mvp.assists}V · {mvp.goals + mvp.assists} Score · {mvp.points} Pkt
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Spieler</TableHead>
+                <TableHead className="text-right">Tore</TableHead>
+                <TableHead className="text-right">Vorlagen</TableHead>
+                <TableHead className="text-right">Score</TableHead>
+                <TableHead className="text-right">Punkte</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow key={row.playerId} className={i === 0 && mvp ? "font-semibold" : ""}>
+                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                  <TableCell>{shortNames.get(row.playerId) ?? row.playerId}</TableCell>
+                  <TableCell className="text-right">{row.goals}</TableCell>
+                  <TableCell className="text-right">{row.assists}</TableCell>
+                  <TableCell className="text-right">{row.goals + row.assists}</TableCell>
+                  <TableCell className="text-right">{row.points}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function FormTeamsDialog({ session }: { session: SessionData }) {
+  const t = useTranslations("session")
   const [open, setOpen] = useState(false)
   const [numTeams, setNumTeams] = useState<"2" | "3">("2")
   const [mode, setMode] = useState<"RANDOM" | "BALANCED">("RANDOM")
@@ -532,44 +1089,44 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" />}>Form Teams</DialogTrigger>
+      <DialogTrigger render={<Button size="sm" />}>{t("formTeams")}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Form Teams</DialogTitle>
+          <DialogTitle>{t("formTeams")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="flex gap-4">
             <div className="space-y-1.5">
-              <Label>Number of teams</Label>
+              <Label>{t("numberOfTeams")}</Label>
               <Select value={numTeams} onValueChange={(v) => { if (v) setNumTeams(v as "2" | "3") }}>
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2">2 teams</SelectItem>
-                  <SelectItem value="3">3 teams</SelectItem>
+                  <SelectItem value="2">{t("twoTeams")}</SelectItem>
+                  <SelectItem value="3">{t("threeTeams")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Formation mode</Label>
+              <Label>{t("formationMode")}</Label>
               <Select value={mode} onValueChange={(v) => { if (v) setMode(v as "RANDOM" | "BALANCED") }}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="RANDOM">Random</SelectItem>
-                  <SelectItem value="BALANCED">Balanced</SelectItem>
+                  <SelectItem value="RANDOM">{t("random")}</SelectItem>
+                  <SelectItem value="BALANCED">{t("balanced")}</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {mode === "BALANCED" ? "Teams balanced by average points per game day." : "Players distributed randomly."}
+                {mode === "BALANCED" ? t("balancedDesc") : t("randomDesc")}
               </p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            {registered.length} registered players → ~{Math.floor(registered.length / n)}–{Math.ceil(registered.length / n)} per team.
+            {t("playersPerTeam", { total: registered.length, min: Math.floor(registered.length / n), max: Math.ceil(registered.length / n) })}
           </p>
         </div>
         <DialogFooter>
           <Button onClick={handleGenerate} disabled={pending}>
-            {pending ? "Generating…" : "Generate"}
+            {pending ? t("generating") : t("generate")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -588,6 +1145,7 @@ function TeamsView({
   canRegenerate: boolean
   onDeleteTeam?: (teamId: string) => void
 }) {
+  const t = useTranslations("session")
   const [pending, startTransition] = useTransition()
 
   // Teams that have no started/completed matches can be deleted
@@ -619,9 +1177,9 @@ function TeamsView({
                   <button
                     className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                     onClick={() => onDeleteTeam(team.id)}
-                    title="Delete team"
+                    title={t("deleteTeamTitle")}
                   >
-                    ✕ Delete
+                    {t("deleteTeam")}
                   </button>
                 )}
               </div>
@@ -642,13 +1200,13 @@ function TeamsView({
               </ul>
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-xs text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>Total</span>
+                  <span>{t("total")}</span>
                   <span className="font-semibold tabular-nums">
                     {team.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Avg</span>
+                  <span>{t("avg")}</span>
                   <span className="tabular-nums">
                     {team.players.length > 0
                       ? (team.players.reduce((s, p) => s + p.seasonPoints, 0) / team.players.length).toFixed(1)
@@ -687,6 +1245,7 @@ function GoalDialog({
   teamName: string
   players: Player[]
 }) {
+  const t = useTranslations("session")
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [scorerId, setScorerId] = useState("")
@@ -694,11 +1253,11 @@ function GoalDialog({
   const [pending, startTransition] = useTransition()
 
   function handleRecord() {
-    if (!scorerId) { toast.error("Select the scorer."); return }
+    if (!scorerId) { toast.error(t("selectScorer")); return }
     startTransition(async () => {
       try {
         await recordGoal(matchId, scorerId, teamId, assisterId || undefined)
-        toast.success("Goal recorded.")
+        toast.success(t("goalRecorded"))
         setOpen(false)
         setScorerId("")
         setAssisterId("")
@@ -716,15 +1275,15 @@ function GoalDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record Goal — {teamName}</DialogTitle>
+          <DialogTitle>{t("recordGoal")} — {teamName}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Scorer</Label>
+            <Label>{t("scorer")}</Label>
             <Select value={scorerId} onValueChange={(v) => { if (v !== null) setScorerId(v) }}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select scorer…">
-                  {(v: string) => players.find((p) => p.id === v)?.name ?? "Select scorer…"}
+                <SelectValue placeholder={t("selectScorerPlaceholder")}>
+                  {(v: string) => players.find((p) => p.id === v)?.name ?? t("selectScorerPlaceholder")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -735,15 +1294,15 @@ function GoalDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Assist (optional)</Label>
+            <Label>{t("assist")}</Label>
             <Select value={assisterId} onValueChange={(v) => setAssisterId(v ?? "")}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="No assist">
-                  {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.name ?? "No assist") : "No assist"}
+                <SelectValue placeholder={t("noAssist")}>
+                  {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.name ?? t("noAssist")) : t("noAssist")}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No assist</SelectItem>
+                <SelectItem value="">{t("noAssist")}</SelectItem>
                 {assistCandidates.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
@@ -753,7 +1312,7 @@ function GoalDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleRecord} disabled={pending || !scorerId}>
-            {pending ? "Saving…" : "Record Goal"}
+            {pending ? t("adding") : t("recordGoal")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -770,6 +1329,7 @@ function ActiveMatch({
   session: SessionData
   isOrganizer: boolean
 }) {
+  const t = useTranslations("session")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -818,11 +1378,11 @@ function ActiveMatch({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-center gap-8 py-4">
-          <div className="flex flex-col items-center">
+        <div className="flex items-center justify-center gap-4 sm:gap-8 py-4">
+          <div className="flex flex-col items-center flex-1">
             <div className="text-4xl font-bold text-center">{match.homeScore}</div>
             <div className="text-sm text-muted-foreground mt-1 text-center">{match.homeTeamName}</div>
-            <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5 text-center">
               {homeTeam.players.map((p) => (
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
@@ -832,11 +1392,11 @@ function ActiveMatch({
               ))}
             </div>
           </div>
-          <div className="text-2xl font-light text-muted-foreground">–</div>
-          <div className="flex flex-col items-center">
+          <div className="text-2xl font-light text-muted-foreground shrink-0">–</div>
+          <div className="flex flex-col items-center flex-1">
             <div className="text-4xl font-bold text-center">{match.awayScore}</div>
             <div className="text-sm text-muted-foreground mt-1 text-center">{match.awayTeamName}</div>
-            <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5 text-center">
               {awayTeam.players.map((p) => (
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
@@ -850,7 +1410,7 @@ function ActiveMatch({
 
         {atLimit && (
           <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300">
-            10 goals reached — end the match?
+            {t("tenGoalsReached")}
           </div>
         )}
 
@@ -924,11 +1484,11 @@ function ActiveMatch({
                   })
                 }}
               >
-                End Match (10 goals)
+                {t("endMatchTenGoals")}
               </Button>
             )}
             <Button variant="outline" size="sm" disabled={pending} onClick={handleEndTime}>
-              End Match (time)
+              {t("endMatchTime")}
             </Button>
           </div>
         )}
@@ -938,18 +1498,20 @@ function ActiveMatch({
 }
 
 function StandingsTable({ teams, matches }: { teams: Team[]; matches: Match[] }) {
+  const t = useTranslations("session")
   const standings = computeStandings(teams, matches)
   return (
-    <SportsTable title="Standings">
+    <SportsTable title={t("standings")}>
+      <div className="overflow-x-auto">
       <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Team</TableHead>
-          <TableHead className="text-right">Played</TableHead>
-          <TableHead className="text-right">Pts</TableHead>
-          <TableHead className="text-right">GF</TableHead>
-          <TableHead className="text-right">GA</TableHead>
-          <TableHead className="text-right">GD</TableHead>
+          <TableHead>{t("team")}</TableHead>
+          <TableHead className="text-right">{t("played")}</TableHead>
+          <TableHead className="text-right">{t("pts")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("gf")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">{t("ga")}</TableHead>
+          <TableHead className="text-right">{t("gd")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -960,18 +1522,20 @@ function StandingsTable({ teams, matches }: { teams: Team[]; matches: Match[] })
             </TableCell>
             <TableCell className="text-right">{s.played}</TableCell>
             <TableCell className="text-right font-semibold">{s.pts}</TableCell>
-            <TableCell className="text-right">{s.gf}</TableCell>
-            <TableCell className="text-right">{s.ga}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{s.gf}</TableCell>
+            <TableCell className="text-right hidden sm:table-cell">{s.ga}</TableCell>
             <TableCell className="text-right">{s.gf - s.ga > 0 ? "+" : ""}{s.gf - s.ga}</TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+    </div>
     </SportsTable>
   )
 }
 
 function MatchSummary({ match, onReopen, onDeleteGoal }: { match: Match; onReopen?: () => void; onDeleteGoal?: (id: string) => void }) {
+  const t = useTranslations("session")
   const goals = match.goals.reduce<{ home: number; away: number; els: React.ReactNode[] }>(
     (acc, g) => {
       const isHome = g.teamId === match.homeTeamId
@@ -1032,7 +1596,7 @@ function MatchSummary({ match, onReopen, onDeleteGoal }: { match: Match; onReope
       {onReopen && (
         <div className="px-4 pb-2 border-t border-border/40 pt-2">
           <Button size="sm" variant="ghost" className="h-6 text-xs text-muted-foreground" onClick={onReopen}>
-            Re-open match
+            {t("reopenMatch")}
           </Button>
         </div>
       )}
@@ -1043,24 +1607,25 @@ function MatchSummary({ match, onReopen, onDeleteGoal }: { match: Match; onReope
 // ─── End session dialog (for mixed tournament+normal sessions) ────────────────
 
 function EndSessionDialog({ onConfirm, disabled }: { onConfirm: (scope: PointsScope) => void; disabled: boolean }) {
+  const t = useTranslations("session")
   const [open, setOpen] = useState(false)
   const opts: { scope: PointsScope; label: string; desc: string }[] = [
-    { scope: "all",        label: "All matches",        desc: "Count points from both tournament placement and normal match results." },
-    { scope: "tournament", label: "Tournament only",    desc: "Count points only from tournament placement. Normal matches ignored for points." },
-    { scope: "normal",     label: "Normal matches only",desc: "Count points only from normal match results (win=3, draw=1). Tournament ignored." },
-    { scope: "none",       label: "Goals & assists only",desc: "No points awarded. Only goals and assists are recorded." },
+    { scope: "all",        label: t("allMatches"),       desc: t("allMatchesDesc") },
+    { scope: "tournament", label: t("tournamentOnly"),   desc: t("tournamentOnlyDesc") },
+    { scope: "normal",     label: t("normalOnly"),       desc: t("normalOnlyDesc") },
+    { scope: "none",       label: t("goalsAssistsOnly"), desc: t("goalsAssistsOnlyDesc") },
   ]
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" disabled={disabled} />}>
-        End Game Day
+        {t("endGameDay")}
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>End Game Day — choose scoring</DialogTitle>
+          <DialogTitle>{t("endGameDayTitle")}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          This game day had both tournament rounds and normal matches. Which results should count for points?
+          {t("endGameDayDesc")}
         </p>
         <div className="space-y-2">
           {opts.map(({ scope, label, desc }) => (
@@ -1082,25 +1647,26 @@ function EndSessionDialog({ onConfirm, disabled }: { onConfirm: (scope: PointsSc
 // ─── Switch to normal play dialog ─────────────────────────────────────────────
 
 function SwitchToNormalDialog({ onConfirm, disabled }: { onConfirm: (mode: "RANDOM" | "BALANCED") => void; disabled: boolean }) {
+  const t = useTranslations("session")
   const [open, setOpen] = useState(false)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" disabled={disabled} />}>
-        Switch to normal play
+        {t("switchToNormalPlay")}
       </DialogTrigger>
       <DialogContent className="sm:max-w-xs">
         <DialogHeader>
-          <DialogTitle>Switch to normal play</DialogTitle>
+          <DialogTitle>{t("switchToNormalPlay")}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Stop the tournament and form new 2-team matches. How should the teams be formed?
+          {t("switchToNormalPlayDesc")}
         </p>
         <DialogFooter className="flex-col gap-2">
           <Button onClick={() => { onConfirm("RANDOM"); setOpen(false) }}>
-            Random teams
+            {t("randomTeams")}
           </Button>
           <Button variant="outline" onClick={() => { onConfirm("BALANCED"); setOpen(false) }}>
-            Balanced teams (by rating)
+            {t("balancedTeams")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1131,6 +1697,7 @@ export function SessionClient({
   currentUserId: string
   isOrganizer: boolean
 }) {
+  const t = useTranslations("session")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
 
@@ -1243,13 +1810,13 @@ export function SessionClient({
                 "bg-white/10 text-white/60 border border-white/15"}`}
             >
               {session.status === "IN_PROGRESS" && <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />}
-              {session.status === "IN_PROGRESS" ? "Live" :
-               session.status === "COMPLETED" ? (startedAsTournament ? "🏆 Tournament complete" : "✓ Completed") :
-               session.status === "CANCELLED" ? "✕ Cancelled" : "Scheduled"}
+              {session.status === "IN_PROGRESS" ? t("statusLive") :
+               session.status === "COMPLETED" ? (startedAsTournament ? t("tournamentComplete") : t("completed")) :
+               session.status === "CANCELLED" ? t("cancelled") : t("statusScheduled")}
             </span>
             {startedAsTournament && session.status !== "SCHEDULED" && (
               <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold bg-white/10 text-white/70 border border-white/15">
-                🏆 Tournament · {session.teams.length} teams
+              🏆 {t("tournamentTeams", { count: session.teams.length })}
               </span>
             )}
           </div>
@@ -1265,14 +1832,19 @@ export function SessionClient({
 
       {/* CANCELLED */}
       {session.status === "CANCELLED" && (
-        <p className="text-muted-foreground">This game day was cancelled.</p>
+        <p className="text-muted-foreground">{t("gameDayCancelled")}</p>
       )}
 
       {/* SCHEDULED — no teams yet */}
       {session.status === "SCHEDULED" && session.teams.length === 0 && (
         <div className="space-y-4">
           <RegistrationPanel session={session} isOrganizer={isOrganizer} />
-          {isOrganizer && <FormTeamsDialog session={session} />}
+          {isOrganizer && (
+            <div className="flex flex-wrap gap-2">
+              <FormTeamsDialog session={session} />
+              <SendInvitationDialog sessionId={session.id} />
+            </div>
+          )}
         </div>
       )}
 
@@ -1283,11 +1855,12 @@ export function SessionClient({
           <SectionHeader title="Teams" />
           <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} />
           {isOrganizer && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <FormTeamsDialog session={session} />
+              <SendInvitationDialog sessionId={session.id} />
               {pendingMatches.length > 0 && (
                 <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}>
-                  {startedAsTournament && completedMatches.length === 0 ? "Start Round 1" : "Start Match"}
+                  {startedAsTournament && completedMatches.length === 0 ? t("startRound1") : t("startMatch")}
                 </Button>
               )}
             </div>
@@ -1307,7 +1880,7 @@ export function SessionClient({
                 <a href={`/sessions/${session.id}/scoreboard`} target="empor-scoreboard" rel="noopener noreferrer"
                   className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
                 >
-                  Open scoreboard ↗
+                  {t("openScoreboard")}
                 </a>
               </div>
               <ActiveMatch match={activeMatch} session={session} isOrganizer={isOrganizer} />
@@ -1324,7 +1897,7 @@ export function SessionClient({
                     <span className="font-medium">{pendingMatches[0].homeTeamName} vs {pendingMatches[0].awayTeamName}</span>
                     {isOrganizer && (
                       <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}>
-                        Start Match
+                        {t("startMatch")}
                       </Button>
                     )}
                   </div>
@@ -1414,18 +1987,18 @@ export function SessionClient({
             <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
               {startedAsTournament && (
                 <div className="w-full text-xs text-muted-foreground mb-1 italic">
-                  Tournament paused — continuing with normal play
+                  {t("tournamentPaused")}
                 </div>
               )}
               <Button size="sm" disabled={pending} onClick={handleRematch}>
-                Rematch (same teams)
+                {t("rematch")}
               </Button>
               <NewMatchDialog session={session} disabled={pending} />
               {startedAsTournament ? (
                 <EndSessionDialog onConfirm={handleEndSession} disabled={pending} />
               ) : (
                 <Button variant="outline" size="sm" disabled={pending} onClick={() => handleEndSession("all")}>
-                  End Game Day
+                  {t("endGameDay")}
                 </Button>
               )}
             </div>
@@ -1465,7 +2038,7 @@ export function SessionClient({
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold bg-muted text-muted-foreground border">
-                      Normal play (after tournament)
+                      {t("normalPlay")}
                     </span>
                   </div>
                   {session.matches.filter((m) => m.roundNumber == null && m.status === "COMPLETED").map((m) => (
@@ -1484,6 +2057,8 @@ export function SessionClient({
             </div>
           )}
 
+          <SessionSummary session={session} isOrganizer={isOrganizer} />
+
           <details className="group">
             <summary className="cursor-pointer list-none">
               <SectionHeader title="Teams" collapsible />
@@ -1495,7 +2070,7 @@ export function SessionClient({
 
           {isOrganizer && (
             <Button variant="outline" size="sm" disabled={pending} onClick={handleReopenSession}>
-              Re-open Game Day
+              {t("reopenGameDay")}
             </Button>
           )}
         </div>

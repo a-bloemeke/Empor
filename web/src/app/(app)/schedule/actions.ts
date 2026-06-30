@@ -3,6 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { notifyOrganizersSessionRegistration } from "@/lib/email"
 
 export async function createSession(dateIso: string) {
   const session = await auth()
@@ -16,7 +17,7 @@ export async function createSession(dateIso: string) {
   if (!season) throw new Error(`No season exists for ${year}. Create one under Admin → Seasons first.`)
   if (season.status === "COMPLETED") throw new Error(`Season ${year} is already closed.`)
 
-  await db.session.create({
+  const newSession = await db.session.create({
     data: {
       date,
       seasonId: season.id,
@@ -66,6 +67,14 @@ export async function registerSelf(sessionId: string) {
         status: "REGISTERED",
       },
     })
+  }
+
+  const player = await db.player.findUnique({
+    where: { id: authSession.user.id },
+    select: { firstName: true, lastName: true, email: true },
+  })
+  if (player) {
+    await notifyOrganizersSessionRegistration(s, player)
   }
 
   revalidatePath("/schedule")
