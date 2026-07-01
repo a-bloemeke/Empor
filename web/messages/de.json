@@ -72,6 +72,8 @@
     "registrationFailed": "Registrierung fehlgeschlagen."
   },
   "schedule": {
+    "title": "Spielplan",
+    "subtitle": "Kommende und vergangene Spieltage.",
     "upcomingGameDays": "Kommende Spieltage",
     "newGameDay": "Neuer Spieltag",
     "scheduleGameDay": "Spieltag planen",

@@ -72,6 +72,8 @@
     "registrationFailed": "Registration failed."
   },
   "schedule": {
+    "title": "Schedule",
+    "subtitle": "Upcoming and past game days.",
     "upcomingGameDays": "Upcoming Game Days",
     "newGameDay": "New game day",
     "scheduleGameDay": "Schedule a game day",

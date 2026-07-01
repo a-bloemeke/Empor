@@ -1,11 +1,13 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { ScheduleClient } from "./schedule-client"
+import { getTranslations } from "next-intl/server"
 
 export default async function SchedulePage() {
   const authSession = await auth()
   const isOrganizer = authSession?.user?.role === "ORGANIZER"
   const currentUserId = authSession?.user?.id ?? ""
+  const t = await getTranslations("schedule")
 
   const sessions = await db.session.findMany({
     orderBy: { date: "asc" },
@@ -46,8 +48,8 @@ export default async function SchedulePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">Schedule</h1>
-      <p className="text-muted-foreground mb-6">Upcoming and past game days.</p>
+      <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
+      <p className="text-muted-foreground mb-6">{t("subtitle")}</p>
       <ScheduleClient
         upcoming={upcoming}
         past={past}
