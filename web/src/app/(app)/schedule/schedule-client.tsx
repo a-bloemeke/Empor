@@ -419,7 +419,7 @@ export function ScheduleClient({
                   <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
                   {isOrganizer && (
                     <TableCell className="text-right">
-                      {s.status === "CANCELLED" && (
+                      {s.status !== "SCHEDULED" && s.status !== "COMPLETED" && s.status !== "IN_PROGRESS" && (
                         <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}>
                           {busy ? "…" : t("reopenGameDay")}
                         </Button>
