@@ -6,11 +6,9 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
-// Parse the right-side summary table from the Fudo CSV.
-// Each data row has a rank (col 0), and the summary columns start at col 13:
-//   col 13: Name, col 14: Gesamt (=points total), col 15: Punkte (outcome pts), col 16: kicks (sessions)
-function parseSummaryRows(text: string): { name: string; gesamt: number; punkte: number; kicks: number }[] {
-  const rows: { name: string; gesamt: number; punkte: number; kicks: number }[] = []
+// Parse the right-side summary table: col 15=Name, 16=Gesamt, 17=Punkte, 18=kicks
+function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: number }[] {
+  const rows: { name: string; gesamt: number; kicks: number }[] = []
   for (const line of text.split("\n")) {
     const cols = line.split(";")
     const rank = cols[0]?.trim()
@@ -18,13 +16,32 @@ function parseSummaryRows(text: string): { name: string; gesamt: number; punkte:
     const name = cols[15]?.trim()
     if (!name) continue
     const gesamt = parseInt(cols[16]?.trim() ?? "", 10)
-    const punkte = parseInt(cols[17]?.trim() ?? "", 10)
     const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
-    if (isNaN(gesamt) || isNaN(punkte) || isNaN(kicks)) continue
-    if (gesamt === 0 && kicks === 0) continue  // skip placeholder rows
-    rows.push({ name, gesamt, punkte, kicks })
+    if (isNaN(gesamt) || isNaN(kicks)) continue
+    if (gesamt === 0 && kicks === 0) continue
+    rows.push({ name, gesamt, kicks })
   }
   return rows
+}
+
+// Derive matchesPlayed from the left-side rows:
+// tournament row = 2 matches, pts > 3 (W+W or W+D) = 2 matches, else 1
+function parseMatchCounts(text: string): Map<string, number> {
+  const matchesMap = new Map<string, number>()
+  for (const line of text.split("\n")) {
+    const cols = line.split(";")
+    const rank = cols[0]?.trim()
+    if (!rank || !/^\d+$/.test(rank)) continue
+    const players = cols.slice(2, 9).map((c) => c.trim()).filter(Boolean)
+    const pts = parseInt(cols[9]?.trim() ?? "", 10)
+    const turnier = cols[10]?.trim().toLowerCase() === "ja"
+    if (players.length === 0 || isNaN(pts)) continue
+    const matchCount = turnier ? 2 : pts > 3 ? 2 : 1
+    for (const name of players) {
+      matchesMap.set(name, (matchesMap.get(name) ?? 0) + matchCount)
+    }
+  }
+  return matchesMap
 }
 
 export async function POST(req: NextRequest) {
@@ -37,9 +54,10 @@ export async function POST(req: NextRequest) {
   const seasonYear = seasonYearParam ? parseInt(seasonYearParam, 10) : new Date().getFullYear()
 
   const text = await req.text()
-  const rows = parseSummaryRows(text)
+  const summaryRows = parseSummaryRows(text)
+  const matchCounts = parseMatchCounts(text)
 
-  if (rows.length === 0) {
+  if (summaryRows.length === 0) {
     return NextResponse.json({ error: "No valid summary rows found in CSV." }, { status: 400 })
   }
 
@@ -67,7 +85,7 @@ export async function POST(req: NextRequest) {
   const skipped: string[] = []
   const unknownNames: string[] = []
 
-  for (const row of rows) {
+  for (const row of summaryRows) {
     const key = normalize(row.name)
     const playerId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
     if (!playerId) { unknownNames.push(row.name); continue }
@@ -84,7 +102,9 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    const data = { points: row.gesamt, sessionsPlayed: row.kicks, matchesPlayed: row.kicks }
+    // matchesPlayed from left-side rows; fall back to kicks if name not found there
+    const matches = matchCounts.get(row.name) ?? row.kicks
+    const data = { points: row.gesamt, sessionsPlayed: row.kicks, matchesPlayed: matches }
 
     if (existing) {
       await db.playerStats.update({
