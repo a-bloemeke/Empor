@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { DownloadIcon, UploadIcon } from "lucide-react"
+import { DownloadIcon, UploadIcon, Trash2Icon } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 type Season = { year: number; status: string }
@@ -22,7 +22,9 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
   const csvPointsRef = useRef<HTMLInputElement>(null)
   const [exportYear, setExportYear] = useState<string>("all")
   const [importYear, setImportYear] = useState<string>("all")
+  const [resetYear, setResetYear] = useState<string>(String(new Date().getFullYear()))
   const [importing, setImporting] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   function exportUrl(format: "json" | "xlsx") {
     const base = format === "json" ? "/api/admin/export" : "/api/admin/export-xlsx"
@@ -54,6 +56,29 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
       toast.error((err as Error).message)
     } finally {
       setImporting(false)
+    }
+  }
+
+  async function handleReset(type: "points" | "scores") {
+    const label = type === "points" ? "Punkte & Spieltage" : "Tore & Assists"
+    const season = resetYear === "all" ? "alle Saisons" : `Saison ${resetYear}`
+    if (!confirm(`${label} für ${season} wirklich zurücksetzen?`)) return
+    setResetting(true)
+    try {
+      const body: Record<string, unknown> = { type }
+      if (resetYear !== "all") body.seasonYear = parseInt(resetYear)
+      const res = await fetch("/api/admin/reset-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Reset failed.")
+      toast.success(`${label} für ${season} zurückgesetzt.`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -132,6 +157,35 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
               <UploadIcon className="size-4" /> {importing ? t("importing") : "CSV Points"}
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Reset */}
+      <div className="rounded-xl border border-destructive/30 p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-destructive">Statistiken zurücksetzen</h2>
+          <p className="text-sm text-muted-foreground mt-1">Punkte/Spieltage oder Tore/Assists für eine Saison auf 0 zurücksetzen, um neu zu importieren.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Saison</Label>
+          <Select value={resetYear} onValueChange={(v) => { if (v) setResetYear(v) }}>
+            <SelectTrigger className="w-48">
+              <SelectValue>
+                {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {seasonOptions}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="destructive" disabled={resetting} className="gap-2" onClick={() => handleReset("points")}>
+            <Trash2Icon className="size-4" /> {resetting ? "Wird zurückgesetzt…" : "Punkte & Spieltage"}
+          </Button>
+          <Button variant="destructive" disabled={resetting} className="gap-2" onClick={() => handleReset("scores")}>
+            <Trash2Icon className="size-4" /> {resetting ? "Wird zurückgesetzt…" : "Tore & Assists"}
+          </Button>
         </div>
       </div>
     </div>
