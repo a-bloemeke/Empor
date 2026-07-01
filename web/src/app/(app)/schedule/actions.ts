@@ -39,6 +39,12 @@ export async function cancelSession(sessionId: string) {
   if (s.status !== "SCHEDULED") throw new Error("Only scheduled sessions can be cancelled.")
 
   await db.session.update({ where: { id: sessionId }, data: { status: "CANCELLED" } })
+  // intentionally no revalidatePath here — caller triggers revalidation after the email dialog
+}
+
+export async function revalidateSchedule() {
+  const session = await auth()
+  if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
   revalidatePath("/schedule")
 }
 

@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -121,6 +121,7 @@ function CancelGameDayDialog({
         const count = await sendCancelEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
         toast.success(t("cancelEmailSent", { count }))
         setOpen(false)
+        await revalidateSchedule()
       } catch (e) {
         toast.error((e as Error).message)
       }
@@ -130,6 +131,7 @@ function CancelGameDayDialog({
   function handleSkipEmail() {
     toast.success(t("gameDayCancelled"))
     setOpen(false)
+    startTransition(async () => { await revalidateSchedule() })
   }
 
   return (
@@ -391,7 +393,7 @@ export function ScheduleClient({
         <section className="overflow-hidden rounded-xl border border-border shadow-sm">
           <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
             style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-          >{t("pastGameDays")}{isOrganizer ? " (org)" : " (not org)"}</div>
+          >{t("pastGameDays")}</div>
           <div className="overflow-x-auto">
           <Table>
             <TableHeader>
