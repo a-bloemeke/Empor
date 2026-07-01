@@ -113,7 +113,9 @@
     "skipEmail": "Close without email",
     "sending": "Sending…",
     "sendCancelEmail": "Send to {count} player{count, plural, one {} other {s}}",
-    "cancelEmailSent": "Cancellation email sent to {count} player{count, plural, one {} other {s}}."
+    "cancelEmailSent": "Cancellation email sent to {count} player{count, plural, one {} other {s}}.",
+    "reopenGameDay": "Re-open",
+    "gameDayReopened": "Game day re-opened."
   },
   "session": {
     "noPlayersYet": "No players registered yet.",

@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, getCancelEmailDefaults, sendCancelEmail } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -276,6 +276,18 @@ export function ScheduleClient({
     })
   }
 
+  function handleReopen(id: string) {
+    setActionId(id)
+    startTransition(async () => {
+      try {
+        await reopenCancelledSession(id)
+        toast.success(t("gameDayReopened"))
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setActionId(null) }
+    })
+  }
+
   return (
     <div className="space-y-8">
       <section className="overflow-hidden rounded-xl border border-border shadow-sm">
@@ -388,10 +400,13 @@ export function ScheduleClient({
                 <TableHead className="hidden sm:table-cell">{t("season")}</TableHead>
                 <TableHead className="text-right">{t("players")}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t("status")}</TableHead>
+                {isOrganizer && <TableHead />}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {past.map((s) => (
+              {past.map((s) => {
+                const busy = pending && actionId === s.id
+                return (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">
                     <Link href={`/sessions/${s.id}`} className="hover:underline">
@@ -402,8 +417,18 @@ export function ScheduleClient({
                   <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
                   <TableCell className="text-right">{s.registrationCount}</TableCell>
                   <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
+                  {isOrganizer && (
+                    <TableCell className="text-right">
+                      {s.status === "CANCELLED" && (
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}>
+                          {busy ? "…" : t("reopenGameDay")}
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
           </div>

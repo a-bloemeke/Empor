@@ -126,6 +126,18 @@ export async function sendCancelEmail(
   return sendGameDayCancellation({ id: s.id, date: s.date }, subject, body, emails)
 }
 
+export async function reopenCancelledSession(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const s = await db.session.findUnique({ where: { id: sessionId } })
+  if (!s) throw new Error("Session not found.")
+  if (s.status !== "CANCELLED") throw new Error("Only cancelled sessions can be reopened this way.")
+
+  await db.session.update({ where: { id: sessionId }, data: { status: "SCHEDULED" } })
+  revalidatePath("/schedule")
+}
+
 export async function registerSelf(sessionId: string) {
   const authSession = await auth()
   if (!authSession?.user?.id) throw new Error("Unauthorized")

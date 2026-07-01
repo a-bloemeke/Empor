@@ -113,7 +113,9 @@
     "skipEmail": "Ohne Mail schließen",
     "sending": "Wird gesendet…",
     "sendCancelEmail": "An {count} Spieler senden",
-    "cancelEmailSent": "Absage-Mail an {count} Spieler gesendet."
+    "cancelEmailSent": "Absage-Mail an {count} Spieler gesendet.",
+    "reopenGameDay": "Wieder öffnen",
+    "gameDayReopened": "Spieltag wieder geöffnet."
   },
   "session": {
     "noPlayersYet": "Noch keine Spieler angemeldet.",
