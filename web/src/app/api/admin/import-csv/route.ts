@@ -83,16 +83,23 @@ export async function POST(req: NextRequest) {
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
     })
 
-    if (existing) {
-      skipped.push(`${row.name} (already has season stats)`)
+    if (existing && existing.goals > 0) {
+      skipped.push(`${row.name} (already has goals)`)
       continue
     }
 
     const score = row.goals + row.assists
 
-    await db.playerStats.create({
-      data: { playerId, seasonId: season.id, goals: row.goals, assists: row.assists, score, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
-    })
+    if (existing) {
+      await db.playerStats.update({
+        where: { playerId_seasonId: { playerId, seasonId: season.id } },
+        data: { goals: row.goals, assists: row.assists, score },
+      })
+    } else {
+      await db.playerStats.create({
+        data: { playerId, seasonId: season.id, goals: row.goals, assists: row.assists, score, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
+      })
+    }
 
     // Upsert lifetime stats — only create if none exist yet
     const existingLt = await db.playerStatsLifetime.findUnique({ where: { playerId } })

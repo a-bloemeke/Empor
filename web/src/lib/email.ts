@@ -170,6 +170,41 @@ export async function sendStatusUpdateEmail(
   return recipientEmails.length
 }
 
+export async function sendGameDayCancellation(
+  session: { id: string; date: Date },
+  subject: string,
+  plainTextBody: string,
+  recipientEmails: string[],
+) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("SMTP is not configured on this server.")
+  }
+  if (recipientEmails.length === 0) throw new Error("No recipients selected.")
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+
+  const htmlBody = plainTextBody
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br/>")
+
+  const html = `
+<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${htmlBody}</p>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+</body>
+</html>`
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: recipientEmails, subject, text: plainTextBody, html })
+  return recipientEmails.length
+}
+
 export async function notifyOrganizersNewPlayer(player: { firstName: string; lastName: string; email: string }) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
 

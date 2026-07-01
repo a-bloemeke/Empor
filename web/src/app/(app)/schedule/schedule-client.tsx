@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
   TableBody,
@@ -22,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, getCancelEmailDefaults, sendCancelEmail } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -49,6 +50,175 @@ function MyStatusBadge({ status }: { status: string | null }) {
   if (status === "REGISTERED") return <Badge variant="secondary">{t("statusRegistered")}</Badge>
   if (status === "CANCELLED") return <span className="text-muted-foreground text-sm">{t("statusCancelled")}</span>
   return <span className="text-muted-foreground text-sm">—</span>
+}
+
+// ─── Cancel Game Day Dialog ───────────────────────────────────────────────────
+
+type CancelPlayer = { id: string; name: string; email: string; emailNotifications: boolean }
+
+function CancelGameDayDialog({
+  sessionId,
+  onCancelled,
+}: {
+  sessionId: string
+  onCancelled: () => void
+}) {
+  const t = useTranslations("schedule")
+  const [open, setOpen] = useState(false)
+  const [step, setStep] = useState<"confirm" | "email">("confirm")
+  const [pending, startTransition] = useTransition()
+  const [subject, setSubject] = useState("")
+  const [body, setBody] = useState("")
+  const [players, setPlayers] = useState<CancelPlayer[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [loaded, setLoaded] = useState(false)
+
+  function handleOpen(isOpen: boolean) {
+    setOpen(isOpen)
+    if (!isOpen) {
+      setStep("confirm")
+      setLoaded(false)
+    }
+  }
+
+  function handleConfirmCancel() {
+    startTransition(async () => {
+      try {
+        await cancelSession(sessionId)
+        onCancelled()
+        // load email defaults
+        const data = await getCancelEmailDefaults(sessionId)
+        setSubject(data.subject)
+        setBody(data.body)
+        setPlayers(data.players)
+        setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
+        setLoaded(true)
+        setStep("email")
+      } catch (e) {
+        toast.error((e as Error).message)
+        setOpen(false)
+      }
+    })
+  }
+
+  function togglePlayer(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelectedIds((prev) =>
+      prev.size === players.length ? new Set() : new Set(players.map((p) => p.id))
+    )
+  }
+
+  function handleSendEmail() {
+    startTransition(async () => {
+      try {
+        const count = await sendCancelEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
+        toast.success(t("cancelEmailSent", { count }))
+        setOpen(false)
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
+  function handleSkipEmail() {
+    toast.success(t("gameDayCancelled"))
+    setOpen(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger render={<Button variant="ghost" size="sm" />}>
+        {t("cancelGameDay")}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        {step === "confirm" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t("cancelGameDayTitle")}</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">{t("cancelGameDayConfirm")}</p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+                {t("back")}
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmCancel} disabled={pending}>
+                {pending ? t("cancelling") : t("confirmCancel")}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t("cancelEmailTitle")}</DialogTitle>
+            </DialogHeader>
+            {!loaded ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">{t("loading")}</p>
+            ) : (
+              <div className="space-y-4">
+                {/* Recipients */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>{t("recipients", { selected: selectedIds.size, total: players.length })}</Label>
+                    <button onClick={toggleAll} className="text-xs text-primary hover:underline">
+                      {selectedIds.size === players.length ? t("deselectAll") : t("selectAll")}
+                    </button>
+                  </div>
+                  <div className="rounded-lg border border-border max-h-40 overflow-y-auto divide-y divide-border/40">
+                    {players.map((p) => (
+                      <label key={p.id} className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40 select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(p.id)}
+                          onChange={() => togglePlayer(p.id)}
+                          className="h-3.5 w-3.5 rounded border"
+                        />
+                        <span className="flex-1">{p.name}</span>
+                        {!p.emailNotifications && <span title="E-Mails deaktiviert" className="text-xs">🔕</span>}
+                        <span className="text-xs text-muted-foreground truncate max-w-[140px]">{p.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Subject */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="cancel-subject">{t("subject")}</Label>
+                  <Input id="cancel-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+                </div>
+
+                {/* Body */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="cancel-body">{t("message")}</Label>
+                  <Textarea
+                    id="cancel-body"
+                    rows={10}
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    className="font-mono text-sm resize-y"
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Button variant="ghost" onClick={handleSkipEmail} disabled={pending}>
+                {t("skipEmail")}
+              </Button>
+              <Button onClick={handleSendEmail} disabled={pending || !loaded || selectedIds.size === 0}>
+                {pending ? t("sending") : t("sendCancelEmail", { count: selectedIds.size })}
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export function ScheduleClient({
@@ -79,18 +249,6 @@ export function ScheduleClient({
       } catch (e) {
         toast.error((e as Error).message)
       }
-    })
-  }
-
-  function handleCancelSession(id: string) {
-    setActionId(id)
-    startTransition(async () => {
-      try {
-        await cancelSession(id)
-        toast.success(t("gameDayCancelled"))
-      } catch (e) {
-        toast.error((e as Error).message)
-      } finally { setActionId(null) }
     })
   }
 
@@ -201,9 +359,10 @@ export function ScheduleClient({
                           </Button>
                         )}
                         {isOrganizer && s.status === "SCHEDULED" && (
-                          <Button variant="ghost" size="sm" disabled={busy} onClick={() => handleCancelSession(s.id)}>
-                            {busy ? "…" : t("cancelGameDay")}
-                          </Button>
+                          <CancelGameDayDialog
+                            sessionId={s.id}
+                            onCancelled={() => setActionId(null)}
+                          />
                         )}
                       </div>
                     </TableCell>
