@@ -15,11 +15,11 @@ function parseSummaryRows(text: string): { name: string; gesamt: number; punkte:
     const cols = line.split(";")
     const rank = cols[0]?.trim()
     if (!rank || !/^\d+$/.test(rank)) continue
-    const name = cols[13]?.trim()
+    const name = cols[15]?.trim()
     if (!name) continue
-    const gesamt = parseInt(cols[14]?.trim() ?? "", 10)
-    const punkte = parseInt(cols[15]?.trim() ?? "", 10)
-    const kicks  = parseInt(cols[16]?.trim() ?? "", 10)
+    const gesamt = parseInt(cols[16]?.trim() ?? "", 10)
+    const punkte = parseInt(cols[17]?.trim() ?? "", 10)
+    const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
     if (isNaN(gesamt) || isNaN(punkte) || isNaN(kicks)) continue
     if (gesamt === 0 && kicks === 0) continue  // skip placeholder rows
     rows.push({ name, gesamt, punkte, kicks })
