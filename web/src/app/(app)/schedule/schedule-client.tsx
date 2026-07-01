@@ -391,7 +391,7 @@ export function ScheduleClient({
         <section className="overflow-hidden rounded-xl border border-border shadow-sm">
           <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
             style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-          >{t("pastGameDays")}</div>
+          >{t("pastGameDays")}{isOrganizer ? " (org)" : " (not org)"}</div>
           <div className="overflow-x-auto">
           <Table>
             <TableHeader>
