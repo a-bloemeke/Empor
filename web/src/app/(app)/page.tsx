@@ -74,7 +74,7 @@ export default async function HomePage() {
               href="/leaderboard"
               className="rounded-lg border border-white/30 bg-white/10 px-7 py-3 text-sm font-semibold text-white hover:bg-white/20 transition-all backdrop-blur-sm"
             >
-              {t("statGameDays")}
+              {t("ctaLeaderboard")}
             </Link>
           </div>
         </div>

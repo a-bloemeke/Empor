@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getSeasonStats } from "./actions"
+import { getSeasonStats, getAggregatedStats } from "./actions"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
 
@@ -320,6 +320,10 @@ export function LeaderboardClient({
   const [seasonStats, setSeasonStats] = useState(initialSeasonStats)
   const [pending, startTransition] = useTransition()
 
+  // Lifetime: all seasons selected by default
+  const [selectedLifetimeIds, setSelectedLifetimeIds] = useState<Set<string>>(new Set(seasons.map((s) => s.id)))
+  const [currentLifetimeStats, setCurrentLifetimeStats] = useState(lifetimeStats)
+
   function handleSeasonChange(id: string) {
     setSelectedSeasonId(id)
     startTransition(async () => {
@@ -329,6 +333,22 @@ export function LeaderboardClient({
       } catch (e) {
         toast.error((e as Error).message)
       }
+    })
+  }
+
+  function toggleLifetimeSeason(id: string) {
+    setSelectedLifetimeIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      startTransition(async () => {
+        try {
+          const stats = await getAggregatedStats([...next])
+          setCurrentLifetimeStats(stats)
+        } catch (e) {
+          toast.error((e as Error).message)
+        }
+      })
+      return next
     })
   }
 
@@ -412,24 +432,44 @@ export function LeaderboardClient({
         </TabsContent>
 
         <TabsContent value="lifetime" className="space-y-8">
+          {/* Season filter */}
+          <div className="flex flex-wrap gap-2">
+            {seasons.map((s) => (
+              <label key={s.id} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedLifetimeIds.has(s.id)}
+                  onChange={() => toggleLifetimeSeason(s.id)}
+                  className="h-3.5 w-3.5 rounded border"
+                />
+                {s.year}{s.status === "ACTIVE" ? ` ${t("active")}` : ""}
+              </label>
+            ))}
+          </div>
+          {pending ? (
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
+          ) : (
+          <>
           <div className="overflow-hidden rounded-xl border border-border shadow-sm">
             <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
               style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
             >{t("pointsRanking")}</div>
-            <PointsTable rows={lifetimeStats} />
+            <PointsTable rows={currentLifetimeStats} />
           </div>
           <div className="overflow-hidden rounded-xl border border-border shadow-sm">
             <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
               style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
             >{t("topScorers")}</div>
-            <ScorersTable rows={lifetimeStats} />
+            <ScorersTable rows={currentLifetimeStats} />
           </div>
           <div className="overflow-hidden rounded-xl border border-border shadow-sm">
             <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
               style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
             >{strengthHeader}</div>
-            <StrengthTable rows={lifetimeStats} />
+            <StrengthTable rows={currentLifetimeStats} />
           </div>
+          </>
+          )}
         </TabsContent>
       </Tabs>
 
