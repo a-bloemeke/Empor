@@ -24,8 +24,10 @@ export async function getSeasonStats(seasonId: string) {
 }
 
 export async function getAggregatedStats(seasonIds: string[]) {
+  if (seasonIds.length === 0) return []
+
   const stats = await db.playerStats.findMany({
-    where: seasonIds.length > 0 ? { seasonId: { in: seasonIds } } : {},
+    where: { seasonId: { in: seasonIds } },
     include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
   })
 

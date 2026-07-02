@@ -337,18 +337,16 @@ export function LeaderboardClient({
   }
 
   function toggleLifetimeSeason(id: string) {
-    setSelectedLifetimeIds((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      startTransition(async () => {
-        try {
-          const stats = await getAggregatedStats([...next])
-          setCurrentLifetimeStats(stats)
-        } catch (e) {
-          toast.error((e as Error).message)
-        }
-      })
-      return next
+    const next = new Set(selectedLifetimeIds)
+    next.has(id) ? next.delete(id) : next.add(id)
+    setSelectedLifetimeIds(next)
+    startTransition(async () => {
+      try {
+        const stats = await getAggregatedStats([...next])
+        setCurrentLifetimeStats(stats)
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
     })
   }
 
