@@ -727,24 +727,19 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
               {availableQuotes.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-sm">Pick from collection</Label>
-                  <Select
-                    value=""
-                    onValueChange={(id) => {
-                      const q = availableQuotes.find((q) => q.id === id)
-                      if (q) { setQuoteText(q.quote); setQuoteAuthor(q.author) }
-                    }}
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue placeholder="— choose a quote —" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableQuotes.map((q) => (
-                        <SelectItem key={q.id} value={q.id}>
-                          „{q.quote.length > 50 ? q.quote.slice(0, 50) + "…" : q.quote}" — {q.author}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="rounded-lg border border-border max-h-44 overflow-y-auto divide-y divide-border/40">
+                    {availableQuotes.map((q) => (
+                      <button
+                        key={q.id}
+                        type="button"
+                        onClick={() => { setQuoteText(q.quote); setQuoteAuthor(q.author) }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors${quoteText === q.quote && quoteAuthor === q.author ? " bg-muted font-medium" : ""}`}
+                      >
+                        <span className="italic">„{q.quote}"</span>
+                        <span className="ml-1 text-muted-foreground not-italic">— {q.author}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="space-y-1.5">

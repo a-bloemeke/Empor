@@ -132,6 +132,7 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
                     <DropdownMenuItem onClick={() => router.push("/admin/membership")}>{t("membershipFees")}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push("/admin/seasons")}>{t("seasons")}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push("/admin/data")}>{t("data")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/admin/quotes")}>Zitate</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push("/admin/settings")}>{t("settings")}</DropdownMenuItem>
                   </>
                 )}
