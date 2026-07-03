@@ -86,26 +86,56 @@ function speak(text: string, lang = "de-DE", opts: { rate?: number; pitch?: numb
 
 function playWhistleThenSpeak(ctx: AudioContext, text: string, lang = "de-DE") {
   try {
+    // Real whistles are filtered noise, not pure tones.
+    // Each blast: white noise → bandpass filter around whistle freq + slight vibrato.
     const blasts = [
-      { start: 0,    dur: 0.35, freq: 3000 },
-      { start: 0.55, dur: 0.35, freq: 3000 },
-      { start: 1.1,  dur: 1.5,  freq: 2900 },
+      { start: 0,    dur: 0.4,  freq: 3200 },
+      { start: 0.6,  dur: 0.4,  freq: 3200 },
+      { start: 1.15, dur: 1.6,  freq: 3000 },
     ]
+
     blasts.forEach(({ start, dur, freq }) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
-      osc.frequency.linearRampToValueAtTime(freq - 120, ctx.currentTime + start + dur)
-      gain.gain.setValueAtTime(0, ctx.currentTime + start)
-      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + start + 0.02)
-      gain.gain.setValueAtTime(0.5, ctx.currentTime + start + dur - 0.08)
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
-      osc.start(ctx.currentTime + start)
-      osc.stop(ctx.currentTime + start + dur)
+      // White noise buffer
+      const bufferSize = ctx.sampleRate * dur
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
+      const data = buffer.getChannelData(0)
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1
+      const noise = ctx.createBufferSource()
+      noise.buffer = buffer
+
+      // Bandpass filter — gives the whistle its pitch
+      const bp = ctx.createBiquadFilter()
+      bp.type = "bandpass"
+      bp.frequency.setValueAtTime(freq, ctx.currentTime + start)
+      bp.frequency.linearRampToValueAtTime(freq - 80, ctx.currentTime + start + dur)
+      bp.Q.value = 18  // narrow band = more whistle-like
+
+      // Vibrato via LFO on filter frequency
+      const lfo = ctx.createOscillator()
+      const lfoGain = ctx.createGain()
+      lfo.frequency.value = 7
+      lfoGain.gain.value = 40
+      lfo.connect(lfoGain)
+      lfoGain.connect(bp.frequency)
+
+      // Amplitude envelope — sharp attack, sustain, fast decay
+      const ampGain = ctx.createGain()
+      ampGain.gain.setValueAtTime(0, ctx.currentTime + start)
+      ampGain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + start + 0.015)
+      ampGain.gain.setValueAtTime(0.9, ctx.currentTime + start + dur - 0.07)
+      ampGain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
+
+      noise.connect(bp)
+      bp.connect(ampGain)
+      ampGain.connect(ctx.destination)
+
+      lfo.start(ctx.currentTime + start)
+      lfo.stop(ctx.currentTime + start + dur)
+      noise.start(ctx.currentTime + start)
+      noise.stop(ctx.currentTime + start + dur)
     })
-    setTimeout(() => speak(text, lang, { rate: 0.72, pitch: 0.7 }), 2800)
+
+    setTimeout(() => speak(text, lang, { rate: 0.72, pitch: 0.7 }), 2900)
   } catch {
     speak(text, lang, { rate: 0.72, pitch: 0.7 })
   }
