@@ -84,11 +84,23 @@ function speak(text: string, lang = "de-DE", opts: { rate?: number; pitch?: numb
   } catch { /* not available */ }
 }
 
-function playWhistleThenSpeak(ctx: AudioContext, text: string, lang = "de-DE") {
+// Pre-loaded audio objects — must be created during a user gesture
+let whistleAudio: HTMLAudioElement | null = null
+
+function preloadAudio() {
+  if (typeof window === "undefined") return
+  if (!whistleAudio) {
+    whistleAudio = new Audio("/sounds/whistle.wav")
+    whistleAudio.load()
+  }
+}
+
+function playWhistleThenSpeak(_ctx: AudioContext, text: string, lang = "de-DE") {
   try {
-    const audio = new Audio("/sounds/whistle.wav")
-    audio.volume = 1.0
-    audio.play().catch(() => {})
+    if (whistleAudio) {
+      whistleAudio.currentTime = 0
+      whistleAudio.play().catch(() => {})
+    }
     setTimeout(() => speak(text, lang, { rate: 0.72, pitch: 0.7 }), 2100)
   } catch {
     speak(text, lang, { rate: 0.72, pitch: 0.7 })
@@ -163,12 +175,13 @@ function useMatchTimer(matchId: string) {
 
   function start() {
     if (state !== "idle" && state !== "paused") return
-    // Create AudioContext during user gesture so it's not suspended later
+    // Create AudioContext + preload audio during user gesture so iOS allows playback later
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
       if (AudioCtx && !sharedAudioCtx) sharedAudioCtx = new AudioCtx()
       if (sharedAudioCtx?.state === "suspended") sharedAudioCtx.resume()
     } catch { /* not available */ }
+    preloadAudio()
     // iOS Safari requires speechSynthesis to be triggered inside a user gesture.
     // Speak a silent utterance now to unlock the engine for later deferred calls.
     try {
