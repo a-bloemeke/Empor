@@ -84,48 +84,28 @@ function speak(text: string, lang = "de-DE", opts: { rate?: number; pitch?: numb
   } catch { /* not available */ }
 }
 
-function playWhistleThenSpeak(text: string, lang = "de-DE", whistleDuration = 3) {
+function playWhistleThenSpeak(ctx: AudioContext, text: string, lang = "de-DE") {
   try {
-    if (typeof window === "undefined") return
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
-    if (!AudioCtx) { speak(text, lang); return }
-    const ctx = new AudioCtx()
-
-    const doPlay = () => {
-      // Three-blast referee whistle pattern: short-short-long
-      const blasts = [
-        { start: 0,    dur: 0.35, freq: 3000 },
-        { start: 0.55, dur: 0.35, freq: 3000 },
-        { start: 1.1,  dur: 1.5,  freq: 2900 },
-      ]
-
-      blasts.forEach(({ start, dur, freq }) => {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
-        osc.frequency.linearRampToValueAtTime(freq - 120, ctx.currentTime + start + dur)
-        gain.gain.setValueAtTime(0, ctx.currentTime + start)
-        gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + start + 0.02)
-        gain.gain.setValueAtTime(0.5, ctx.currentTime + start + dur - 0.08)
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
-        osc.start(ctx.currentTime + start)
-        osc.stop(ctx.currentTime + start + dur)
-      })
-
-      // Speak after the whistle pattern ends (~2.8s)
-      setTimeout(() => {
-        ctx.close()
-        speak(text, lang, { rate: 0.72, pitch: 0.7 })
-      }, whistleDuration * 1000)
-    }
-
-    if (ctx.state === "suspended") {
-      ctx.resume().then(doPlay)
-    } else {
-      doPlay()
-    }
+    const blasts = [
+      { start: 0,    dur: 0.35, freq: 3000 },
+      { start: 0.55, dur: 0.35, freq: 3000 },
+      { start: 1.1,  dur: 1.5,  freq: 2900 },
+    ]
+    blasts.forEach(({ start, dur, freq }) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+      osc.frequency.linearRampToValueAtTime(freq - 120, ctx.currentTime + start + dur)
+      gain.gain.setValueAtTime(0, ctx.currentTime + start)
+      gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + start + 0.02)
+      gain.gain.setValueAtTime(0.5, ctx.currentTime + start + dur - 0.08)
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
+      osc.start(ctx.currentTime + start)
+      osc.stop(ctx.currentTime + start + dur)
+    })
+    setTimeout(() => speak(text, lang, { rate: 0.72, pitch: 0.7 }), 2800)
   } catch {
     speak(text, lang, { rate: 0.72, pitch: 0.7 })
   }
@@ -135,14 +115,19 @@ function playSound(path: string, volume = 1.0) {
   try {
     const audio = new Audio(path)
     audio.volume = volume
-    audio.play().catch(() => {/* autoplay blocked — user hasn't interacted yet */})
-  } catch {
-    // Audio not available
-  }
+    audio.play().catch(() => {/* autoplay blocked */})
+  } catch { /* not available */ }
 }
 
+// AudioContext created during user gesture in start(), reused for game-over whistle
+let sharedAudioCtx: AudioContext | null = null
+
 function playTruckHorn() {
-  playWhistleThenSpeak("Spiel beendet.", "de-DE", 2.8)
+  if (sharedAudioCtx) {
+    playWhistleThenSpeak(sharedAudioCtx, "Spiel beendet.", "de-DE")
+  } else {
+    speak("Spiel beendet.", "de-DE", { rate: 0.72, pitch: 0.7 })
+  }
 }
 
 function speakLastMinute() {
@@ -194,6 +179,12 @@ function useMatchTimer(matchId: string) {
 
   function start() {
     if (state !== "idle" && state !== "paused") return
+    // Create AudioContext during user gesture so it's not suspended later
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx && !sharedAudioCtx) sharedAudioCtx = new AudioCtx()
+      if (sharedAudioCtx?.state === "suspended") sharedAudioCtx.resume()
+    } catch { /* not available */ }
     setState("running")
     intervalRef.current = setInterval(() => {
       setRemaining((r) => {
