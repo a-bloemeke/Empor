@@ -31,11 +31,21 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
 
   const seasonStats = await db.playerStats.findMany({
     where: { playerId: id },
-    include: { season: { select: { year: true } } },
+    include: { season: { select: { id: true, year: true } } },
     orderBy: { season: { year: "desc" } },
   })
 
-  const lifetimeStats = await db.playerStatsLifetime.findUnique({ where: { playerId: id } })
+  // Aggregate lifetime from all seasons
+  const lifetimeStats = seasonStats.length > 0
+    ? {
+        sessionsPlayed: seasonStats.reduce((s, r) => s + r.sessionsPlayed, 0),
+        matchesPlayed:  seasonStats.reduce((s, r) => s + r.matchesPlayed,  0),
+        goals:          seasonStats.reduce((s, r) => s + r.goals,          0),
+        assists:        seasonStats.reduce((s, r) => s + r.assists,        0),
+        score:          seasonStats.reduce((s, r) => s + r.score,          0),
+        points:         seasonStats.reduce((s, r) => s + r.points,         0),
+      }
+    : null
 
   const currentYear = new Date().getFullYear()
   const fees = (isCurrentUser || isOrganizer)
@@ -70,18 +80,6 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
         score: s.score,
         points: s.points,
       }))}
-      lifetimeStats={
-        lifetimeStats
-          ? {
-              sessionsPlayed: lifetimeStats.sessionsPlayed,
-              matchesPlayed: lifetimeStats.matchesPlayed,
-              goals: lifetimeStats.goals,
-              assists: lifetimeStats.assists,
-              score: lifetimeStats.score,
-              points: lifetimeStats.points,
-            }
-          : null
-      }
       fees={fees.map((f) => ({
         year: f.year,
         status: f.status as string,

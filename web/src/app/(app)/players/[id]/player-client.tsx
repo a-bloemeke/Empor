@@ -324,7 +324,6 @@ export function PlayerClient({
   player,
   seasons,
   seasonStats,
-  lifetimeStats,
   fees,
   currentYear,
   isCurrentUser,
@@ -334,7 +333,6 @@ export function PlayerClient({
   player: PlayerData
   seasons: { id: string; year: number }[]
   seasonStats: SeasonStat[]
-  lifetimeStats: LifetimeStat
   fees: Fee[]
   currentYear: number
   isCurrentUser: boolean
@@ -345,6 +343,31 @@ export function PlayerClient({
   const [selectedYear, setSelectedYear] = useState(
     String(seasonStats[0]?.year ?? seasons[0]?.year ?? currentYear),
   )
+
+  // Lifetime season filter — all selected by default
+  const [selectedLifetimeIds, setSelectedLifetimeIds] = useState<Set<string>>(
+    new Set(seasonStats.map((s) => s.seasonId))
+  )
+
+  function toggleLifetimeSeason(id: string) {
+    setSelectedLifetimeIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const filteredLifetime = seasonStats.filter((s) => selectedLifetimeIds.has(s.seasonId))
+  const aggregatedLifetime = filteredLifetime.length > 0
+    ? {
+        sessionsPlayed: filteredLifetime.reduce((s, r) => s + r.sessionsPlayed, 0),
+        matchesPlayed:  filteredLifetime.reduce((s, r) => s + r.matchesPlayed,  0),
+        goals:          filteredLifetime.reduce((s, r) => s + r.goals,          0),
+        assists:        filteredLifetime.reduce((s, r) => s + r.assists,        0),
+        score:          filteredLifetime.reduce((s, r) => s + r.score,          0),
+        points:         filteredLifetime.reduce((s, r) => s + r.points,         0),
+      }
+    : null
 
   const selectedStat = seasonStats.find((s) => String(s.year) === selectedYear)
   const displayName = player.nickname
@@ -405,9 +428,24 @@ export function PlayerClient({
             <TabsTrigger value="lifetime">{t("lifetimeStats")}</TabsTrigger>
             <TabsTrigger value="season">{t("bySeason")}</TabsTrigger>
           </TabsList>
-          <TabsContent value="lifetime">
-            {lifetimeStats ? (
-              <StatsCard data={lifetimeStats} />
+          <TabsContent value="lifetime" className="space-y-3">
+            {seasonStats.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {seasonStats.map((s) => (
+                  <label key={s.seasonId} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedLifetimeIds.has(s.seasonId)}
+                      onChange={() => toggleLifetimeSeason(s.seasonId)}
+                      className="h-3.5 w-3.5 rounded border"
+                    />
+                    {s.year}
+                  </label>
+                ))}
+              </div>
+            )}
+            {aggregatedLifetime ? (
+              <StatsCard data={aggregatedLifetime} />
             ) : (
               <p className="text-sm text-muted-foreground">{t("noStats")}</p>
             )}
