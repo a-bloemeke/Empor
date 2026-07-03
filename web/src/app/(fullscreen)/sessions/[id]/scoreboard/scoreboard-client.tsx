@@ -52,6 +52,43 @@ type Props = {
 
 // ─── Audio & Speech ───────────────────────────────────────────────────────────
 
+function speak(text: string, lang = "de-DE") {
+  try {
+    if (typeof window === "undefined" || !window.speechSynthesis) return
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = lang
+    utt.rate = 0.9
+    utt.pitch = 1.1
+    window.speechSynthesis.speak(utt)
+  } catch { /* not available */ }
+}
+
+function playWhistleThenSpeak(text: string, lang = "en-US", whistleDuration = 3) {
+  try {
+    if (typeof window === "undefined") return
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    // Whistle: start at 2800 Hz, sweep down slightly, with fade
+    osc.frequency.setValueAtTime(2800, ctx.currentTime)
+    osc.frequency.linearRampToValueAtTime(2600, ctx.currentTime + whistleDuration)
+    gain.gain.setValueAtTime(0.35, ctx.currentTime)
+    gain.gain.setValueAtTime(0.35, ctx.currentTime + whistleDuration - 0.15)
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + whistleDuration)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + whistleDuration)
+    osc.onended = () => {
+      ctx.close()
+      speak(text, lang)
+    }
+  } catch {
+    // Web Audio not available — fall back to speech only
+    speak(text, lang)
+  }
+}
+
 function playSound(path: string, volume = 1.0) {
   try {
     const audio = new Audio(path)
@@ -63,11 +100,11 @@ function playSound(path: string, volume = 1.0) {
 }
 
 function playTruckHorn() {
-  playSound("/sounds/truck-horn.mp3")
+  playWhistleThenSpeak("Game Over", "en-US", 3)
 }
 
 function speakLastMinute() {
-  playSound("/sounds/last-minute.mp3")
+  speak("Letzte Minute!", "de-DE")
 }
 
 function playLastTenSeconds() {
