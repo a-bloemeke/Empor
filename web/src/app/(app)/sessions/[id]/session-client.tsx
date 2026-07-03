@@ -1237,7 +1237,6 @@ function FormTeamsDialog({
         }
         toast.success("Teams generated.")
         setOpen(false)
-        setPins({})
       } catch (e) { toast.error((e as Error).message) }
     })
   }
