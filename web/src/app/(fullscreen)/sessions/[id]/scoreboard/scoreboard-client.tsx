@@ -52,33 +52,91 @@ type Props = {
 
 // ─── Audio & Speech ───────────────────────────────────────────────────────────
 
+function getBestVoice(lang: string): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices()
+  // Prefer natural/enhanced/premium voices, deprioritise "compact" ones
+  const langVoices = voices.filter((v) => v.lang.startsWith(lang.split("-")[0]))
+  const ranked = [...langVoices].sort((a, b) => {
+    const score = (v: SpeechSynthesisVoice) => {
+      const n = v.name.toLowerCase()
+      if (n.includes("premium") || n.includes("enhanced") || n.includes("neural")) return 3
+      if (n.includes("compact") || n.includes("siri")) return 1
+      return 2
+    }
+    return score(b) - score(a)
+  })
+  return ranked[0] ?? null
+}
+
+function speak(text: string, lang = "de-DE", opts: { rate?: number; pitch?: number; volume?: number } = {}) {
+  try {
+    if (typeof window === "undefined" || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utt = new SpeechSynthesisUtterance(text)
+    utt.lang = lang
+    utt.rate = opts.rate ?? 0.78
+    utt.pitch = opts.pitch ?? 0.85
+    utt.volume = opts.volume ?? 1.0
+    const voice = getBestVoice(lang)
+    if (voice) utt.voice = voice
+    window.speechSynthesis.speak(utt)
+  } catch { /* not available */ }
+}
+
+// Pre-loaded audio objects — must be created during a user gesture
+let whistleAudio: HTMLAudioElement | null = null
+
+function preloadAudio() {
+  if (typeof window === "undefined") return
+  if (!whistleAudio) {
+    whistleAudio = new Audio("/sounds/whistle.wav")
+    whistleAudio.load()
+  }
+}
+
+function playWhistleThenSpeak(_ctx: AudioContext, text: string, lang = "de-DE") {
+  try {
+    if (whistleAudio) {
+      whistleAudio.currentTime = 0
+      whistleAudio.play().catch(() => {})
+    }
+    setTimeout(() => speak(text, lang, { rate: 0.72, pitch: 0.7 }), 2100)
+  } catch {
+    speak(text, lang, { rate: 0.72, pitch: 0.7 })
+  }
+}
+
 function playSound(path: string, volume = 1.0) {
   try {
     const audio = new Audio(path)
     audio.volume = volume
-    audio.play().catch(() => {/* autoplay blocked — user hasn't interacted yet */})
-  } catch {
-    // Audio not available
+    audio.play().catch(() => {/* autoplay blocked */})
+  } catch { /* not available */ }
+}
+
+// AudioContext created during user gesture in start(), reused for game-over whistle
+let sharedAudioCtx: AudioContext | null = null
+
+function playTruckHorn() {
+  if (sharedAudioCtx) {
+    playWhistleThenSpeak(sharedAudioCtx, "Spiel beendet.", "de-DE")
+  } else {
+    speak("Spiel beendet.", "de-DE", { rate: 0.72, pitch: 0.7 })
   }
 }
 
-function playTruckHorn() {
-  playSound("/sounds/truck-horn.mp3")
-}
-
 function speakLastMinute() {
-  playSound("/sounds/last-minute.mp3")
+  speak("Letzte Minute!", "de-DE", { rate: 0.75, pitch: 0.8 })
 }
 
 function playLastTenSeconds() {
   try {
     const audio = new Audio("/sounds/last-10-seconds.mp3")
     audio.addEventListener("loadedmetadata", () => {
-      // Stretch or compress to fit exactly 10 seconds
       if (audio.duration > 0) audio.playbackRate = audio.duration / 10
       audio.play().catch(() => {})
     })
-    // Fallback: if metadata already loaded
     if (audio.readyState >= 1 && audio.duration > 0) {
       audio.playbackRate = audio.duration / 10
       audio.play().catch(() => {})
@@ -117,24 +175,41 @@ function useMatchTimer(matchId: string) {
 
   function start() {
     if (state !== "idle" && state !== "paused") return
+    // Create AudioContext + preload audio during user gesture so iOS allows playback later
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx && !sharedAudioCtx) sharedAudioCtx = new AudioCtx()
+      if (sharedAudioCtx?.state === "suspended") sharedAudioCtx.resume()
+    } catch { /* not available */ }
+    preloadAudio()
+    // iOS Safari requires speechSynthesis to be triggered inside a user gesture.
+    // Speak a silent utterance now to unlock the engine for later deferred calls.
+    try {
+      if (window.speechSynthesis) {
+        const unlock = new SpeechSynthesisUtterance(" ")
+        unlock.volume = 0
+        unlock.lang = "de-DE"
+        window.speechSynthesis.speak(unlock)
+      }
+    } catch { /* not available */ }
     setState("running")
     intervalRef.current = setInterval(() => {
       setRemaining((r) => {
         const next = r - 1
+        // Schedule side effects outside the pure updater
         if (next === 60 && !lastMinuteSpokenRef.current && durationMin > 1) {
           lastMinuteSpokenRef.current = true
-          speakLastMinute()
+          setTimeout(speakLastMinute, 0)
         }
         if (next === 10 && !lastTenPlayedRef.current) {
           lastTenPlayedRef.current = true
-          playLastTenSeconds()
+          setTimeout(playLastTenSeconds, 0)
         }
         if (next <= 0) {
           clearInterval(intervalRef.current!)
           setState("expired")
           setIsBlinking(true)
-          playTruckHorn()
-          // After 5s: stop blinking, turn green
+          setTimeout(playTruckHorn, 0)
           setTimeout(() => {
             setIsBlinking(false)
             setIsGreen(true)

@@ -696,6 +696,189 @@ export async function generateTeams(
   revalidate(sessionId)
 }
 
+export async function addPlayerToTeam(sessionId: string, playerId: string, teamId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { matches: { select: { status: true, homeTeamId: true, awayTeamId: true } } },
+  })
+  if (!session) throw new Error("Session not found.")
+
+  const startedTeamIds = new Set(
+    session.matches.filter((m) => m.status !== "PENDING").flatMap((m) => [m.homeTeamId, m.awayTeamId])
+  )
+  if (startedTeamIds.has(teamId)) throw new Error("Cannot modify a team that has started playing.")
+
+  await db.teamPlayer.create({ data: { teamId, playerId } })
+  revalidate(sessionId)
+}
+
+export async function movePlayer(
+  sessionId: string,
+  playerId: string,
+  fromTeamId: string,
+  toTeamId: string,
+) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { matches: { select: { status: true, homeTeamId: true, awayTeamId: true } } },
+  })
+  if (!session) throw new Error("Session not found.")
+
+  const startedTeamIds = new Set(
+    session.matches
+      .filter((m) => m.status !== "PENDING")
+      .flatMap((m) => [m.homeTeamId, m.awayTeamId]),
+  )
+  if (startedTeamIds.has(fromTeamId) || startedTeamIds.has(toTeamId)) {
+    throw new Error("Cannot move players once a match has started.")
+  }
+
+  await db.$transaction([
+    db.teamPlayer.delete({ where: { teamId_playerId: { teamId: fromTeamId, playerId } } }),
+    db.teamPlayer.create({ data: { teamId: toTeamId, playerId } }),
+  ])
+  revalidate(sessionId)
+}
+
+export async function createEmptyTeam(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { teams: { select: { name: true } } },
+  })
+  if (!session) throw new Error("Session not found.")
+  if (session.status === "IN_PROGRESS" || session.status === "COMPLETED") {
+    throw new Error("Cannot add teams after the session has started.")
+  }
+
+  const usedLetters = new Set(session.teams.map((t) => t.name.replace("Team ", "")))
+  const nextLetter = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find((l) => !usedLetters.has(l)) ?? "?"
+
+  await db.team.create({ data: { sessionId, name: `Team ${nextLetter}` } })
+  revalidate(sessionId)
+}
+
+export async function createMatchesFromTeams(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { teams: true, matches: true },
+  })
+  if (!session) throw new Error("Session not found.")
+  if (session.matches.length > 0) throw new Error("Matches already exist for this session.")
+  if (session.teams.length < 2) throw new Error("Need at least 2 teams to create matches.")
+  if (session.teams.length > 3) throw new Error("Cannot auto-create matches for more than 3 teams.")
+
+  const [t0, t1, t2] = session.teams
+
+  if (session.teams.length === 2) {
+    await db.match.create({ data: { sessionId, homeTeamId: t0.id, awayTeamId: t1.id, roundNumber: null } })
+  } else {
+    const pairs = [[t0.id, t1.id], [t1.id, t2.id], [t0.id, t2.id]]
+    for (const [h, a] of pairs) {
+      await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
+    }
+  }
+
+  revalidate(sessionId)
+}
+
+export async function generateTeamsWithPins(
+  sessionId: string,
+  numTeams: 2 | 3,
+  mode: "RANDOM" | "BALANCED",
+  pins: Record<number, string[]>,
+) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: {
+      registrations: { where: { status: "REGISTERED" }, include: { player: { include: { statsLifetime: true } } } },
+      teams: { include: { players: true } },
+    },
+  })
+  if (!session) throw new Error("Session not found.")
+  if (session.status === "IN_PROGRESS" || session.status === "COMPLETED") {
+    throw new Error("Teams cannot be changed after the session has started.")
+  }
+
+  const allPlayers = session.registrations.map((r) => r.player)
+  if (allPlayers.length < numTeams * 2) {
+    throw new Error(`Need at least ${numTeams * 2} registered players to form ${numTeams} teams.`)
+  }
+
+  const pinnedIds = new Set(Object.values(pins).flat())
+  const freePlayers = allPlayers.filter((p) => !pinnedIds.has(p.id))
+
+  const rating = (p: typeof allPlayers[0]) =>
+    p.statsLifetime && p.statsLifetime.sessionsPlayed > 0
+      ? p.statsLifetime.points / p.statsLifetime.sessionsPlayed : 0
+
+  let freeSlots: string[][]
+  if (mode === "BALANCED" && numTeams === 2) {
+    const ratings = freePlayers.map((p) => rating(p))
+    const [idx0, idx1] = optimalPartition2(ratings)
+    freeSlots = [idx0.map((i) => freePlayers[i].id), idx1.map((i) => freePlayers[i].id)]
+  } else {
+    let ordered: typeof freePlayers
+    if (mode === "BALANCED") {
+      ordered = [...freePlayers].sort((a, b) => rating(b) - rating(a))
+    } else {
+      ordered = [...freePlayers].sort(() => Math.random() - 0.5)
+    }
+    freeSlots = Array.from({ length: numTeams }, () => [] as string[])
+    ordered.forEach((p, i) => {
+      const round = Math.floor(i / numTeams)
+      const pos = i % numTeams
+      const idx = round % 2 === 0 ? pos : numTeams - 1 - pos
+      freeSlots[idx].push(p.id)
+    })
+  }
+
+  const teamNames = Array.from({ length: numTeams }, (_, i) => `Team ${"ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i]}`)
+  const slots = Array.from({ length: numTeams }, (_, i) => [...(pins[i] ?? []), ...freeSlots[i]])
+
+  const existingTeamIds = session.teams.map((t) => t.id)
+  if (existingTeamIds.length > 0) {
+    await db.match.deleteMany({ where: { sessionId, status: "PENDING" } })
+    await db.teamPlayer.deleteMany({ where: { teamId: { in: existingTeamIds } } })
+    await db.team.deleteMany({ where: { id: { in: existingTeamIds } } })
+  }
+
+  const createdTeams = await Promise.all(
+    teamNames.map((name, i) =>
+      db.team.create({
+        data: { sessionId, name, players: { create: slots[i].map((playerId) => ({ playerId })) } },
+      }),
+    ),
+  )
+
+  if (numTeams === 2) {
+    await db.match.create({
+      data: { sessionId, homeTeamId: createdTeams[0].id, awayTeamId: createdTeams[1].id, roundNumber: null },
+    })
+  } else {
+    const pairs = [[createdTeams[0].id, createdTeams[1].id], [createdTeams[1].id, createdTeams[2].id], [createdTeams[0].id, createdTeams[2].id]]
+    for (const [h, a] of pairs) {
+      await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
+    }
+  }
+
+  revalidate(sessionId)
+}
+
 export async function startMatch(matchId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")

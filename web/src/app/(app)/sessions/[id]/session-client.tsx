@@ -38,6 +38,11 @@ import {
   addGuestAndRegister,
   removeRegistration,
   generateTeams,
+  generateTeamsWithPins,
+  movePlayer,
+  createEmptyTeam,
+  addPlayerToTeam,
+  createMatchesFromTeams,
   startMatch,
   recordGoal,
   undoLastGoal,
@@ -1180,30 +1185,67 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
   )
 }
 
-function FormTeamsDialog({ session }: { session: SessionData }) {
+function FormTeamsDialog({
+  session,
+  pins,
+  setPins,
+}: {
+  session: SessionData
+  pins: Record<number, string>
+  setPins: React.Dispatch<React.SetStateAction<Record<number, string>>>
+}) {
   const t = useTranslations("session")
   const [open, setOpen] = useState(false)
   const [numTeams, setNumTeams] = useState<"2" | "3">("2")
   const [mode, setMode] = useState<"RANDOM" | "BALANCED">("RANDOM")
   const [pending, startTransition] = useTransition()
 
+  const registered = session.registrations.filter((r) => r.status === "REGISTERED")
+  const n = parseInt(numTeams) as 2 | 3
+  const teamLetters = Array.from({ length: n }, (_, i) => "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i])
+
+  function setPinForTeam(teamIdx: number, playerId: string) {
+    setPins((prev) => {
+      const next = { ...prev }
+      // Remove this playerId from any other team slot first
+      for (const k of Object.keys(next)) {
+        if (next[Number(k)] === playerId) delete next[Number(k)]
+      }
+      if (playerId) next[teamIdx] = playerId
+      else delete next[teamIdx]
+      return next
+    })
+  }
+
+  // Convert pins map (teamIndex → playerId) to Record<number, string[]>
+  function buildPinsMap(): Record<number, string[]> {
+    const result: Record<number, string[]> = {}
+    for (const [k, v] of Object.entries(pins)) {
+      if (v) result[Number(k)] = [v]
+    }
+    return result
+  }
+
+  const hasPins = Object.keys(pins).length > 0
+
   function handleGenerate() {
     startTransition(async () => {
       try {
-        await generateTeams(session.id, parseInt(numTeams) as 2 | 3, mode)
+        if (hasPins) {
+          await generateTeamsWithPins(session.id, n, mode, buildPinsMap())
+        } else {
+          await generateTeams(session.id, n, mode)
+        }
         toast.success("Teams generated.")
         setOpen(false)
       } catch (e) { toast.error((e as Error).message) }
     })
   }
 
-  const registered = session.registrations.filter((r) => r.status === "REGISTERED")
-  const n = parseInt(numTeams) as 2 | 3
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>{t("formTeams")}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("formTeams")}</DialogTitle>
         </DialogHeader>
@@ -1211,7 +1253,7 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
           <div className="flex gap-4">
             <div className="space-y-1.5">
               <Label>{t("numberOfTeams")}</Label>
-              <Select value={numTeams} onValueChange={(v) => { if (v) setNumTeams(v as "2" | "3") }}>
+              <Select value={numTeams} onValueChange={(v) => { if (v) { setNumTeams(v as "2" | "3"); setPins({}) } }}>
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="2">{t("twoTeams")}</SelectItem>
@@ -1236,6 +1278,48 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
           <p className="text-sm text-muted-foreground">
             {t("playersPerTeam", { total: registered.length, min: Math.floor(registered.length / n), max: Math.ceil(registered.length / n) })}
           </p>
+
+          {/* Optional pin section */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Spieler fixieren</Label>
+              <span className="text-xs text-muted-foreground">(optional)</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Wähle bis zu einen Spieler pro Team, der fest zugeteilt wird. Die restlichen Plätze werden ausgelost.
+            </p>
+            <div className="space-y-2">
+              {teamLetters.map((letter, teamIdx) => (
+                <div key={teamIdx} className="flex items-center gap-2">
+                  <span className="text-xs font-semibold w-16 shrink-0">Team {letter}</span>
+                  <Select
+                    value={pins[teamIdx] ?? ""}
+                    onValueChange={(v) => setPinForTeam(teamIdx, v ?? "")}
+                  >
+                    <SelectTrigger className="flex-1 text-sm h-8">
+                      <SelectValue placeholder="— kein Fixspieler —">
+                        {pins[teamIdx]
+                          ? registered.find((r) => r.playerId === pins[teamIdx])?.playerName ?? "—"
+                          : "— kein Fixspieler —"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">— kein Fixspieler —</SelectItem>
+                      {registered.map((r) => (
+                        <SelectItem
+                          key={r.playerId}
+                          value={r.playerId}
+                          disabled={Object.entries(pins).some(([k, v]) => v === r.playerId && Number(k) !== teamIdx)}
+                        >
+                          {r.playerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button onClick={handleGenerate} disabled={pending}>
@@ -1252,34 +1336,132 @@ function TeamsView({
   isOrganizer,
   canRegenerate,
   onDeleteTeam,
+  pins,
 }: {
   session: SessionData
   isOrganizer: boolean
   canRegenerate: boolean
   onDeleteTeam?: (teamId: string) => void
+  pins?: Record<number, string>
 }) {
   const t = useTranslations("session")
   const [pending, startTransition] = useTransition()
+  const [movingPlayer, setMovingPlayer] = useState<{ playerId: string; fromTeamId: string } | null>(null)
 
-  // Teams that have no started/completed matches can be deleted
   const startedTeamIds = new Set(
     session.matches
       .filter((m) => m.status !== "PENDING")
       .flatMap((m) => [m.homeTeamId, m.awayTeamId])
+  )
+  const noMatchesStarted = startedTeamIds.size === 0
+
+  // Players registered but not in any team (for empty team assignment)
+  const assignedPlayerIds = new Set(session.teams.flatMap((t) => t.players.map((p) => p.id)))
+  const unassigned = session.registrations.filter(
+    (r) => r.status === "REGISTERED" && !assignedPlayerIds.has(r.playerId)
   )
 
   function handleRegenerate(mode: "RANDOM" | "BALANCED") {
     startTransition(async () => {
       try {
         const numTeams = session.teams.length as 2 | 3
-        await generateTeams(session.id, numTeams, mode)
+        // Build pins from current teams: for each team index, if a pin exists for that slot, keep it fixed
+        if (pins && Object.keys(pins).length > 0) {
+          // Validate pins still exist in current registrations
+          const registeredIds = new Set(session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.playerId))
+          const validPins: Record<number, string[]> = {}
+          for (const [k, v] of Object.entries(pins)) {
+            if (v && registeredIds.has(v)) validPins[Number(k)] = [v]
+          }
+          await generateTeamsWithPins(session.id, numTeams, mode, validPins)
+        } else {
+          await generateTeams(session.id, numTeams, mode)
+        }
         toast.success(`Teams regenerated (${mode === "BALANCED" ? "balanced" : "random"}).`)
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleMovePlayer(toTeamId: string) {
+    if (!movingPlayer) return
+    const { playerId, fromTeamId } = movingPlayer
+    setMovingPlayer(null)
+    startTransition(async () => {
+      try {
+        await movePlayer(session.id, playerId, fromTeamId, toTeamId)
+        toast.success("Spieler verschoben.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleAssignUnassigned(playerId: string, toTeamId: string) {
+    startTransition(async () => {
+      try {
+        // Create a temporary "from" by adding to a dummy team — instead use addToTeam directly
+        // Since movePlayer requires fromTeamId, we need a different approach for unassigned players.
+        // We'll reuse movePlayer by first finding if there's a way, or use a direct DB insert.
+        // Actually the cleanest: we already have the teamPlayer create in the transaction.
+        // Let's call movePlayer with fromTeamId="" as a signal — but that won't work.
+        // Instead we'll add a lightweight addPlayerToTeam server action.
+        await addPlayerToTeam(session.id, playerId, toTeamId)
+        toast.success("Spieler zugewiesen.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleCreateEmptyTeam() {
+    startTransition(async () => {
+      try {
+        await createEmptyTeam(session.id)
+        toast.success("Leeres Team erstellt.")
       } catch (e) { toast.error((e as Error).message) }
     })
   }
 
   return (
     <div className="space-y-4">
+      {/* Move-player destination overlay */}
+      {movingPlayer && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium">Zu welchem Team verschieben?</span>
+          {session.teams
+            .filter((t) => t.id !== movingPlayer.fromTeamId)
+            .map((t) => (
+              <Button key={t.id} size="sm" variant="outline" onClick={() => handleMovePlayer(t.id)}>
+                {t.name}
+              </Button>
+            ))}
+          <Button size="sm" variant="ghost" onClick={() => setMovingPlayer(null)}>Abbrechen</Button>
+        </div>
+      )}
+
+      {/* Unassigned players — shown when there are empty/partial teams */}
+      {isOrganizer && noMatchesStarted && unassigned.length > 0 && session.teams.length > 0 && (
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Nicht zugewiesen ({unassigned.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {unassigned.map((r) => (
+              <div key={r.playerId} className="flex items-center gap-1">
+                <span className="text-sm">{r.playerName}</span>
+                <span className="text-xs text-muted-foreground">→</span>
+                {session.teams.map((team) => (
+                  <button
+                    key={team.id}
+                    className="text-xs px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 border border-border transition-colors"
+                    onClick={() => handleAssignUnassigned(r.playerId, team.id)}
+                    disabled={pending}
+                  >
+                    {team.name}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {session.teams.map((team) => (
           <Card key={team.id}>
@@ -1308,6 +1490,17 @@ function TeamsView({
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {p.seasonRank != null ? `#${p.seasonRank} · ` : ""}{p.seasonPoints} pts
                     </span>
+                    {isOrganizer && noMatchesStarted && session.teams.length > 1 && (
+                      <button
+                        className={`text-xs px-1.5 py-0.5 rounded transition-colors ${movingPlayer?.playerId === p.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                        onClick={() => setMovingPlayer(
+                          movingPlayer?.playerId === p.id ? null : { playerId: p.id, fromTeamId: team.id }
+                        )}
+                        title="Spieler verschieben"
+                      >
+                        →
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -1332,13 +1525,18 @@ function TeamsView({
         ))}
       </div>
       {isOrganizer && canRegenerate && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={pending} onClick={() => handleRegenerate("RANDOM")}>
             Shuffle randomly
           </Button>
           <Button variant="outline" size="sm" disabled={pending} onClick={() => handleRegenerate("BALANCED")}>
             Balance by rating
           </Button>
+          {noMatchesStarted && (
+            <Button variant="outline" size="sm" disabled={pending} onClick={handleCreateEmptyTeam}>
+              + Team hinzufügen
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -1813,6 +2011,7 @@ export function SessionClient({
   const t = useTranslations("session")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [pins, setPins] = useState<Record<number, string>>({})
 
   const activeMatch = session.matches.find((m) => m.status === "IN_PROGRESS")
   const pendingMatches = session.matches.filter((m) => m.status === "PENDING")
@@ -1954,7 +2153,15 @@ export function SessionClient({
           <RegistrationPanel session={session} isOrganizer={isOrganizer} />
           {isOrganizer && (
             <div className="flex flex-wrap gap-2">
-              <FormTeamsDialog session={session} />
+              <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => {
+                startTransition(async () => {
+                  try { await createEmptyTeam(session.id); toast.success("Leeres Team erstellt.") }
+                  catch (e) { toast.error((e as Error).message) }
+                })
+              }}>
+                + Team hinzufügen
+              </Button>
               <SendInvitationDialog sessionId={session.id} />
             </div>
           )}
@@ -1966,11 +2173,23 @@ export function SessionClient({
         <div className="space-y-4">
           <RegistrationPanel session={session} isOrganizer={isOrganizer} />
           <SectionHeader title="Teams" />
-          <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} />
+          <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} pins={pins} />
           {isOrganizer && (
             <div className="flex flex-wrap gap-2">
-              <FormTeamsDialog session={session} />
+              <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
               <SendInvitationDialog sessionId={session.id} />
+              {pendingMatches.length === 0 && session.teams.length >= 2 && session.teams.length <= 3 && (
+                <Button size="sm" disabled={pending} onClick={() => {
+                  startTransition(async () => {
+                    try {
+                      await createMatchesFromTeams(session.id)
+                      toast.success("Spiele erstellt.")
+                    } catch (e) { toast.error((e as Error).message) }
+                  })
+                }}>
+                  {session.teams.length === 3 ? t("startRound1") : t("startMatch")}
+                </Button>
+              )}
               {pendingMatches.length > 0 && (
                 <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}>
                   {startedAsTournament && completedMatches.length === 0 ? t("startRound1") : t("startMatch")}
