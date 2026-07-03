@@ -42,6 +42,7 @@ import {
   movePlayer,
   createEmptyTeam,
   addPlayerToTeam,
+  createMatchesFromTeams,
   startMatch,
   recordGoal,
   undoLastGoal,
@@ -2153,6 +2154,14 @@ export function SessionClient({
           {isOrganizer && (
             <div className="flex flex-wrap gap-2">
               <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => {
+                startTransition(async () => {
+                  try { await createEmptyTeam(session.id); toast.success("Leeres Team erstellt.") }
+                  catch (e) { toast.error((e as Error).message) }
+                })
+              }}>
+                + Team hinzufügen
+              </Button>
               <SendInvitationDialog sessionId={session.id} />
             </div>
           )}
@@ -2169,6 +2178,18 @@ export function SessionClient({
             <div className="flex flex-wrap gap-2">
               <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
               <SendInvitationDialog sessionId={session.id} />
+              {pendingMatches.length === 0 && session.teams.length >= 2 && session.teams.length <= 3 && (
+                <Button size="sm" disabled={pending} onClick={() => {
+                  startTransition(async () => {
+                    try {
+                      await createMatchesFromTeams(session.id)
+                      toast.success("Spiele erstellt.")
+                    } catch (e) { toast.error((e as Error).message) }
+                  })
+                }}>
+                  {session.teams.length === 3 ? t("startRound1") : t("startMatch")}
+                </Button>
+              )}
               {pendingMatches.length > 0 && (
                 <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}>
                   {startedAsTournament && completedMatches.length === 0 ? t("startRound1") : t("startMatch")}

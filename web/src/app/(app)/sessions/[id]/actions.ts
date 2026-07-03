@@ -766,6 +766,33 @@ export async function createEmptyTeam(sessionId: string) {
   revalidate(sessionId)
 }
 
+export async function createMatchesFromTeams(sessionId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { teams: true, matches: true },
+  })
+  if (!session) throw new Error("Session not found.")
+  if (session.matches.length > 0) throw new Error("Matches already exist for this session.")
+  if (session.teams.length < 2) throw new Error("Need at least 2 teams to create matches.")
+  if (session.teams.length > 3) throw new Error("Cannot auto-create matches for more than 3 teams.")
+
+  const [t0, t1, t2] = session.teams
+
+  if (session.teams.length === 2) {
+    await db.match.create({ data: { sessionId, homeTeamId: t0.id, awayTeamId: t1.id, roundNumber: null } })
+  } else {
+    const pairs = [[t0.id, t1.id], [t1.id, t2.id], [t0.id, t2.id]]
+    for (const [h, a] of pairs) {
+      await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
+    }
+  }
+
+  revalidate(sessionId)
+}
+
 export async function generateTeamsWithPins(
   sessionId: string,
   numTeams: 2 | 3,
