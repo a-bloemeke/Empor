@@ -52,40 +52,82 @@ type Props = {
 
 // ─── Audio & Speech ───────────────────────────────────────────────────────────
 
-function speak(text: string, lang = "de-DE") {
+function getBestVoice(lang: string): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices()
+  // Prefer natural/enhanced/premium voices, deprioritise "compact" ones
+  const langVoices = voices.filter((v) => v.lang.startsWith(lang.split("-")[0]))
+  const ranked = [...langVoices].sort((a, b) => {
+    const score = (v: SpeechSynthesisVoice) => {
+      const n = v.name.toLowerCase()
+      if (n.includes("premium") || n.includes("enhanced") || n.includes("neural")) return 3
+      if (n.includes("compact") || n.includes("siri")) return 1
+      return 2
+    }
+    return score(b) - score(a)
+  })
+  return ranked[0] ?? null
+}
+
+function speak(text: string, lang = "de-DE", opts: { rate?: number; pitch?: number; volume?: number } = {}) {
   try {
     if (typeof window === "undefined" || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
     const utt = new SpeechSynthesisUtterance(text)
     utt.lang = lang
-    utt.rate = 0.9
-    utt.pitch = 1.1
+    utt.rate = opts.rate ?? 0.78
+    utt.pitch = opts.pitch ?? 0.85
+    utt.volume = opts.volume ?? 1.0
+    const voice = getBestVoice(lang)
+    if (voice) utt.voice = voice
     window.speechSynthesis.speak(utt)
   } catch { /* not available */ }
 }
 
-function playWhistleThenSpeak(text: string, lang = "en-US", whistleDuration = 3) {
+function playWhistleThenSpeak(text: string, lang = "de-DE", whistleDuration = 3) {
   try {
     if (typeof window === "undefined") return
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    // Whistle: start at 2800 Hz, sweep down slightly, with fade
-    osc.frequency.setValueAtTime(2800, ctx.currentTime)
-    osc.frequency.linearRampToValueAtTime(2600, ctx.currentTime + whistleDuration)
-    gain.gain.setValueAtTime(0.35, ctx.currentTime)
-    gain.gain.setValueAtTime(0.35, ctx.currentTime + whistleDuration - 0.15)
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + whistleDuration)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + whistleDuration)
-    osc.onended = () => {
-      ctx.close()
-      speak(text, lang)
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) { speak(text, lang); return }
+    const ctx = new AudioCtx()
+
+    const doPlay = () => {
+      // Three-blast referee whistle pattern: short-short-long
+      const blasts = [
+        { start: 0,    dur: 0.35, freq: 3000 },
+        { start: 0.55, dur: 0.35, freq: 3000 },
+        { start: 1.1,  dur: 1.5,  freq: 2900 },
+      ]
+
+      blasts.forEach(({ start, dur, freq }) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+        osc.frequency.linearRampToValueAtTime(freq - 120, ctx.currentTime + start + dur)
+        gain.gain.setValueAtTime(0, ctx.currentTime + start)
+        gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + start + 0.02)
+        gain.gain.setValueAtTime(0.5, ctx.currentTime + start + dur - 0.08)
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
+        osc.start(ctx.currentTime + start)
+        osc.stop(ctx.currentTime + start + dur)
+      })
+
+      // Speak after the whistle pattern ends (~2.8s)
+      setTimeout(() => {
+        ctx.close()
+        speak(text, lang, { rate: 0.72, pitch: 0.7 })
+      }, whistleDuration * 1000)
+    }
+
+    if (ctx.state === "suspended") {
+      ctx.resume().then(doPlay)
+    } else {
+      doPlay()
     }
   } catch {
-    // Web Audio not available — fall back to speech only
-    speak(text, lang)
+    speak(text, lang, { rate: 0.72, pitch: 0.7 })
   }
 }
 
@@ -100,22 +142,20 @@ function playSound(path: string, volume = 1.0) {
 }
 
 function playTruckHorn() {
-  playWhistleThenSpeak("Game Over", "en-US", 3)
+  playWhistleThenSpeak("Spiel beendet.", "de-DE", 2.8)
 }
 
 function speakLastMinute() {
-  speak("Letzte Minute!", "de-DE")
+  speak("Letzte Minute!", "de-DE", { rate: 0.75, pitch: 0.8 })
 }
 
 function playLastTenSeconds() {
   try {
     const audio = new Audio("/sounds/last-10-seconds.mp3")
     audio.addEventListener("loadedmetadata", () => {
-      // Stretch or compress to fit exactly 10 seconds
       if (audio.duration > 0) audio.playbackRate = audio.duration / 10
       audio.play().catch(() => {})
     })
-    // Fallback: if metadata already loaded
     if (audio.readyState >= 1 && audio.duration > 0) {
       audio.playbackRate = audio.duration / 10
       audio.play().catch(() => {})
