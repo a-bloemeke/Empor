@@ -220,12 +220,12 @@ function RegistrationPanel({
           <div className="flex items-center gap-3">
             <CardTitle className="text-base">Angemeldete Spieler ({registered.length})</CardTitle>
             {isScheduled && (
-              <TrafficLight count={registered.length} />
+              <TrafficLight count={registered.length} sessionDate={session.date} />
             )}
           </div>
           <div className="flex items-center gap-2">
             {isOrganizer && isScheduled && (
-              <SendStatusUpdateDialog sessionId={session.id} registeredCount={registered.length} />
+              <SendStatusUpdateDialog sessionId={session.id} registeredCount={registered.length} sessionDate={session.date} />
             )}
             {isOrganizer && available.length > 0 && (
             <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) setSelected(new Set()) }}>
@@ -810,9 +810,12 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
 
 const MIN_PLAYERS = 8
 
-function TrafficLight({ count }: { count: number }) {
-  const color = count >= MIN_PLAYERS ? "#22c55e" : count >= MIN_PLAYERS - 3 ? "#eab308" : "#ef4444"
-  const label = count >= MIN_PLAYERS ? "Findet statt" : count >= MIN_PLAYERS - 3 ? "Ungewiss" : "Droht auszufallen"
+function TrafficLight({ count, sessionDate }: { count: number; sessionDate: string }) {
+  const hoursUntil = (new Date(sessionDate).getTime() - Date.now()) / (1000 * 60 * 60)
+  const enough = count >= MIN_PLAYERS
+  const critical = !enough && hoursUntil <= 32
+  const color = enough ? "#22c55e" : critical ? "#ef4444" : "#eab308"
+  const label = enough ? "Findet statt" : critical ? "Droht auszufallen" : "Ungewiss"
   return (
     <div className="flex items-center gap-2">
       <span className="inline-block h-3 w-3 rounded-full" style={{ background: color }} />
@@ -822,7 +825,7 @@ function TrafficLight({ count }: { count: number }) {
   )
 }
 
-function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: string; registeredCount: number }) {
+function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { sessionId: string; registeredCount: number; sessionDate: string }) {
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [subject, setSubject] = useState("")
@@ -906,7 +909,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount }: { sessionId: str
         ) : (
           <div className="space-y-4">
 
-            <TrafficLight count={registeredCount} />
+            <TrafficLight count={registeredCount} sessionDate={sessionDate} />
 
             {/* Registration tables */}
             <div className="space-y-3">
