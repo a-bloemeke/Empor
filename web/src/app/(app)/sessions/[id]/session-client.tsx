@@ -38,6 +38,9 @@ import {
   addGuestAndRegister,
   removeRegistration,
   generateTeams,
+  generateTeamsWithPins,
+  movePlayer,
+  createEmptyTeam,
   startMatch,
   recordGoal,
   undoLastGoal,
@@ -1186,24 +1189,56 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
   const [numTeams, setNumTeams] = useState<"2" | "3">("2")
   const [mode, setMode] = useState<"RANDOM" | "BALANCED">("RANDOM")
   const [pending, startTransition] = useTransition()
+  // pins: teamIndex → playerId | null
+  const [pins, setPins] = useState<Record<number, string>>({})
+
+  const registered = session.registrations.filter((r) => r.status === "REGISTERED")
+  const n = parseInt(numTeams) as 2 | 3
+  const teamLetters = Array.from({ length: n }, (_, i) => "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i])
+
+  function setPinForTeam(teamIdx: number, playerId: string) {
+    setPins((prev) => {
+      const next = { ...prev }
+      // Remove this playerId from any other team slot first
+      for (const k of Object.keys(next)) {
+        if (next[Number(k)] === playerId) delete next[Number(k)]
+      }
+      if (playerId) next[teamIdx] = playerId
+      else delete next[teamIdx]
+      return next
+    })
+  }
+
+  // Convert pins map (teamIndex → playerId) to Record<number, string[]>
+  function buildPinsMap(): Record<number, string[]> {
+    const result: Record<number, string[]> = {}
+    for (const [k, v] of Object.entries(pins)) {
+      if (v) result[Number(k)] = [v]
+    }
+    return result
+  }
+
+  const hasPins = Object.keys(pins).length > 0
 
   function handleGenerate() {
     startTransition(async () => {
       try {
-        await generateTeams(session.id, parseInt(numTeams) as 2 | 3, mode)
+        if (hasPins) {
+          await generateTeamsWithPins(session.id, n, mode, buildPinsMap())
+        } else {
+          await generateTeams(session.id, n, mode)
+        }
         toast.success("Teams generated.")
         setOpen(false)
+        setPins({})
       } catch (e) { toast.error((e as Error).message) }
     })
   }
 
-  const registered = session.registrations.filter((r) => r.status === "REGISTERED")
-  const n = parseInt(numTeams) as 2 | 3
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPins({}) }}>
       <DialogTrigger render={<Button size="sm" />}>{t("formTeams")}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("formTeams")}</DialogTitle>
         </DialogHeader>
@@ -1211,7 +1246,7 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
           <div className="flex gap-4">
             <div className="space-y-1.5">
               <Label>{t("numberOfTeams")}</Label>
-              <Select value={numTeams} onValueChange={(v) => { if (v) setNumTeams(v as "2" | "3") }}>
+              <Select value={numTeams} onValueChange={(v) => { if (v) { setNumTeams(v as "2" | "3"); setPins({}) } }}>
                 <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="2">{t("twoTeams")}</SelectItem>
@@ -1236,6 +1271,44 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
           <p className="text-sm text-muted-foreground">
             {t("playersPerTeam", { total: registered.length, min: Math.floor(registered.length / n), max: Math.ceil(registered.length / n) })}
           </p>
+
+          {/* Optional pin section */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Spieler fixieren</Label>
+              <span className="text-xs text-muted-foreground">(optional)</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Wähle bis zu einen Spieler pro Team, der fest zugeteilt wird. Die restlichen Plätze werden ausgelost.
+            </p>
+            <div className="space-y-2">
+              {teamLetters.map((letter, teamIdx) => (
+                <div key={teamIdx} className="flex items-center gap-2">
+                  <span className="text-xs font-semibold w-16 shrink-0">Team {letter}</span>
+                  <Select
+                    value={pins[teamIdx] ?? ""}
+                    onValueChange={(v) => setPinForTeam(teamIdx, v ?? "")}
+                  >
+                    <SelectTrigger className="flex-1 text-sm h-8">
+                      <SelectValue placeholder="— kein Fixspieler —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">— kein Fixspieler —</SelectItem>
+                      {registered.map((r) => (
+                        <SelectItem
+                          key={r.playerId}
+                          value={r.playerId}
+                          disabled={Object.entries(pins).some(([k, v]) => v === r.playerId && Number(k) !== teamIdx)}
+                        >
+                          {r.playerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button onClick={handleGenerate} disabled={pending}>
@@ -1260,13 +1333,14 @@ function TeamsView({
 }) {
   const t = useTranslations("session")
   const [pending, startTransition] = useTransition()
+  const [movingPlayer, setMovingPlayer] = useState<{ playerId: string; fromTeamId: string } | null>(null)
 
-  // Teams that have no started/completed matches can be deleted
   const startedTeamIds = new Set(
     session.matches
       .filter((m) => m.status !== "PENDING")
       .flatMap((m) => [m.homeTeamId, m.awayTeamId])
   )
+  const noMatchesStarted = startedTeamIds.size === 0
 
   function handleRegenerate(mode: "RANDOM" | "BALANCED") {
     startTransition(async () => {
@@ -1278,8 +1352,44 @@ function TeamsView({
     })
   }
 
+  function handleMovePlayer(toTeamId: string) {
+    if (!movingPlayer) return
+    const { playerId, fromTeamId } = movingPlayer
+    setMovingPlayer(null)
+    startTransition(async () => {
+      try {
+        await movePlayer(session.id, playerId, fromTeamId, toTeamId)
+        toast.success("Spieler verschoben.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleCreateEmptyTeam() {
+    startTransition(async () => {
+      try {
+        await createEmptyTeam(session.id)
+        toast.success("Leeres Team erstellt.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
   return (
     <div className="space-y-4">
+      {/* Move-player destination overlay */}
+      {movingPlayer && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium">Zu welchem Team verschieben?</span>
+          {session.teams
+            .filter((t) => t.id !== movingPlayer.fromTeamId)
+            .map((t) => (
+              <Button key={t.id} size="sm" variant="outline" onClick={() => handleMovePlayer(t.id)}>
+                {t.name}
+              </Button>
+            ))}
+          <Button size="sm" variant="ghost" onClick={() => setMovingPlayer(null)}>Abbrechen</Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {session.teams.map((team) => (
           <Card key={team.id}>
@@ -1308,6 +1418,17 @@ function TeamsView({
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {p.seasonRank != null ? `#${p.seasonRank} · ` : ""}{p.seasonPoints} pts
                     </span>
+                    {isOrganizer && noMatchesStarted && session.teams.length > 1 && (
+                      <button
+                        className={`text-xs px-1.5 py-0.5 rounded transition-colors ${movingPlayer?.playerId === p.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                        onClick={() => setMovingPlayer(
+                          movingPlayer?.playerId === p.id ? null : { playerId: p.id, fromTeamId: team.id }
+                        )}
+                        title="Spieler verschieben"
+                      >
+                        →
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -1332,13 +1453,18 @@ function TeamsView({
         ))}
       </div>
       {isOrganizer && canRegenerate && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={pending} onClick={() => handleRegenerate("RANDOM")}>
             Shuffle randomly
           </Button>
           <Button variant="outline" size="sm" disabled={pending} onClick={() => handleRegenerate("BALANCED")}>
             Balance by rating
           </Button>
+          {noMatchesStarted && (
+            <Button variant="outline" size="sm" disabled={pending} onClick={handleCreateEmptyTeam}>
+              + Team hinzufügen
+            </Button>
+          )}
         </div>
       )}
     </div>
