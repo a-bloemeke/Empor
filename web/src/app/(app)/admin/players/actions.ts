@@ -73,6 +73,8 @@ export async function deletePlayer(playerId: string) {
 
   await db.$transaction([
     db.session.updateMany({ where: { organizerId: playerId }, data: { organizerId: authSession.user.id } }),
+    db.sessionRegistration.updateMany({ where: { registeredById: playerId }, data: { registeredById: authSession.user.id } }),
+    db.membershipFee.updateMany({ where: { recordedById: playerId }, data: { recordedById: authSession.user.id } }),
     db.sessionRegistration.deleteMany({ where: { playerId } }),
     db.teamPlayer.deleteMany({ where: { playerId } }),
     db.membershipFee.deleteMany({ where: { playerId } }),
