@@ -185,6 +185,16 @@ function useMatchTimer(matchId: string) {
       if (AudioCtx && !sharedAudioCtx) sharedAudioCtx = new AudioCtx()
       if (sharedAudioCtx?.state === "suspended") sharedAudioCtx.resume()
     } catch { /* not available */ }
+    // iOS Safari requires speechSynthesis to be triggered inside a user gesture.
+    // Speak a silent utterance now to unlock the engine for later deferred calls.
+    try {
+      if (window.speechSynthesis) {
+        const unlock = new SpeechSynthesisUtterance(" ")
+        unlock.volume = 0
+        unlock.lang = "de-DE"
+        window.speechSynthesis.speak(unlock)
+      }
+    } catch { /* not available */ }
     setState("running")
     intervalRef.current = setInterval(() => {
       setRemaining((r) => {
