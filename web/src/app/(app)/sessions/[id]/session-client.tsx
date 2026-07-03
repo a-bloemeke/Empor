@@ -41,6 +41,7 @@ import {
   generateTeamsWithPins,
   movePlayer,
   createEmptyTeam,
+  addPlayerToTeam,
   startMatch,
   recordGoal,
   undoLastGoal,
@@ -1183,14 +1184,20 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
   )
 }
 
-function FormTeamsDialog({ session }: { session: SessionData }) {
+function FormTeamsDialog({
+  session,
+  pins,
+  setPins,
+}: {
+  session: SessionData
+  pins: Record<number, string>
+  setPins: React.Dispatch<React.SetStateAction<Record<number, string>>>
+}) {
   const t = useTranslations("session")
   const [open, setOpen] = useState(false)
   const [numTeams, setNumTeams] = useState<"2" | "3">("2")
   const [mode, setMode] = useState<"RANDOM" | "BALANCED">("RANDOM")
   const [pending, startTransition] = useTransition()
-  // pins: teamIndex → playerId | null
-  const [pins, setPins] = useState<Record<number, string>>({})
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
   const n = parseInt(numTeams) as 2 | 3
@@ -1236,7 +1243,7 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPins({}) }}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button size="sm" />}>{t("formTeams")}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -1290,7 +1297,11 @@ function FormTeamsDialog({ session }: { session: SessionData }) {
                     onValueChange={(v) => setPinForTeam(teamIdx, v ?? "")}
                   >
                     <SelectTrigger className="flex-1 text-sm h-8">
-                      <SelectValue placeholder="— kein Fixspieler —" />
+                      <SelectValue placeholder="— kein Fixspieler —">
+                        {pins[teamIdx]
+                          ? registered.find((r) => r.playerId === pins[teamIdx])?.playerName ?? "—"
+                          : "— kein Fixspieler —"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">— kein Fixspieler —</SelectItem>
@@ -1325,11 +1336,13 @@ function TeamsView({
   isOrganizer,
   canRegenerate,
   onDeleteTeam,
+  pins,
 }: {
   session: SessionData
   isOrganizer: boolean
   canRegenerate: boolean
   onDeleteTeam?: (teamId: string) => void
+  pins?: Record<number, string>
 }) {
   const t = useTranslations("session")
   const [pending, startTransition] = useTransition()
@@ -1342,11 +1355,28 @@ function TeamsView({
   )
   const noMatchesStarted = startedTeamIds.size === 0
 
+  // Players registered but not in any team (for empty team assignment)
+  const assignedPlayerIds = new Set(session.teams.flatMap((t) => t.players.map((p) => p.id)))
+  const unassigned = session.registrations.filter(
+    (r) => r.status === "REGISTERED" && !assignedPlayerIds.has(r.playerId)
+  )
+
   function handleRegenerate(mode: "RANDOM" | "BALANCED") {
     startTransition(async () => {
       try {
         const numTeams = session.teams.length as 2 | 3
-        await generateTeams(session.id, numTeams, mode)
+        // Build pins from current teams: for each team index, if a pin exists for that slot, keep it fixed
+        if (pins && Object.keys(pins).length > 0) {
+          // Validate pins still exist in current registrations
+          const registeredIds = new Set(session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.playerId))
+          const validPins: Record<number, string[]> = {}
+          for (const [k, v] of Object.entries(pins)) {
+            if (v && registeredIds.has(v)) validPins[Number(k)] = [v]
+          }
+          await generateTeamsWithPins(session.id, numTeams, mode, validPins)
+        } else {
+          await generateTeams(session.id, numTeams, mode)
+        }
         toast.success(`Teams regenerated (${mode === "BALANCED" ? "balanced" : "random"}).`)
       } catch (e) { toast.error((e as Error).message) }
     })
@@ -1360,6 +1390,21 @@ function TeamsView({
       try {
         await movePlayer(session.id, playerId, fromTeamId, toTeamId)
         toast.success("Spieler verschoben.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleAssignUnassigned(playerId: string, toTeamId: string) {
+    startTransition(async () => {
+      try {
+        // Create a temporary "from" by adding to a dummy team — instead use addToTeam directly
+        // Since movePlayer requires fromTeamId, we need a different approach for unassigned players.
+        // We'll reuse movePlayer by first finding if there's a way, or use a direct DB insert.
+        // Actually the cleanest: we already have the teamPlayer create in the transaction.
+        // Let's call movePlayer with fromTeamId="" as a signal — but that won't work.
+        // Instead we'll add a lightweight addPlayerToTeam server action.
+        await addPlayerToTeam(session.id, playerId, toTeamId)
+        toast.success("Spieler zugewiesen.")
       } catch (e) { toast.error((e as Error).message) }
     })
   }
@@ -1387,6 +1432,33 @@ function TeamsView({
               </Button>
             ))}
           <Button size="sm" variant="ghost" onClick={() => setMovingPlayer(null)}>Abbrechen</Button>
+        </div>
+      )}
+
+      {/* Unassigned players — shown when there are empty/partial teams */}
+      {isOrganizer && noMatchesStarted && unassigned.length > 0 && session.teams.length > 0 && (
+        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Nicht zugewiesen ({unassigned.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {unassigned.map((r) => (
+              <div key={r.playerId} className="flex items-center gap-1">
+                <span className="text-sm">{r.playerName}</span>
+                <span className="text-xs text-muted-foreground">→</span>
+                {session.teams.map((team) => (
+                  <button
+                    key={team.id}
+                    className="text-xs px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 border border-border transition-colors"
+                    onClick={() => handleAssignUnassigned(r.playerId, team.id)}
+                    disabled={pending}
+                  >
+                    {team.name}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -1939,6 +2011,7 @@ export function SessionClient({
   const t = useTranslations("session")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [pins, setPins] = useState<Record<number, string>>({})
 
   const activeMatch = session.matches.find((m) => m.status === "IN_PROGRESS")
   const pendingMatches = session.matches.filter((m) => m.status === "PENDING")
@@ -2080,7 +2153,7 @@ export function SessionClient({
           <RegistrationPanel session={session} isOrganizer={isOrganizer} />
           {isOrganizer && (
             <div className="flex flex-wrap gap-2">
-              <FormTeamsDialog session={session} />
+              <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
               <SendInvitationDialog sessionId={session.id} />
             </div>
           )}
@@ -2092,10 +2165,10 @@ export function SessionClient({
         <div className="space-y-4">
           <RegistrationPanel session={session} isOrganizer={isOrganizer} />
           <SectionHeader title="Teams" />
-          <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} />
+          <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} pins={pins} />
           {isOrganizer && (
             <div className="flex flex-wrap gap-2">
-              <FormTeamsDialog session={session} />
+              <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
               <SendInvitationDialog sessionId={session.id} />
               {pendingMatches.length > 0 && (
                 <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}>

@@ -696,6 +696,25 @@ export async function generateTeams(
   revalidate(sessionId)
 }
 
+export async function addPlayerToTeam(sessionId: string, playerId: string, teamId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { matches: { select: { status: true, homeTeamId: true, awayTeamId: true } } },
+  })
+  if (!session) throw new Error("Session not found.")
+
+  const startedTeamIds = new Set(
+    session.matches.filter((m) => m.status !== "PENDING").flatMap((m) => [m.homeTeamId, m.awayTeamId])
+  )
+  if (startedTeamIds.has(teamId)) throw new Error("Cannot modify a team that has started playing.")
+
+  await db.teamPlayer.create({ data: { teamId, playerId } })
+  revalidate(sessionId)
+}
+
 export async function movePlayer(
   sessionId: string,
   playerId: string,
