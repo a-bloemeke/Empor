@@ -198,20 +198,20 @@ function useMatchTimer(matchId: string) {
     intervalRef.current = setInterval(() => {
       setRemaining((r) => {
         const next = r - 1
+        // Schedule side effects outside the pure updater
         if (next === 60 && !lastMinuteSpokenRef.current && durationMin > 1) {
           lastMinuteSpokenRef.current = true
-          speakLastMinute()
+          setTimeout(speakLastMinute, 0)
         }
         if (next === 10 && !lastTenPlayedRef.current) {
           lastTenPlayedRef.current = true
-          playLastTenSeconds()
+          setTimeout(playLastTenSeconds, 0)
         }
         if (next <= 0) {
           clearInterval(intervalRef.current!)
           setState("expired")
           setIsBlinking(true)
-          playTruckHorn()
-          // After 5s: stop blinking, turn green
+          setTimeout(playTruckHorn, 0)
           setTimeout(() => {
             setIsBlinking(false)
             setIsGreen(true)
