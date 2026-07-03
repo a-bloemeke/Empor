@@ -277,6 +277,15 @@ export async function getStatusUpdateDefaults(sessionId: string) {
 
   const count = registered.length
   const MIN_PLAYERS = 8
+  const hoursUntil = (session.date.getTime() - Date.now()) / (1000 * 60 * 60)
+  const enough = count >= MIN_PLAYERS
+  const critical = !enough && hoursUntil <= 32
+  const trafficLight = enough ? "🟢" : critical ? "🔴" : "🟡"
+  const statusText = enough
+    ? "Der Spieltag findet voraussichtlich statt! 🎉"
+    : critical
+    ? "Leider zu wenig Spieler – der Spieltag droht auszufallen. Bitte meldet euch an!"
+    : "Wir brauchen noch ein paar Spieler – bitte meldet euch an!"
 
   const abbrev = (p: { firstName: string; lastName: string; nickname: string | null }) => {
     const display = p.nickname ?? p.firstName
@@ -292,8 +301,6 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const link = `${appUrl}/sessions/${session.id}`
 
-  const trafficLight = count >= MIN_PLAYERS ? "🟢" : count >= MIN_PLAYERS - 3 ? "🟡" : "🔴"
-
   const subject = `${trafficLight} Spieltag ${dateStr} – ${count} von ${MIN_PLAYERS} Spielern`
 
   const body = `Hey Kicker,
@@ -301,7 +308,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
 kurzes Update zum Spieltag am ${dateStr}:
 
 ${trafficLight} Aktuell ${count} von mindestens ${MIN_PLAYERS} Spielern angemeldet.
-${count >= MIN_PLAYERS ? "Der Spieltag findet voraussichtlich statt! 🎉" : count >= MIN_PLAYERS - 3 ? "Wir brauchen noch ein paar Spieler – bitte meldet euch an!" : "Leider zu wenig Spieler – der Spieltag droht auszufallen. Bitte meldet euch an!"}
+${statusText}
 
 ✅ Zugesagt (${count}):
 ${registeredList}
