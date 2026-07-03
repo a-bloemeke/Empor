@@ -262,3 +262,9 @@ model InvitationQuote {
   author    String
   usedAt    DateTime @default(now())
 }
+
+model QuoteCollection {
+  id     String @id @default(cuid())
+  quote  String
+  author String
+}

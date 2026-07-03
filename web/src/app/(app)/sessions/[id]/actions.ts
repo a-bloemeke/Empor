@@ -18,7 +18,7 @@ export async function getDefaultInvitation(sessionId: string) {
   const session = await db.session.findUnique({ where: { id: sessionId } })
   if (!session) throw new Error("Session not found.")
 
-  const [defaults, players, usedQuotes] = await Promise.all([
+  const [defaults, players, usedQuotes, availableQuotes] = await Promise.all([
     Promise.resolve(buildDefaultInvitation({ id: session.id, date: session.date })),
     db.player.findMany({
       where: { passwordHash: { not: null } },
@@ -29,6 +29,10 @@ export async function getDefaultInvitation(sessionId: string) {
       orderBy: { usedAt: "desc" },
       take: 20,
       select: { quote: true, author: true, usedAt: true },
+    }),
+    db.quoteCollection.findMany({
+      orderBy: { author: "asc" },
+      select: { id: true, quote: true, author: true },
     }),
   ])
 
@@ -41,6 +45,7 @@ export async function getDefaultInvitation(sessionId: string) {
       emailNotifications: p.emailNotifications,
     })),
     usedQuotes,
+    availableQuotes,
   }
 }
 
@@ -70,6 +75,14 @@ export async function sendInvitation(
     emails,
     quote,
   )
+
+  // If this quote came from the collection, remove it (it's now tracked as used)
+  if (quote) {
+    await db.quoteCollection.deleteMany({
+      where: { quote: quote.text, author: quote.author },
+    })
+  }
+
   return count
 }
 

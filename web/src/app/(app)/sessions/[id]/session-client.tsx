@@ -585,6 +585,7 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
 
 type InvitationPlayer = { id: string; name: string; email: string; emailNotifications: boolean }
 type UsedQuote = { quote: string; author: string; usedAt: Date | string }
+type AvailableQuote = { id: string; quote: string; author: string }
 
 function SendInvitationDialog({ sessionId }: { sessionId: string }) {
   const [open, setOpen] = useState(false)
@@ -596,6 +597,7 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
   const [players, setPlayers] = useState<InvitationPlayer[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [usedQuotes, setUsedQuotes] = useState<UsedQuote[]>([])
+  const [availableQuotes, setAvailableQuotes] = useState<AvailableQuote[]>([])
   const [loaded, setLoaded] = useState(false)
 
   function handleOpen(isOpen: boolean) {
@@ -609,6 +611,7 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
           setPlayers(data.players)
           setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
           setUsedQuotes(data.usedQuotes as UsedQuote[])
+          setAvailableQuotes((data.availableQuotes ?? []) as AvailableQuote[])
           setLoaded(true)
         } catch (e) { toast.error((e as Error).message) }
       })
@@ -721,6 +724,29 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
               <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Optional quote
               </div>
+              {availableQuotes.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Pick from collection</Label>
+                  <Select
+                    value=""
+                    onValueChange={(id) => {
+                      const q = availableQuotes.find((q) => q.id === id)
+                      if (q) { setQuoteText(q.quote); setQuoteAuthor(q.author) }
+                    }}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue placeholder="— choose a quote —" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableQuotes.map((q) => (
+                        <SelectItem key={q.id} value={q.id}>
+                          „{q.quote.length > 50 ? q.quote.slice(0, 50) + "…" : q.quote}" — {q.author}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="inv-quote" className="text-sm">Quote</Label>
                 <Textarea
@@ -741,6 +767,14 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
                   onChange={(e) => setQuoteAuthor(e.target.value)}
                 />
               </div>
+              {quoteText.trim() && quoteAuthor.trim() && (
+                <button
+                  onClick={() => { setQuoteText(""); setQuoteAuthor("") }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  ✕ Clear quote
+                </button>
+              )}
               {quoteAlreadyUsed && (
                 <p className="text-xs text-destructive">
                   This quote by {quoteAuthor} was already used. Pick a different one.
