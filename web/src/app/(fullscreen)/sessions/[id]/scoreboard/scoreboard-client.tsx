@@ -86,53 +86,61 @@ function speak(text: string, lang = "de-DE", opts: { rate?: number; pitch?: numb
 
 function playWhistleThenSpeak(ctx: AudioContext, text: string, lang = "de-DE") {
   try {
-    // Real whistles are filtered noise, not pure tones.
-    // Each blast: white noise → bandpass filter around whistle freq + slight vibrato.
+    // Referee pea-whistle: sine at ~3000 Hz + amplitude modulation at ~22 Hz (the "pea" wobble)
     const blasts = [
-      { start: 0,    dur: 0.4,  freq: 3200 },
-      { start: 0.6,  dur: 0.4,  freq: 3200 },
-      { start: 1.15, dur: 1.6,  freq: 3000 },
+      { start: 0,    dur: 0.38 },
+      { start: 0.58, dur: 0.38 },
+      { start: 1.14, dur: 1.55 },
     ]
 
-    blasts.forEach(({ start, dur, freq }) => {
-      // White noise buffer
-      const bufferSize = ctx.sampleRate * dur
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
-      const data = buffer.getChannelData(0)
-      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1
-      const noise = ctx.createBufferSource()
-      noise.buffer = buffer
+    blasts.forEach(({ start, dur }) => {
+      const freq = 2980
 
-      // Bandpass filter — gives the whistle its pitch
-      const bp = ctx.createBiquadFilter()
-      bp.type = "bandpass"
-      bp.frequency.setValueAtTime(freq, ctx.currentTime + start)
-      bp.frequency.linearRampToValueAtTime(freq - 80, ctx.currentTime + start + dur)
-      bp.Q.value = 18  // narrow band = more whistle-like
+      // Main tone
+      const osc = ctx.createOscillator()
+      osc.type = "sine"
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+      // Slight pitch drop at end of each blast (natural blow)
+      osc.frequency.linearRampToValueAtTime(freq - 60, ctx.currentTime + start + dur)
 
-      // Vibrato via LFO on filter frequency
-      const lfo = ctx.createOscillator()
-      const lfoGain = ctx.createGain()
-      lfo.frequency.value = 7
-      lfoGain.gain.value = 40
-      lfo.connect(lfoGain)
-      lfoGain.connect(bp.frequency)
+      // Second harmonic for body
+      const osc2 = ctx.createOscillator()
+      osc2.type = "sine"
+      osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime + start)
+      const osc2Gain = ctx.createGain()
+      osc2Gain.gain.value = 0.15
 
-      // Amplitude envelope — sharp attack, sustain, fast decay
-      const ampGain = ctx.createGain()
-      ampGain.gain.setValueAtTime(0, ctx.currentTime + start)
-      ampGain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + start + 0.015)
-      ampGain.gain.setValueAtTime(0.9, ctx.currentTime + start + dur - 0.07)
-      ampGain.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
+      // Pea wobble: AM at ~22 Hz
+      const amOsc = ctx.createOscillator()
+      amOsc.frequency.value = 22
+      const amDepth = ctx.createGain()
+      amDepth.gain.value = 0.28  // wobble depth
 
-      noise.connect(bp)
-      bp.connect(ampGain)
-      ampGain.connect(ctx.destination)
+      // Carrier gain — AM target
+      const carrier = ctx.createGain()
+      carrier.gain.value = 0.72
+      amOsc.connect(amDepth)
+      amDepth.connect(carrier.gain)
 
-      lfo.start(ctx.currentTime + start)
-      lfo.stop(ctx.currentTime + start + dur)
-      noise.start(ctx.currentTime + start)
-      noise.stop(ctx.currentTime + start + dur)
+      // Volume envelope: hard attack, sustain, hard cutoff
+      const env = ctx.createGain()
+      env.gain.setValueAtTime(0, ctx.currentTime + start)
+      env.gain.linearRampToValueAtTime(1, ctx.currentTime + start + 0.012)
+      env.gain.setValueAtTime(1, ctx.currentTime + start + dur - 0.04)
+      env.gain.linearRampToValueAtTime(0, ctx.currentTime + start + dur)
+
+      osc.connect(carrier)
+      osc2.connect(osc2Gain)
+      osc2Gain.connect(carrier)
+      carrier.connect(env)
+      env.connect(ctx.destination)
+
+      amOsc.start(ctx.currentTime + start)
+      amOsc.stop(ctx.currentTime + start + dur)
+      osc.start(ctx.currentTime + start)
+      osc.stop(ctx.currentTime + start + dur)
+      osc2.start(ctx.currentTime + start)
+      osc2.stop(ctx.currentTime + start + dur)
     })
 
     setTimeout(() => speak(text, lang, { rate: 0.72, pitch: 0.7 }), 2900)
