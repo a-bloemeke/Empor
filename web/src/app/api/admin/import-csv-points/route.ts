@@ -10,6 +10,18 @@ function normalize(s: string) {
 // Names that are check/summary rows in the Fudo CSV, not real players
 const CSV_SKIP_NAMES = new Set(["max", "369", "check", "super"])
 
+// Detect names like "MatthiasB" — ends with a single capital letter = firstName + last-name initial
+// Returns { firstName, initial } or null if no trailing capital
+function parseNameWithInitial(name: string): { firstName: string; initial: string } | null {
+  const match = name.match(/^(.+?)([A-Z])$/)
+  if (!match) return null
+  // Only treat it as initial if the last char is capital and the rest starts with a capital too
+  const firstName = match[1]
+  const initial = match[2]
+  if (!firstName || !/^[A-Z]/.test(firstName)) return null
+  return { firstName, initial }
+}
+
 async function findOrCreatePlayer(
   name: string,
   players: { id: string; firstName: string; lastName: string; nickname: string | null }[],
@@ -18,21 +30,31 @@ async function findOrCreatePlayer(
   byFirstAndInitial: Map<string, string>,
 ): Promise<{ playerId: string; label: string; created: boolean }> {
   const key = normalize(name)
+  const parsed = parseNameWithInitial(name)
   const existingId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
 
   if (existingId) {
     const p = players.find((p) => p.id === existingId)!
+    // If CSV name has a trailing capital and player has no nickname yet, set it
+    if (parsed && !p.nickname) {
+      await db.player.update({ where: { id: existingId }, data: { nickname: name } })
+      p.nickname = name
+      byNickname.set(key, existingId)
+    }
     return { playerId: existingId, label: `${p.firstName} ${p.lastName}`.trim(), created: false }
   }
 
-  // Create new player: name as both first and last name
+  // Create new player
   const email = `${normalize(name)}@empor.app`
   const passwordHash = await bcrypt.hash("Start1234", 12)
+  const firstName = parsed ? parsed.firstName : name
+  const lastName = parsed ? parsed.initial : name  // use initial as last name if available
+  const nickname = parsed ? name : undefined        // e.g. "MatthiasB" as nickname
   const newPlayer = await db.player.create({
-    data: { firstName: name, lastName: name, email, passwordHash, role: "PLAYER" },
+    data: { firstName, lastName, email, passwordHash, role: "PLAYER", ...(nickname ? { nickname } : {}) },
   })
-  // Update lookup maps so duplicate names in the same CSV don't create twice
-  byFirstName.set(normalize(name), newPlayer.id)
+  byFirstName.set(normalize(firstName), newPlayer.id)
+  if (nickname) byNickname.set(normalize(nickname), newPlayer.id)
   return { playerId: newPlayer.id, label: name, created: true }
 }
 
