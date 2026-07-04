@@ -49,9 +49,10 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
       if (!res.ok) throw new Error(json.error ?? "Import failed.")
       const imp = (json.imported as string[]).length
       const skip = (json.skipped as string[]).length
-      toast.success(`${imp} Spieler importiert, ${skip} übersprungen.`)
+      const cre = (json.created as string[] ?? []).length
+      toast.success(`${imp} Spieler importiert, ${skip} übersprungen${cre > 0 ? `, ${cre} neu angelegt` : ""}.`)
       if (json.skipped?.length > 0) toast.info(`Übersprungen: ${(json.skipped as string[]).join(", ")}`)
-      if (json.unknownNames?.length > 0) toast.warning(`Unbekannte Namen: ${(json.unknownNames as string[]).join(", ")}`)
+      if (json.created?.length > 0) toast.info(`Neu angelegt: ${(json.created as string[]).join(", ")}`)
     } catch (err) {
       toast.error((err as Error).message)
     } finally {

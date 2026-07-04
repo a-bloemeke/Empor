@@ -1,9 +1,36 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
+import bcrypt from "bcryptjs"
 
 function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
+async function findOrCreatePlayer(
+  name: string,
+  players: { id: string; firstName: string; lastName: string; nickname: string | null }[],
+  byNickname: Map<string, string>,
+  byFirstName: Map<string, string>,
+  byFirstAndInitial: Map<string, string>,
+): Promise<{ playerId: string; label: string; created: boolean }> {
+  const key = normalize(name)
+  const existingId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
+
+  if (existingId) {
+    const p = players.find((p) => p.id === existingId)!
+    return { playerId: existingId, label: `${p.firstName} ${p.lastName}`.trim(), created: false }
+  }
+
+  // Create new player: name as both first and last name
+  const email = `${normalize(name)}@empor.app`
+  const passwordHash = await bcrypt.hash("Start1234", 12)
+  const newPlayer = await db.player.create({
+    data: { firstName: name, lastName: name, email, passwordHash, role: "PLAYER" },
+  })
+  // Update lookup maps so duplicate names in the same CSV don't create twice
+  byFirstName.set(normalize(name), newPlayer.id)
+  return { playerId: newPlayer.id, label: name, created: true }
 }
 
 // Parse the right-side summary table: col 15=Name, 16=Gesamt, 17=Punkte, 18=kicks
@@ -83,15 +110,13 @@ export async function POST(req: NextRequest) {
 
   const imported: string[] = []
   const skipped: string[] = []
-  const unknownNames: string[] = []
+  const created: string[] = []
 
   for (const row of summaryRows) {
-    const key = normalize(row.name)
-    const playerId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
-    if (!playerId) { unknownNames.push(row.name); continue }
-
-    const playerName = players.find((p) => p.id === playerId)
-    const label = playerName ? `${playerName.firstName} ${playerName.lastName}`.trim() : playerId
+    const { playerId, label, created: wasCreated } = await findOrCreatePlayer(
+      row.name, players, byNickname, byFirstName, byFirstAndInitial
+    )
+    if (wasCreated) created.push(label)
 
     const existing = await db.playerStats.findUnique({
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
@@ -131,5 +156,5 @@ export async function POST(req: NextRequest) {
     imported.push(label)
   }
 
-  return NextResponse.json({ ok: true, imported, skipped, unknownNames })
+  return NextResponse.json({ ok: true, imported, skipped, created })
 }

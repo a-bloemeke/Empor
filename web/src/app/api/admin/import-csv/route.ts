@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
+import bcrypt from "bcryptjs"
 
 // Parse the Fudo-style stats CSV:
 // Columns (semicolon-separated): rank ; name ; goals ; assists ; score ; ... ; sessions
@@ -26,6 +27,30 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
+async function findOrCreatePlayer(
+  name: string,
+  players: { id: string; firstName: string; lastName: string; nickname: string | null }[],
+  byNickname: Map<string, string>,
+  byFirstName: Map<string, string>,
+  byFirstAndInitial: Map<string, string>,
+): Promise<{ playerId: string; label: string; created: boolean }> {
+  const key = normalize(name)
+  const existingId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
+
+  if (existingId) {
+    const p = players.find((p) => p.id === existingId)!
+    return { playerId: existingId, label: `${p.firstName} ${p.lastName}`.trim(), created: false }
+  }
+
+  const email = `${normalize(name)}@empor.app`
+  const passwordHash = await bcrypt.hash("Start1234", 12)
+  const newPlayer = await db.player.create({
+    data: { firstName: name, lastName: name, email, passwordHash, role: "PLAYER" },
+  })
+  byFirstName.set(normalize(name), newPlayer.id)
+  return { playerId: newPlayer.id, label: name, created: true }
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (session?.user?.role !== "ORGANIZER") {
@@ -46,16 +71,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Season ${seasonYear} not found.` }, { status: 400 })
   }
 
-  // Load all non-guest players for matching
   const players = await db.player.findMany({
     where: { passwordHash: { not: null } },
     select: { id: true, firstName: true, lastName: true, nickname: true },
   })
 
-  // Build lookup maps
-  const byNickname = new Map<string, string>()  // normalized nickname → id
-  const byFirstName = new Map<string, string>()  // normalized firstName → id
-  const byFirstAndInitial = new Map<string, string>()  // normalized firstName+lastInitial → id
+  const byNickname = new Map<string, string>()
+  const byFirstName = new Map<string, string>()
+  const byFirstAndInitial = new Map<string, string>()
   for (const p of players) {
     if (p.nickname) byNickname.set(normalize(p.nickname), p.id)
     byFirstName.set(normalize(p.firstName), p.id)
@@ -65,26 +88,20 @@ export async function POST(req: NextRequest) {
 
   const imported: string[] = []
   const skipped: string[] = []
+  const created: string[] = []
 
   for (const row of rows) {
-    const key = normalize(row.name)
-    const playerId =
-      byNickname.get(key) ??
-      byFirstName.get(key) ??
-      byFirstAndInitial.get(key)
+    const { playerId, label, created: wasCreated } = await findOrCreatePlayer(
+      row.name, players, byNickname, byFirstName, byFirstAndInitial
+    )
+    if (wasCreated) created.push(label)
 
-    if (!playerId) {
-      skipped.push(row.name)
-      continue
-    }
-
-    // Only import if this player has no season stats yet (idempotent re-import)
     const existing = await db.playerStats.findUnique({
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
     })
 
     if (existing && existing.goals > 0) {
-      skipped.push(`${row.name} (already has goals)`)
+      skipped.push(`${label} (already has goals)`)
       continue
     }
 
@@ -101,7 +118,6 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Upsert lifetime stats — only create if none exist yet
     const existingLt = await db.playerStatsLifetime.findUnique({ where: { playerId } })
     if (!existingLt) {
       await db.playerStatsLifetime.create({
@@ -109,8 +125,8 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    imported.push(row.name)
+    imported.push(label)
   }
 
-  return NextResponse.json({ ok: true, imported, skipped })
+  return NextResponse.json({ ok: true, imported, skipped, created })
 }
