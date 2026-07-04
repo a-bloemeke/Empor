@@ -1,18 +1,28 @@
 "use server"
 
 import { db } from "@/lib/db"
+import { buildPlayerNames } from "@/lib/player-names"
+
+async function getAllPlayerNames() {
+  const all = await db.player.findMany({
+    where: { passwordHash: { not: null } },
+    select: { id: true, firstName: true, lastName: true, nickname: true },
+  })
+  return buildPlayerNames(all)
+}
 
 export async function getSeasonStats(seasonId: string) {
-  const stats = await db.playerStats.findMany({
-    where: { seasonId },
-    include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
-  })
+  const [stats, displayNames] = await Promise.all([
+    db.playerStats.findMany({
+      where: { seasonId },
+      include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
+    }),
+    getAllPlayerNames(),
+  ])
 
   return stats.map((s) => ({
     playerId: s.playerId,
-    playerName: s.player.nickname
-      ? `${s.player.firstName} ${s.player.lastName} (${s.player.nickname})`
-      : `${s.player.firstName} ${s.player.lastName}`,
+    playerName: displayNames.get(s.playerId) ?? s.player.firstName,
     sessionsPlayed: s.sessionsPlayed,
     matchesPlayed: s.matchesPlayed,
     goals: s.goals,
@@ -26,10 +36,13 @@ export async function getSeasonStats(seasonId: string) {
 export async function getAggregatedStats(seasonIds: string[]) {
   if (seasonIds.length === 0) return []
 
-  const stats = await db.playerStats.findMany({
-    where: { seasonId: { in: seasonIds } },
-    include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
-  })
+  const [stats, displayNames] = await Promise.all([
+    db.playerStats.findMany({
+      where: { seasonId: { in: seasonIds } },
+      include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
+    }),
+    getAllPlayerNames(),
+  ])
 
   const map = new Map<string, {
     playerId: string; playerName: string
@@ -37,9 +50,7 @@ export async function getAggregatedStats(seasonIds: string[]) {
   }>()
 
   for (const s of stats) {
-    const playerName = s.player.nickname
-      ? `${s.player.firstName} ${s.player.lastName} (${s.player.nickname})`
-      : `${s.player.firstName} ${s.player.lastName}`
+    const playerName = displayNames.get(s.playerId) ?? s.player.firstName
     const existing = map.get(s.playerId)
     if (existing) {
       existing.sessionsPlayed += s.sessionsPlayed

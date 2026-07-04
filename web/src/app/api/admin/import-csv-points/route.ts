@@ -1,24 +1,85 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
+import bcrypt from "bcryptjs"
 
 function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
-// Parse the right-side summary table: col 15=Name, 16=Gesamt, 17=Punkte, 18=kicks
+// Names that are check/summary rows in the Fudo CSV, not real players
+const CSV_SKIP_NAMES = new Set(["max", "369", "check", "super"])
+
+// Detect names like "MatthiasB" — ends with a single capital letter = firstName + last-name initial
+// Returns { firstName, initial } or null if no trailing capital
+function parseNameWithInitial(name: string): { firstName: string; initial: string } | null {
+  const match = name.match(/^(.+?)([A-Z])$/)
+  if (!match) return null
+  // Only treat it as initial if the last char is capital and the rest starts with a capital too
+  const firstName = match[1]
+  const initial = match[2]
+  if (!firstName || !/^[A-Z]/.test(firstName)) return null
+  return { firstName, initial }
+}
+
+async function findOrCreatePlayer(
+  name: string,
+  players: { id: string; firstName: string; lastName: string; nickname: string | null }[],
+  byNickname: Map<string, string>,
+  byFirstName: Map<string, string>,
+  byFirstAndInitial: Map<string, string>,
+): Promise<{ playerId: string; label: string; created: boolean }> {
+  const key = normalize(name)
+  const parsed = parseNameWithInitial(name)
+  const existingId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
+
+  if (existingId) {
+    const p = players.find((p) => p.id === existingId)!
+    // If CSV name has a trailing capital and player has no nickname yet, set it
+    if (parsed && !p.nickname) {
+      await db.player.update({ where: { id: existingId }, data: { nickname: name } })
+      p.nickname = name
+      byNickname.set(key, existingId)
+    }
+    return { playerId: existingId, label: `${p.firstName} ${p.lastName}`.trim(), created: false }
+  }
+
+  // Create new player
+  const email = `${normalize(name)}@empor.app`
+  const passwordHash = await bcrypt.hash("Start1234", 12)
+  const firstName = parsed ? parsed.firstName : name
+  const lastName = parsed ? parsed.initial : name  // use initial as last name if available
+  const nickname = parsed ? name : undefined        // e.g. "MatthiasB" as nickname
+  const newPlayer = await db.player.create({
+    data: { firstName, lastName, email, passwordHash, role: "PLAYER", ...(nickname ? { nickname } : {}) },
+  })
+  byFirstName.set(normalize(firstName), newPlayer.id)
+  if (nickname) byNickname.set(normalize(nickname), newPlayer.id)
+  return { playerId: newPlayer.id, label: name, created: true }
+}
+
+// Parse the right-side summary table: col 15=Name, 16=Gesamt, 18=kicks
+// Skip check rows (max, 369, check, super) and the row immediately after "max"
 function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: number }[] {
   const rows: { name: string; gesamt: number; kicks: number }[] = []
+  let skipNext = false
   for (const line of text.split("\n")) {
     const cols = line.split(";")
     const rank = cols[0]?.trim()
-    if (!rank || !/^\d+$/.test(rank)) continue
+    if (!rank || !/^\d+$/.test(rank)) { skipNext = false; continue }
     const name = cols[15]?.trim()
     if (!name) continue
     const gesamt = parseInt(cols[16]?.trim() ?? "", 10)
     const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
     if (isNaN(gesamt) || isNaN(kicks)) continue
     if (gesamt === 0 && kicks === 0) continue
+    if (kicks === 0) continue  // no game days played — don't create account or stats
+    const isSkipName = CSV_SKIP_NAMES.has(normalize(name))
+    if (isSkipName || skipNext) {
+      skipNext = normalize(name) === "max"
+      continue
+    }
+    skipNext = false
     rows.push({ name, gesamt, kicks })
   }
   return rows
@@ -83,15 +144,14 @@ export async function POST(req: NextRequest) {
 
   const imported: string[] = []
   const skipped: string[] = []
-  const unknownNames: string[] = []
+  const created: string[] = []
 
   for (const row of summaryRows) {
-    const key = normalize(row.name)
-    const playerId = byNickname.get(key) ?? byFirstName.get(key) ?? byFirstAndInitial.get(key)
-    if (!playerId) { unknownNames.push(row.name); continue }
-
-    const playerName = players.find((p) => p.id === playerId)
-    const label = playerName ? `${playerName.firstName} ${playerName.lastName}`.trim() : playerId
+    if (CSV_SKIP_NAMES.has(normalize(row.name))) continue
+    const { playerId, label, created: wasCreated } = await findOrCreatePlayer(
+      row.name, players, byNickname, byFirstName, byFirstAndInitial
+    )
+    if (wasCreated) created.push(label)
 
     const existing = await db.playerStats.findUnique({
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
@@ -131,5 +191,5 @@ export async function POST(req: NextRequest) {
     imported.push(label)
   }
 
-  return NextResponse.json({ ok: true, imported, skipped, unknownNames })
+  return NextResponse.json({ ok: true, imported, skipped, created })
 }
