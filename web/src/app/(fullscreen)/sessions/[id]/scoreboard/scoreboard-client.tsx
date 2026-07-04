@@ -308,7 +308,7 @@ function GoalDrawer({
           <h2 className="mb-6 text-lg font-semibold">{t("goalTitle", { team: teamName })}</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-base font-semibold">{t("scorer")}</Label>
+              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
               <div className="flex flex-col gap-2">
                 {players.map((p) => (
                   <button
@@ -326,7 +326,7 @@ function GoalDrawer({
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-base font-semibold">{t("assist")}</Label>
+              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-muted-foreground">{t("assist")}</Label>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => setAssisterId("")}
@@ -432,7 +432,7 @@ function EditGoalDrawer({
           <h2 className="mb-4 text-lg font-semibold">{t("editGoal")}</h2>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-base font-semibold">{t("scorer")}</Label>
+              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
               <div className="flex flex-col gap-2">
                 {allPlayers.map((p) => (
                   <button
@@ -450,7 +450,7 @@ function EditGoalDrawer({
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-base font-semibold">{t("assist")}</Label>
+              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-muted-foreground">{t("assist")}</Label>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => setAssisterId("")}
