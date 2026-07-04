@@ -306,10 +306,10 @@ function GoalDrawer({
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
           <h2 className="mb-6 text-lg font-semibold">{t("goalTitle", { team: teamName })}</h2>
-          <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-base font-semibold">{t("scorer")}</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 {players.map((p) => (
                   <button
                     key={p.id}
@@ -327,7 +327,7 @@ function GoalDrawer({
             </div>
             <div className="space-y-2">
               <Label className="text-base font-semibold">{t("assist")}</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={() => setAssisterId("")}
                   className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
@@ -430,10 +430,10 @@ function EditGoalDrawer({
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
           <h2 className="mb-4 text-lg font-semibold">{t("editGoal")}</h2>
-          <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-base font-semibold">{t("scorer")}</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 {allPlayers.map((p) => (
                   <button
                     key={p.id}
@@ -451,7 +451,7 @@ function EditGoalDrawer({
             </div>
             <div className="space-y-2">
               <Label className="text-base font-semibold">{t("assist")}</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={() => setAssisterId("")}
                   className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
