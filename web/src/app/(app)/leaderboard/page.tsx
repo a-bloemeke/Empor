@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { LeaderboardClient } from "./leaderboard-client"
+import { buildPlayerNames } from "@/lib/player-names"
 
 export default async function LeaderboardPage() {
   const seasons = await db.season.findMany({ orderBy: { year: "desc" } })
@@ -44,9 +45,9 @@ export default async function LeaderboardPage() {
     }
   }
 
-  function playerName(p: { firstName: string; lastName: string; nickname: string | null }) {
-    return p.nickname ? `${p.firstName} ${p.lastName} (${p.nickname})` : `${p.firstName} ${p.lastName}`
-  }
+  // Build display names with conflict detection across ALL known players
+  const allPlayers = [...new Map(allStats.map((s) => [s.player.id, s.player])).values()]
+  const displayNames = buildPlayerNames(allPlayers)
 
   return (
     <LeaderboardClient
@@ -54,7 +55,7 @@ export default async function LeaderboardPage() {
       currentSeasonId={currentSeason?.id ?? null}
       initialSeasonStats={seasonStats.map((s) => ({
         playerId: s.playerId,
-        playerName: playerName(s.player),
+        playerName: displayNames.get(s.playerId) ?? s.player.firstName,
         sessionsPlayed: s.sessionsPlayed,
         matchesPlayed: s.matchesPlayed,
         goals: s.goals,
@@ -65,7 +66,7 @@ export default async function LeaderboardPage() {
       }))}
       lifetimeStats={[...lifetimeMap.values()].map((s) => ({
         playerId: s.player.id,
-        playerName: playerName(s.player),
+        playerName: displayNames.get(s.player.id) ?? s.player.firstName,
         sessionsPlayed: s.sessionsPlayed,
         matchesPlayed: s.matchesPlayed,
         goals: s.goals,

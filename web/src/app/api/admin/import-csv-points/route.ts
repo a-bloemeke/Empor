@@ -36,19 +36,27 @@ async function findOrCreatePlayer(
   return { playerId: newPlayer.id, label: name, created: true }
 }
 
-// Parse the right-side summary table: col 15=Name, 16=Gesamt, 17=Punkte, 18=kicks
+// Parse the right-side summary table: col 15=Name, 16=Gesamt, 18=kicks
+// Skip check rows (max, 369, check, super) and the row immediately after "max"
 function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: number }[] {
   const rows: { name: string; gesamt: number; kicks: number }[] = []
+  let skipNext = false
   for (const line of text.split("\n")) {
     const cols = line.split(";")
     const rank = cols[0]?.trim()
-    if (!rank || !/^\d+$/.test(rank)) continue
+    if (!rank || !/^\d+$/.test(rank)) { skipNext = false; continue }
     const name = cols[15]?.trim()
     if (!name) continue
     const gesamt = parseInt(cols[16]?.trim() ?? "", 10)
     const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
     if (isNaN(gesamt) || isNaN(kicks)) continue
     if (gesamt === 0 && kicks === 0) continue
+    const isSkipName = CSV_SKIP_NAMES.has(normalize(name))
+    if (isSkipName || skipNext) {
+      skipNext = normalize(name) === "max"
+      continue
+    }
+    skipNext = false
     rows.push({ name, gesamt, kicks })
   }
   return rows
