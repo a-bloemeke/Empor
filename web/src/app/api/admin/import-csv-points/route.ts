@@ -51,6 +51,7 @@ function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: 
     const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
     if (isNaN(gesamt) || isNaN(kicks)) continue
     if (gesamt === 0 && kicks === 0) continue
+    if (kicks === 0) continue  // no game days played — don't create account or stats
     const isSkipName = CSV_SKIP_NAMES.has(normalize(name))
     if (isSkipName || skipNext) {
       skipNext = normalize(name) === "max"

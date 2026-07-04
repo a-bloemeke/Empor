@@ -26,6 +26,7 @@ type Player = {
   id: string
   firstName: string
   lastName: string
+  displayName: string
   email: string
   role: string
   isGuest: boolean
@@ -190,7 +191,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     <Link href={`/players/${p.id}`} className="hover:underline">
-                      {p.firstName} {p.lastName}
+                      {p.displayName}
                     </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{p.email}</TableCell>
@@ -213,7 +214,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
                     <button
                       className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                       disabled={pending && deletingId === p.id}
-                      onClick={() => handleDelete(p.id, `${p.firstName} ${p.lastName}`)}
+                      onClick={() => handleDelete(p.id, p.displayName)}
                     >
                       {t("delete")}
                     </button>
@@ -246,7 +247,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
               <TableBody>
                 {guests.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.firstName} {p.lastName}</TableCell>
+                    <TableCell className="font-medium">{p.displayName}</TableCell>
                     <TableCell>
                       <Link href={`/players/${p.id}`} className="text-xs text-primary hover:underline">
                         {t("viewStats")}
@@ -256,7 +257,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
                       <button
                         className="text-xs text-muted-foreground hover:text-destructive transition-colors"
                         disabled={pending && deletingId === p.id}
-                        onClick={() => handleDelete(p.id, `${p.firstName} ${p.lastName}`)}
+                        onClick={() => handleDelete(p.id, p.displayName)}
                       >
                         {t("delete")}
                       </button>
