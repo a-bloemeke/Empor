@@ -306,37 +306,52 @@ function GoalDrawer({
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
           <h2 className="mb-6 text-lg font-semibold">{t("goalTitle", { team: teamName })}</h2>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>{t("scorer")}</Label>
-              <Select value={scorerId} onValueChange={(v) => { if (v) setScorerId(v) }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t("selectScorer")}>
-                    {(v: string) => players.find((p) => p.id === v)?.name ?? t("selectScorer")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {players.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">{t("scorer")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {players.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setScorerId(p.id)}
+                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                      scorerId === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t("assist")}</Label>
-              <Select value={assisterId} onValueChange={(v) => setAssisterId(v ?? "")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t("noAssist")}>
-                    {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.name ?? t("noAssist")) : t("noAssist")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">{t("noAssist")}</SelectItem>
-                  {assistCandidates.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">{t("assist")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setAssisterId("")}
+                  className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                    assisterId === ""
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  }`}
+                >
+                  {t("noAssist")}
+                </button>
+                {assistCandidates.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setAssisterId(p.id)}
+                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                      assisterId === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="mt-6 flex gap-3">
@@ -415,37 +430,52 @@ function EditGoalDrawer({
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
           <h2 className="mb-4 text-lg font-semibold">{t("editGoal")}</h2>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>{t("scorer")}</Label>
-              <Select value={scorerId} onValueChange={(v) => { if (v) setScorerId(v) }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t("selectScorer")}>
-                    {(v: string) => allPlayers.find((p) => p.id === v)?.displayName ?? t("selectScorer")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {allPlayers.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.displayName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">{t("scorer")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {allPlayers.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setScorerId(p.id)}
+                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                      scorerId === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    {p.displayName}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t("assist")}</Label>
-              <Select value={assisterId} onValueChange={(v) => setAssisterId(v ?? "")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t("noAssist")}>
-                    {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.displayName ?? t("noAssist")) : t("noAssist")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">{t("noAssist")}</SelectItem>
-                  {assistCandidates.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.displayName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">{t("assist")}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setAssisterId("")}
+                  className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                    assisterId === ""
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  }`}
+                >
+                  {t("noAssist")}
+                </button>
+                {assistCandidates.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setAssisterId(p.id)}
+                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                      assisterId === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    {p.displayName}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="mt-6 flex gap-3">
