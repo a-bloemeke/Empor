@@ -7,6 +7,9 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
+// Names that are check/summary rows in the Fudo CSV, not real players
+const CSV_SKIP_NAMES = new Set(["max", "369", "check", "super"])
+
 async function findOrCreatePlayer(
   name: string,
   players: { id: string; firstName: string; lastName: string; nickname: string | null }[],
@@ -113,6 +116,7 @@ export async function POST(req: NextRequest) {
   const created: string[] = []
 
   for (const row of summaryRows) {
+    if (CSV_SKIP_NAMES.has(normalize(row.name))) continue
     const { playerId, label, created: wasCreated } = await findOrCreatePlayer(
       row.name, players, byNickname, byFirstName, byFirstAndInitial
     )
