@@ -159,12 +159,39 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
   lines.push(`Spieltag-Zusammenfassung — ${dateStr}`)
   lines.push("")
 
-  lines.push("=== Ergebnisse ===")
-  for (const m of completedMatches) {
-    const prefix = m.roundNumber != null ? `Runde ${m.roundNumber}  ` : ""
-    lines.push(`${prefix}${m.homeTeam.name} ${m.homeScore}:${m.awayScore} ${m.awayTeam.name}`)
+  // Group matches: tournament rounds first, then normal matches
+  const tournamentMatches = completedMatches.filter((m) => m.roundNumber != null)
+  const normalMatches = completedMatches.filter((m) => m.roundNumber == null)
+
+  if (tournamentMatches.length > 0) {
+    lines.push("=== 🏆 Turnier ===")
+    // Group by round number
+    const byRound = new Map<number, typeof tournamentMatches>()
+    for (const m of tournamentMatches) {
+      const r = m.roundNumber!
+      if (!byRound.has(r)) byRound.set(r, [])
+      byRound.get(r)!.push(m)
+    }
+    for (const [round, roundMatches] of [...byRound.entries()].sort((a, b) => a[0] - b[0])) {
+      lines.push(`  Runde ${round}:`)
+      for (const m of roundMatches) {
+        const winner = m.homeScore > m.awayScore ? m.homeTeam.name : m.awayScore > m.homeScore ? m.awayTeam.name : null
+        const suffix = winner ? `  → ${winner} gewinnt` : "  → Unentschieden"
+        lines.push(`    ${m.homeTeam.name} ${m.homeScore} : ${m.awayScore} ${m.awayTeam.name}${suffix}`)
+      }
+    }
+    lines.push("")
   }
-  lines.push("")
+
+  if (normalMatches.length > 0) {
+    lines.push("=== ⚽ Normale Spiele ===")
+    for (const m of normalMatches) {
+      const winner = m.homeScore > m.awayScore ? m.homeTeam.name : m.awayScore > m.homeScore ? m.awayTeam.name : null
+      const suffix = winner ? `  → ${winner} gewinnt` : "  → Unentschieden"
+      lines.push(`  ${m.homeTeam.name} ${m.homeScore} : ${m.awayScore} ${m.awayTeam.name}${suffix}`)
+    }
+    lines.push("")
+  }
 
   lines.push("=== Spieler-Statistiken ===")
   sorted.forEach((row, i) => {
