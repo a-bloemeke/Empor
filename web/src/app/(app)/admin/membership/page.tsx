@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { redirect } from "next/navigation"
 import { MembershipClient } from "./membership-client"
+import { buildPlayerNames } from "@/lib/player-names"
 
 export default async function MembershipPage() {
   const authSession = await auth()
@@ -19,15 +20,13 @@ export default async function MembershipPage() {
     select: { playerId: true, status: true, paidAt: true },
   })
   const feeMap = new Map(fees.map((f) => [f.playerId, f]))
-
-  const playerName = (p: { firstName: string; lastName: string; nickname: string | null }) =>
-    p.nickname ? `${p.firstName} ${p.lastName} (${p.nickname})` : `${p.firstName} ${p.lastName}`
+  const displayNames = buildPlayerNames(players)
 
   return (
     <MembershipClient
       players={players.map((p) => ({
         id: p.id,
-        name: playerName(p),
+        name: displayNames.get(p.id) ?? p.firstName,
         status: (feeMap.get(p.id)?.status as string | undefined) ?? "NOT_PAID",
         paidAt: feeMap.get(p.id)?.paidAt?.toISOString() ?? null,
       }))}

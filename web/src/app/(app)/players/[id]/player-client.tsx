@@ -370,9 +370,7 @@ export function PlayerClient({
     : null
 
   const selectedStat = seasonStats.find((s) => String(s.year) === selectedYear)
-  const displayName = player.nickname
-    ? `${player.firstName} ${player.lastName} (${player.nickname})`
-    : `${player.firstName} ${player.lastName}`
+  const displayName = player.nickname ?? player.firstName
 
   const currentFee = fees.find((f) => f.year === currentYear)
 

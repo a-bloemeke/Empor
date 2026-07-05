@@ -8,6 +8,7 @@ import type { PointsScope } from "@/lib/types"
 import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
 import type { TeamRef, MatchRef } from "@/lib/game-logic"
 import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation } from "@/lib/email"
+import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
@@ -22,7 +23,7 @@ export async function getDefaultInvitation(sessionId: string) {
     Promise.resolve(buildDefaultInvitation({ id: session.id, date: session.date })),
     db.player.findMany({
       where: { passwordHash: { not: null } },
-      select: { id: true, firstName: true, lastName: true, email: true, emailNotifications: true },
+      select: { id: true, firstName: true, lastName: true, nickname: true, email: true, emailNotifications: true },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     }),
     db.invitationQuote.findMany({
@@ -36,11 +37,13 @@ export async function getDefaultInvitation(sessionId: string) {
     }),
   ])
 
+  const inviteDisplayNames = buildPlayerNames(players)
+
   return {
     ...defaults,
-    players: players.map((p: { id: string; firstName: string; lastName: string; email: string; emailNotifications: boolean }) => ({
+    players: players.map((p) => ({
       id: p.id,
-      name: `${p.firstName} ${p.lastName}`.trim(),
+      name: inviteDisplayNames.get(p.id) ?? p.firstName,
       email: p.email,
       emailNotifications: p.emailNotifications,
     })),
@@ -163,9 +166,17 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
   lines.push("")
 
   if (sorted.length > 0 && (sorted[0].goals + sorted[0].assists + sorted[0].points) > 0) {
-    const mvp = sorted[0]
-    const mvpName = nameById.get(mvp.playerId) ?? mvp.playerId
-    lines.push(`👑 MVP: ${mvpName} (${mvp.goals} Tore, ${mvp.assists} Vorlagen, ${mvp.points} Punkte)`)
+    const topScore = sorted[0].goals + sorted[0].assists + sorted[0].points
+    const topGoals = sorted[0].goals
+    const topAssists = sorted[0].assists
+    const mvps = sorted.filter((p) =>
+      p.goals + p.assists + p.points === topScore &&
+      p.goals === topGoals &&
+      p.assists === topAssists
+    )
+    const mvpNames = mvps.map((p) => nameById.get(p.playerId) ?? p.playerId).join(", ")
+    const stats = `${sorted[0].goals} Tore, ${sorted[0].assists} Vorlagen, ${sorted[0].points} Punkte`
+    lines.push(`👑 MVP: ${mvpNames} (${stats})`)
     lines.push("")
   }
 
@@ -211,14 +222,14 @@ export async function getSummaryEmailDefaults(sessionId: string) {
   const subject = `📊 Spieltag-Zusammenfassung – ${dateStr}`
   const body = buildSummaryText(session, dateStr)
 
+  const summaryDisplayNames = buildPlayerNames(players)
+
   return {
     subject,
     body,
     players: players.map((p) => ({
       id: p.id,
-      name: p.nickname
-        ? `${p.firstName} ${p.lastName} (${p.nickname})`
-        : `${p.firstName} ${p.lastName}`.trim(),
+      name: summaryDisplayNames.get(p.id) ?? p.firstName,
       email: p.email,
     })),
   }
@@ -287,15 +298,11 @@ export async function getStatusUpdateDefaults(sessionId: string) {
     ? "Leider zu wenig Spieler – der Spieltag droht auszufallen. Bitte meldet euch an!"
     : "Wir brauchen noch ein paar Spieler – bitte meldet euch an!"
 
-  const abbrev = (p: { firstName: string; lastName: string; nickname: string | null }) => {
-    const display = p.nickname ?? p.firstName
-    const lastInitial = p.lastName ? ` ${p.lastName[0].toUpperCase()}.` : ""
-    return `${display}${lastInitial}`
-  }
+  const displayNames = buildPlayerNames(players)
 
-  const registeredList = registered.map(abbrev).join(", ") || "– noch niemand –"
-  const cancelledList = cancelled.map(abbrev).join(", ")
-  const noAnswerList = noAnswer.map(abbrev).join(", ")
+  const registeredList = registered.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ") || "– noch niemand –"
+  const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
+  const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
@@ -323,13 +330,13 @@ Empor Lichtenberg`
     registeredCount: count,
     minPlayers: MIN_PLAYERS,
     lists: {
-      registered: registered.map((p) => `${p.firstName} ${p.lastName}`.trim()),
-      cancelled: cancelled.map((p) => `${p.firstName} ${p.lastName}`.trim()),
-      noAnswer: noAnswer.map((p) => `${p.firstName} ${p.lastName}`.trim()),
+      registered: registered.map((p) => displayNames.get(p.id) ?? p.firstName),
+      cancelled: cancelled.map((p) => displayNames.get(p.id) ?? p.firstName),
+      noAnswer: noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName),
     },
     players: players.map((p) => ({
       id: p.id,
-      name: `${p.firstName} ${p.lastName}`.trim(),
+      name: displayNames.get(p.id) ?? p.firstName,
       email: p.email,
       emailNotifications: p.emailNotifications,
     })),
@@ -362,10 +369,8 @@ export async function sendStatusUpdate(
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
 
-  const abbrev = (p: { firstName: string; lastName: string; nickname: string | null }) => {
-    const display = p.nickname ?? p.firstName
-    return `${display} ${p.lastName[0]?.toUpperCase() ?? ""}.`.trim()
-  }
+  const displayNames = buildPlayerNames(allNonGuests)
+  const abbrev = (p: { id: string }) => displayNames.get(p.id) ?? p.id
 
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const lists = {
