@@ -66,7 +66,7 @@ export async function getCancelEmailDefaults(sessionId: string) {
   if (!s) throw new Error("Session not found.")
 
   const allPlayers = await db.player.findMany({
-    where: { passwordHash: { not: null } },
+    where: { passwordHash: { not: null }, active: true },
     select: { id: true, firstName: true, lastName: true, nickname: true, email: true, emailNotifications: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
@@ -149,6 +149,9 @@ export async function registerSelf(sessionId: string) {
   const s = await db.session.findUnique({ where: { id: sessionId } })
   if (!s) throw new Error("Session not found.")
   if (s.status !== "SCHEDULED") throw new Error("Registration is closed for this session.")
+
+  const self = await db.player.findUnique({ where: { id: authSession.user.id }, select: { active: true } })
+  if (!self?.active) throw new Error("Dein Konto ist derzeit inaktiv. Bitte wende dich an den Organisator.")
 
   const existing = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },

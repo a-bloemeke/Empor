@@ -59,6 +59,13 @@ export async function setEmailNotifications(playerId: string, enabled: boolean) 
   revalidate()
 }
 
+export async function setPlayerActive(playerId: string, active: boolean) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  await db.player.update({ where: { id: playerId }, data: { active } })
+  revalidate()
+}
+
 export async function deletePlayer(playerId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")

@@ -68,7 +68,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
 
   // All non-guest players (guests are always added explicitly; exclude from "no answer")
   const allPlayers = await db.player.findMany({
-    where: { passwordHash: { not: null } },
+    where: { passwordHash: { not: null }, active: true },
     select: { id: true, firstName: true, lastName: true, nickname: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })

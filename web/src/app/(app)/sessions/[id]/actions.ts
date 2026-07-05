@@ -311,7 +311,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   if (!session) throw new Error("Session not found.")
 
   const players = await db.player.findMany({
-    where: { passwordHash: { not: null } },
+    where: { passwordHash: { not: null }, active: true },
     select: { id: true, firstName: true, lastName: true, nickname: true, email: true, emailNotifications: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
@@ -399,7 +399,7 @@ export async function sendStatusUpdate(
   if (!session) throw new Error("Session not found.")
 
   const allNonGuests = await db.player.findMany({
-    where: { passwordHash: { not: null } },
+    where: { passwordHash: { not: null }, active: true },
     select: { id: true, firstName: true, lastName: true, nickname: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
