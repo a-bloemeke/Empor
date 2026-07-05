@@ -111,11 +111,7 @@ type SummarySession = {
   }[]
 }
 
-function buildSummaryText(
-  session: SummarySession,
-  dateStr: string,
-  savedStats?: Map<string, { goals: number; assists: number; score: number; points: number }>,
-): string {
+function buildSummaryText(session: SummarySession, dateStr: string): string {
   const teamRefs: TeamRef[] = session.teams.map((t) => ({
     id: t.id,
     playerIds: t.players.map((tp) => tp.playerId),
@@ -142,22 +138,16 @@ function buildSummaryText(
     session.teams.flatMap((t) => t.players.map((tp) => [tp.playerId, playerName(tp)]))
   )
 
-  // Use saved stats if available (correct for tournaments), fall back to re-computation
-  let rows: { playerId: string; goals: number; assists: number; points: number }[]
-  if (savedStats && savedStats.size > 0) {
-    const allPlayerIds = [...new Set(session.teams.flatMap((t) => t.players.map((tp) => tp.playerId)))]
-    rows = allPlayerIds
-      .map((id) => {
-        const s = savedStats.get(id)
-        return s ? { playerId: id, goals: s.goals, assists: s.assists, points: s.points } : null
-      })
-      .filter(Boolean) as { playerId: string; goals: number; assists: number; points: number }[]
-  } else {
-    const deltas = computePlayerDeltas(teamRefs, matchRefs, "all")
-    rows = deltas.map((d) => ({ playerId: d.playerId, goals: d.goals, assists: d.assists, points: d.points }))
-  }
+  // Infer points scope from what was actually played:
+  // if there are tournament rounds AND normal matches, use "all"
+  // if only tournament rounds, use "tournament"
+  // otherwise "normal"
+  const hasTournament = completedMatches.some((m) => m.roundNumber != null)
+  const hasNormal = completedMatches.some((m) => m.roundNumber == null)
+  const scope: PointsScope = hasTournament && hasNormal ? "all" : hasTournament ? "tournament" : "normal"
 
-  const sorted = [...rows].sort((a, b) => {
+  const deltas = computePlayerDeltas(teamRefs, matchRefs, scope)
+  const sorted = [...deltas].sort((a, b) => {
     const scoreA = a.goals + a.assists + a.points
     const scoreB = b.goals + b.assists + b.points
     if (scoreB !== scoreA) return scoreB - scoreA
@@ -209,7 +199,6 @@ export async function getSummaryEmailDefaults(sessionId: string) {
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: {
-      season: { select: { id: true } },
       teams: {
         include: {
           players: {
@@ -230,16 +219,7 @@ export async function getSummaryEmailDefaults(sessionId: string) {
   })
   if (!session) throw new Error("Session not found.")
 
-  // Load saved stats for these players so we show the actual awarded points (not a re-computation)
   const playerIdsOnTeam = new Set(session.teams.flatMap((t) => t.players.map((tp) => tp.playerId)))
-  const savedStats = session.season
-    ? await db.playerStats.findMany({
-        where: { playerId: { in: [...playerIdsOnTeam] }, seasonId: session.season.id },
-        select: { playerId: true, goals: true, assists: true, score: true, points: true },
-      })
-    : []
-  const statsByPlayerId = new Map(savedStats.map((s) => [s.playerId, s]))
-
   const players = await db.player.findMany({
     where: { id: { in: [...playerIdsOnTeam] }, passwordHash: { not: null } },
     select: { id: true, firstName: true, lastName: true, nickname: true, email: true },
@@ -248,7 +228,7 @@ export async function getSummaryEmailDefaults(sessionId: string) {
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const subject = `📊 Spieltag-Zusammenfassung – ${dateStr}`
-  const body = buildSummaryText(session, dateStr, statsByPlayerId)
+  const body = buildSummaryText(session, dateStr)
 
   const summaryDisplayNames = buildPlayerNames(players)
 
