@@ -103,6 +103,7 @@ model Player {
   avatarUrl         String?
   role              Role      @default(PLAYER)
   emailNotifications Boolean  @default(true)
+  active             Boolean  @default(true)
   createdAt         DateTime  @default(now())
 
   accounts          Account[]

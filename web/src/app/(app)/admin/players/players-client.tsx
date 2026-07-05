@@ -18,7 +18,7 @@ import { SportsTable } from "@/components/app/sports-table"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { createGuest, createPlayer, deletePlayer, setEmailNotifications } from "./actions"
+import { createGuest, createPlayer, deletePlayer, setEmailNotifications, setPlayerActive } from "./actions"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
 
@@ -31,6 +31,7 @@ type Player = {
   role: string
   isGuest: boolean
   emailNotifications: boolean
+  active: boolean
 }
 
 function CreateGuestDialog() {
@@ -159,6 +160,17 @@ export function PlayersClient({ players }: { players: Player[] }) {
     })
   }
 
+  function handleToggleActive(id: string, current: boolean) {
+    setTogglingId(id)
+    startTransition(async () => {
+      try {
+        await setPlayerActive(id, !current)
+        toast.success(!current ? "Spieler aktiviert." : "Spieler deaktiviert.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setTogglingId(null) }
+    })
+  }
+
   const regular = players.filter((p) => !p.isGuest)
   const guests = players.filter((p) => p.isGuest)
 
@@ -182,13 +194,14 @@ export function PlayersClient({ players }: { players: Player[] }) {
                 <TableHead>{t("name")}</TableHead>
                 <TableHead>{t("email")}</TableHead>
                 <TableHead>{t("role")}</TableHead>
+                <TableHead className="text-center">Aktiv</TableHead>
                 <TableHead className="text-center">✉ E-Mails</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {regular.map((p) => (
-                <TableRow key={p.id}>
+                <TableRow key={p.id} className={!p.active ? "opacity-50" : undefined}>
                   <TableCell className="font-medium">
                     <Link href={`/players/${p.id}`} className="hover:underline">
                       {p.displayName}
@@ -199,6 +212,16 @@ export function PlayersClient({ players }: { players: Player[] }) {
                     {p.role === "ORGANIZER"
                       ? <Badge>{t("organizer")}</Badge>
                       : <Badge variant="secondary">{t("player")}</Badge>}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      title={p.active ? "Deaktivieren" : "Aktivieren"}
+                      disabled={pending && togglingId === p.id}
+                      onClick={() => handleToggleActive(p.id, p.active)}
+                      className="text-base leading-none transition-opacity hover:opacity-70 disabled:opacity-40"
+                    >
+                      {p.active ? "✅" : "⏸"}
+                    </button>
                   </TableCell>
                   <TableCell className="text-center">
                     <button
