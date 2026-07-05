@@ -3,6 +3,13 @@
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -16,31 +23,56 @@ import { useTranslations } from "next-intl"
 
 type Season = { year: number; status: string }
 
-export function DataClient({ seasons }: { seasons: Season[] }) {
+// ─── CSV Import Dialog ────────────────────────────────────────────────────────
+
+function CsvImportDialog({
+  seasons,
+  type,
+  onDone,
+}: {
+  seasons: Season[]
+  type: "scores" | "points"
+  onDone?: () => void
+}) {
   const t = useTranslations("admin.data")
-  const csvScoresRef = useRef<HTMLInputElement>(null)
-  const csvPointsRef = useRef<HTMLInputElement>(null)
-  const [exportYear, setExportYear] = useState<string>("all")
-  const [importYear, setImportYear] = useState<string>("all")
-  const [resetYear, setResetYear] = useState<string>(String(new Date().getFullYear()))
+  const fileRef = useRef<HTMLInputElement>(null)
+  const currentYear = String(new Date().getFullYear())
+  const defaultYear = seasons.find((s) => s.status === "ACTIVE")?.year
+    ? String(seasons.find((s) => s.status === "ACTIVE")!.year)
+    : currentYear
+  const [open, setOpen] = useState(false)
+  const [year, setYear] = useState(defaultYear)
+  const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
-  const [resetting, setResetting] = useState(false)
+  const label = type === "scores" ? "CSV Scores" : "CSV Points"
 
-  function exportUrl(format: "json" | "xlsx") {
-    const base = format === "json" ? "/api/admin/export" : "/api/admin/export-xlsx"
-    return exportYear === "all" ? base : `${base}?season=${exportYear}`
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null
+    e.target.value = ""
+    setFile(f)
   }
 
-  function csvImportUrl(type: "scores" | "points") {
-    const base = type === "scores" ? "/api/admin/import-csv" : "/api/admin/import-csv-points"
-    const year = importYear === "all" ? String(new Date().getFullYear()) : importYear
-    return `${base}?season=${year}`
+  function openDialog() {
+    setFile(null)
+    setYear(defaultYear)
+    setOpen(true)
   }
 
-  async function handleCsvImport(file: File, type: "scores" | "points") {
+  async function handleImport() {
+    if (!file) { toast.error("Bitte eine Datei auswählen."); return }
+
+    // Filename check: year must appear in the filename
+    if (!file.name.includes(year)) {
+      const proceed = confirm(
+        `Warnung: Der Dateiname „${file.name}" enthält nicht das Jahr ${year}.\n\nTrotzdem für Saison ${year} importieren?`
+      )
+      if (!proceed) return
+    }
+
     setImporting(true)
     try {
-      const res = await fetch(csvImportUrl(type), {
+      const base = type === "scores" ? "/api/admin/import-csv" : "/api/admin/import-csv-points"
+      const res = await fetch(`${base}?season=${year}`, {
         method: "POST",
         headers: { "Content-Type": "text/csv" },
         body: await file.text(),
@@ -53,11 +85,86 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
       toast.success(`${imp} Spieler importiert, ${skip} übersprungen${cre > 0 ? `, ${cre} neu angelegt` : ""}.`)
       if (json.skipped?.length > 0) toast.info(`Übersprungen: ${(json.skipped as string[]).join(", ")}`)
       if (json.created?.length > 0) toast.info(`Neu angelegt: ${(json.created as string[]).join(", ")}`)
+      setOpen(false)
+      onDone?.()
     } catch (err) {
       toast.error((err as Error).message)
     } finally {
       setImporting(false)
     }
+  }
+
+  return (
+    <>
+      <Button variant="outline" className="gap-2" onClick={openDialog}>
+        <UploadIcon className="size-4" /> {label}
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!importing) setOpen(o) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{label} importieren</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Saison (Jahr)</Label>
+              <Select value={year} onValueChange={(v) => { if (v) setYear(v) }}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {seasons.map((s) => (
+                    <SelectItem key={s.year} value={String(s.year)}>
+                      {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>CSV-Datei</Label>
+              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                  Datei wählen
+                </Button>
+                {file
+                  ? <span className={`text-sm truncate max-w-[200px] ${!file.name.includes(year) ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                      {file.name}
+                      {!file.name.includes(year) && " ⚠"}
+                    </span>
+                  : <span className="text-sm text-muted-foreground">Keine Datei gewählt</span>
+                }
+              </div>
+              {file && !file.name.includes(year) && (
+                <p className="text-xs text-amber-600">
+                  Dateiname enthält nicht „{year}" — bitte prüfen ob die richtige Saison ausgewählt ist.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
+            <Button onClick={handleImport} disabled={importing || !file}>
+              {importing ? t("importing") : `Importieren für ${year}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function DataClient({ seasons }: { seasons: Season[] }) {
+  const t = useTranslations("admin.data")
+  const [exportYear, setExportYear] = useState<string>("all")
+  const [resetYear, setResetYear] = useState<string>(String(new Date().getFullYear()))
+  const [resetting, setResetting] = useState(false)
+
+  function exportUrl(format: "json" | "xlsx") {
+    const base = format === "json" ? "/api/admin/export" : "/api/admin/export-xlsx"
+    return exportYear === "all" ? base : `${base}?season=${exportYear}`
   }
 
   async function handleReset(type: "points" | "scores") {
@@ -83,7 +190,18 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
     }
   }
 
-  const seasonOptions = (
+  const exportSeasonOptions = (
+    <>
+      <SelectItem value="all">{t("allSeasons")}</SelectItem>
+      {seasons.map((s) => (
+        <SelectItem key={s.year} value={String(s.year)}>
+          {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+        </SelectItem>
+      ))}
+    </>
+  )
+
+  const resetSeasonOptions = (
     <>
       <SelectItem value="all">{t("allSeasons")}</SelectItem>
       {seasons.map((s) => (
@@ -116,7 +234,7 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
                   {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent>{seasonOptions}</SelectContent>
+              <SelectContent>{exportSeasonOptions}</SelectContent>
             </Select>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -133,30 +251,13 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
         <div className="rounded-xl border p-5 space-y-4">
           <div>
             <h2 className="font-semibold">{t("importTitle")}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t("importDesc")}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Wähle Jahr und Datei im Dialog. Der Dateiname wird auf das gewählte Jahr geprüft.
+            </p>
           </div>
-          <div className="space-y-1.5">
-            <Label>{t("scope")}</Label>
-            <Select value={importYear} onValueChange={(v) => { if (v) setImportYear(v) }}>
-              <SelectTrigger className="w-48">
-                <SelectValue>
-                  {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>{seasonOptions}</SelectContent>
-            </Select>
-          </div>
-          <input ref={csvScoresRef} type="file" accept=".csv,text/csv" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleCsvImport(f, "scores") }} />
-          <input ref={csvPointsRef} type="file" accept=".csv,text/csv" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleCsvImport(f, "points") }} />
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={importing} className="gap-2" onClick={() => csvScoresRef.current?.click()}>
-              <UploadIcon className="size-4" /> {importing ? t("importing") : "CSV Scores"}
-            </Button>
-            <Button variant="outline" disabled={importing} className="gap-2" onClick={() => csvPointsRef.current?.click()}>
-              <UploadIcon className="size-4" /> {importing ? t("importing") : "CSV Points"}
-            </Button>
+            <CsvImportDialog seasons={seasons} type="scores" />
+            <CsvImportDialog seasons={seasons} type="points" />
           </div>
         </div>
       </div>
@@ -175,9 +276,7 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
                 {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
-              {seasonOptions}
-            </SelectContent>
+            <SelectContent>{resetSeasonOptions}</SelectContent>
           </Select>
         </div>
         <div className="flex flex-wrap gap-2">
