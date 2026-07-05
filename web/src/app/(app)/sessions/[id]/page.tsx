@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { notFound } from "next/navigation"
 import { SessionClient } from "./session-client"
+import { buildPlayerNames } from "@/lib/player-names"
 
 export default async function SessionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -72,12 +73,8 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
 
-  const playerName = (p: { firstName: string; lastName: string; nickname: string | null }) =>
-    p.nickname ? `${p.firstName} ${p.lastName} (${p.nickname})` : `${p.firstName} ${p.lastName}`
-
-  // Short display name: nickname only when set, otherwise first name
-  const displayName = (p: { firstName: string; nickname: string | null }) =>
-    p.nickname ?? p.firstName
+  const displayNames = buildPlayerNames(allPlayers)
+  const pName = (p: { id: string }) => displayNames.get(p.id) ?? p.id
 
   return (
     <SessionClient
@@ -90,7 +87,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           const lt = lifetimeByPlayerId.get(r.playerId)
           return {
             playerId: r.playerId,
-            playerName: playerName(r.player),
+            playerName: pName(r.player),
             status: r.status as string,
             // Stats for balanced-team preview
             seasonPoints: pointsByPlayerId.get(r.playerId) ?? 0,
@@ -106,8 +103,8 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           name: t.name,
           players: t.players.map((tp) => ({
             id: tp.player.id,
-            name: playerName(tp.player),
-            displayName: displayName(tp.player),
+            name: pName(tp.player),
+            displayName: pName(tp.player),
             seasonPoints: pointsByPlayerId.get(tp.player.id) ?? 0,
             seasonRank: rankByPlayerId.get(tp.player.id) ?? null,
           })),
@@ -127,14 +124,14 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           goals: m.goals.map((g) => ({
             id: g.id,
             scoredByPlayerId: g.scoredByPlayerId,
-            scoredByName: playerName(g.scoredBy),
+            scoredByName: pName(g.scoredBy),
             assistedByPlayerId: g.assistedByPlayerId,
-            assistedByName: g.assistedBy ? playerName(g.assistedBy) : null,
+            assistedByName: g.assistedBy ? pName(g.assistedBy) : null,
             teamId: g.teamId,
             scoredAt: g.scoredAt.toISOString(),
           })),
         })),
-        allPlayers: allPlayers.map((p) => ({ id: p.id, name: playerName(p), displayName: displayName(p), seasonPoints: 0, seasonRank: null })),
+        allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonRank: null })),
       }}
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}

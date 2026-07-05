@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { notifyOrganizersSessionRegistration, sendGameDayCancellation } from "@/lib/email"
+import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
@@ -75,17 +76,14 @@ export async function getCancelEmailDefaults(sessionId: string) {
   const cancelled = s.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
   const noAnswer = allPlayers.filter((p) => !respondedIds.has(p.id))
 
-  const abbrev = (p: { firstName: string; lastName: string; nickname: string | null }) => {
-    const display = p.nickname ?? p.firstName
-    const lastInitial = p.lastName ? ` ${p.lastName[0].toUpperCase()}.` : ""
-    return `${display}${lastInitial}`
-  }
+  const displayNames = buildPlayerNames(allPlayers)
+  const dname = (p: { id: string }) => displayNames.get(p.id) ?? p.id
 
   const dateStr = format(s.date, "EEEE, d. MMMM yyyy", { locale: de })
 
-  const registeredNames = registered.map(abbrev).join(", ")
-  const cancelledNames = cancelled.map(abbrev).join(", ")
-  const noAnswerNames = noAnswer.map(abbrev).join(", ")
+  const registeredNames = registered.map(dname).join(", ")
+  const cancelledNames = cancelled.map(dname).join(", ")
+  const noAnswerNames = noAnswer.map(dname).join(", ")
 
   const subject = `❌ Spieltag abgesagt – ${dateStr}`
 
@@ -103,7 +101,7 @@ Empor Lichtenberg`
     body,
     players: allPlayers.map((p) => ({
       id: p.id,
-      name: `${p.firstName} ${p.lastName}`.trim(),
+      name: dname(p),
       email: p.email,
       emailNotifications: p.emailNotifications,
     })),
