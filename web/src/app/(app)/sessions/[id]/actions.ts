@@ -138,7 +138,15 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
     session.teams.flatMap((t) => t.players.map((tp) => [tp.playerId, playerName(tp)]))
   )
 
-  const deltas = computePlayerDeltas(teamRefs, matchRefs, "all")
+  // Infer points scope from what was actually played:
+  // if there are tournament rounds AND normal matches, use "all"
+  // if only tournament rounds, use "tournament"
+  // otherwise "normal"
+  const hasTournament = completedMatches.some((m) => m.roundNumber != null)
+  const hasNormal = completedMatches.some((m) => m.roundNumber == null)
+  const scope: PointsScope = hasTournament && hasNormal ? "all" : hasTournament ? "tournament" : "normal"
+
+  const deltas = computePlayerDeltas(teamRefs, matchRefs, scope)
   const sorted = [...deltas].sort((a, b) => {
     const scoreA = a.goals + a.assists + a.points
     const scoreB = b.goals + b.assists + b.points
@@ -151,12 +159,39 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
   lines.push(`Spieltag-Zusammenfassung — ${dateStr}`)
   lines.push("")
 
-  lines.push("=== Ergebnisse ===")
-  for (const m of completedMatches) {
-    const prefix = m.roundNumber != null ? `Runde ${m.roundNumber}  ` : ""
-    lines.push(`${prefix}${m.homeTeam.name} ${m.homeScore}:${m.awayScore} ${m.awayTeam.name}`)
+  // Group matches: tournament rounds first, then normal matches
+  const tournamentMatches = completedMatches.filter((m) => m.roundNumber != null)
+  const normalMatches = completedMatches.filter((m) => m.roundNumber == null)
+
+  if (tournamentMatches.length > 0) {
+    lines.push("=== 🏆 Turnier ===")
+    // Group by round number
+    const byRound = new Map<number, typeof tournamentMatches>()
+    for (const m of tournamentMatches) {
+      const r = m.roundNumber!
+      if (!byRound.has(r)) byRound.set(r, [])
+      byRound.get(r)!.push(m)
+    }
+    for (const [round, roundMatches] of [...byRound.entries()].sort((a, b) => a[0] - b[0])) {
+      lines.push(`  Runde ${round}:`)
+      for (const m of roundMatches) {
+        const winner = m.homeScore > m.awayScore ? m.homeTeam.name : m.awayScore > m.homeScore ? m.awayTeam.name : null
+        const suffix = winner ? `  → ${winner} gewinnt` : "  → Unentschieden"
+        lines.push(`    ${m.homeTeam.name} ${m.homeScore} : ${m.awayScore} ${m.awayTeam.name}${suffix}`)
+      }
+    }
+    lines.push("")
   }
-  lines.push("")
+
+  if (normalMatches.length > 0) {
+    lines.push("=== ⚽ Normale Spiele ===")
+    for (const m of normalMatches) {
+      const winner = m.homeScore > m.awayScore ? m.homeTeam.name : m.awayScore > m.homeScore ? m.awayTeam.name : null
+      const suffix = winner ? `  → ${winner} gewinnt` : "  → Unentschieden"
+      lines.push(`  ${m.homeTeam.name} ${m.homeScore} : ${m.awayScore} ${m.awayTeam.name}${suffix}`)
+    }
+    lines.push("")
+  }
 
   lines.push("=== Spieler-Statistiken ===")
   sorted.forEach((row, i) => {
