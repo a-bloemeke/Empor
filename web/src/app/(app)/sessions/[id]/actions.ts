@@ -166,9 +166,17 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
   lines.push("")
 
   if (sorted.length > 0 && (sorted[0].goals + sorted[0].assists + sorted[0].points) > 0) {
-    const mvp = sorted[0]
-    const mvpName = nameById.get(mvp.playerId) ?? mvp.playerId
-    lines.push(`👑 MVP: ${mvpName} (${mvp.goals} Tore, ${mvp.assists} Vorlagen, ${mvp.points} Punkte)`)
+    const topScore = sorted[0].goals + sorted[0].assists + sorted[0].points
+    const topGoals = sorted[0].goals
+    const topAssists = sorted[0].assists
+    const mvps = sorted.filter((p) =>
+      p.goals + p.assists + p.points === topScore &&
+      p.goals === topGoals &&
+      p.assists === topAssists
+    )
+    const mvpNames = mvps.map((p) => nameById.get(p.playerId) ?? p.playerId).join(", ")
+    const stats = `${sorted[0].goals} Tore, ${sorted[0].assists} Vorlagen, ${sorted[0].points} Punkte`
+    lines.push(`👑 MVP: ${mvpNames} (${stats})`)
     lines.push("")
   }
 
