@@ -18,6 +18,7 @@ function parseCsvRows(text: string): { name: string; goals: number; assists: num
     const assists = parseInt(cols[3]?.trim() ?? "", 10)
     const sessions = parseInt(cols[8]?.trim() ?? "", 10)
     if (!name || isNaN(goals) || isNaN(assists)) continue
+    if (goals === 0 && assists === 0) continue  // no activity — skip, don't create account
     rows.push({ name, goals, assists, sessions: isNaN(sessions) ? 0 : sessions })
   }
   return rows
