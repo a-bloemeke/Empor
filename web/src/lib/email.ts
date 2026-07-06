@@ -205,6 +205,54 @@ export async function sendGameDayCancellation(
   return recipientEmails.length
 }
 
+export async function notifyOrganizersCancellation(
+  session: { id: string; date: Date },
+  player: { firstName: string; lastName: string; email: string },
+  wasRegistered: boolean,
+) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
+
+  const organizers = await db.player.findMany({
+    where: { role: "ORGANIZER", emailNotifications: true },
+    select: { email: true },
+  })
+  if (organizers.length === 0) return
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+
+  const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
+  const link = `${appUrl}/sessions/${session.id}`
+  const name = `${player.firstName} ${player.lastName}`
+
+  const subject = wasRegistered
+    ? `Abmeldung: ${name} – ${dateStr}`
+    : `Abgesagt (nie angemeldet): ${name} – ${dateStr}`
+
+  const bodyText = wasRegistered
+    ? `${name} hat sich vom Spieltag am ${dateStr} abgemeldet.\n\nDer Spieler war zuvor angemeldet.\n\n${link}`
+    : `${name} hat für den Spieltag am ${dateStr} abgesagt, ohne vorher angemeldet zu sein.\n\n${link}`
+
+  const bodyHtml = wasRegistered
+    ? `<p style="margin:0 0 16px"><strong>${name}</strong> hat sich vom Spieltag am <strong>${dateStr}</strong> <span style="color:#991b1b">abgemeldet</span>.</p>
+       <p style="margin:0 0 24px;color:#555">Der Spieler war zuvor angemeldet.</p>`
+    : `<p style="margin:0 0 16px"><strong>${name}</strong> hat für den Spieltag am <strong>${dateStr}</strong> abgesagt, <span style="color:#92400e">ohne vorher angemeldet zu sein</span>.</p>`
+
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+  ${bodyHtml}
+  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+</body>
+</html>`
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: organizers.map((o) => o.email), subject, text: bodyText, html })
+}
+
 export async function notifyOrganizersNewPlayer(player: { firstName: string; lastName: string; email: string }) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
 
