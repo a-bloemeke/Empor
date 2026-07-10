@@ -1643,9 +1643,14 @@ function ActiveMatch({
   const t = useTranslations("session")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [swapped, setSwapped] = useState(false)
 
-  const homeTeam = session.teams.find((t) => t.id === match.homeTeamId)!
-  const awayTeam = session.teams.find((t) => t.id === match.awayTeamId)!
+  const homeTeamRaw = session.teams.find((t) => t.id === match.homeTeamId)!
+  const awayTeamRaw = session.teams.find((t) => t.id === match.awayTeamId)!
+  const leftTeam  = swapped ? awayTeamRaw  : homeTeamRaw
+  const rightTeam = swapped ? homeTeamRaw  : awayTeamRaw
+  const leftScore  = swapped ? match.awayScore : match.homeScore
+  const rightScore = swapped ? match.homeScore : match.awayScore
 
   function handleDeleteGoal(goalId: string) {
     startTransition(async () => {
@@ -1655,7 +1660,7 @@ function ActiveMatch({
   }
 
   // Disambiguated display names across both teams (uses displayName, not full name)
-  const allPlayers = [...homeTeam.players, ...awayTeam.players]
+  const allPlayers = [...homeTeamRaw.players, ...awayTeamRaw.players]
   const shortName = disambiguateNames(allPlayers.map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
 
   function handleUndo() {
@@ -1686,15 +1691,22 @@ function ActiveMatch({
           <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
           {match.roundNumber != null ? `Round ${match.roundNumber} · ` : ""}
           {match.homeTeamName} vs {match.awayTeamName}
+          <button
+            onClick={() => setSwapped((s) => !s)}
+            className="ml-auto text-muted-foreground hover:text-foreground transition-colors text-base"
+            title="Swap teams left/right"
+          >
+            ⇄
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-center gap-4 sm:gap-8 py-4">
           <div className="flex flex-col items-center flex-1">
-            <div className="text-4xl font-bold text-center">{match.homeScore}</div>
-            <div className="text-sm text-muted-foreground mt-1 text-center">{match.homeTeamName}</div>
+            <div className="text-4xl font-bold text-center">{leftScore}</div>
+            <div className="text-sm text-muted-foreground mt-1 text-center">{leftTeam.name}</div>
             <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5 text-center">
-              {homeTeam.players.map((p) => (
+              {leftTeam.players.map((p) => (
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
@@ -1705,10 +1717,10 @@ function ActiveMatch({
           </div>
           <div className="text-2xl font-light text-muted-foreground shrink-0">–</div>
           <div className="flex flex-col items-center flex-1">
-            <div className="text-4xl font-bold text-center">{match.awayScore}</div>
-            <div className="text-sm text-muted-foreground mt-1 text-center">{match.awayTeamName}</div>
+            <div className="text-4xl font-bold text-center">{rightScore}</div>
+            <div className="text-sm text-muted-foreground mt-1 text-center">{rightTeam.name}</div>
             <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5 text-center">
-              {awayTeam.players.map((p) => (
+              {rightTeam.players.map((p) => (
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
@@ -1730,16 +1742,16 @@ function ActiveMatch({
           <GoalDialog
             matchId={match.id}
             sessionId={session.id}
-            teamId={match.homeTeamId}
-            teamName={match.homeTeamName}
-            players={homeTeam.players}
+            teamId={leftTeam.id}
+            teamName={leftTeam.name}
+            players={leftTeam.players}
           />
           <GoalDialog
             matchId={match.id}
             sessionId={session.id}
-            teamId={match.awayTeamId}
-            teamName={match.awayTeamName}
-            players={awayTeam.players}
+            teamId={rightTeam.id}
+            teamName={rightTeam.name}
+            players={rightTeam.players}
           />
           {match.goals.length > 0 && (
             <Button variant="ghost" size="sm" disabled={pending} onClick={handleUndo}>

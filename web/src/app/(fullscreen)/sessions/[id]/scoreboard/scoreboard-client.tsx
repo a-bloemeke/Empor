@@ -502,6 +502,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
   const router = useRouter()
   const [drawerSide, setDrawerSide] = useState<"home" | "away" | null>(null)
   const [editGoal, setEditGoal] = useState<GoalEntry | null>(null)
+  const [swapped, setSwapped] = useState(false)
   const timer = useMatchTimer(activeMatch?.id ?? "")
 
   const refresh = useCallback(() => router.refresh(), [router])
@@ -521,12 +522,19 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
     )
   }
 
-  const homeTeam = teams.find((t) => t.id === activeMatch.homeTeamId)!
-  const awayTeam = teams.find((t) => t.id === activeMatch.awayTeamId)!
-  const drawerTeam = drawerSide === "home" ? homeTeam : drawerSide === "away" ? awayTeam : null
-  const drawerTeamId = drawerSide === "home" ? activeMatch.homeTeamId : activeMatch.awayTeamId
+  const homeTeamRaw = teams.find((t) => t.id === activeMatch.homeTeamId)!
+  const awayTeamRaw = teams.find((t) => t.id === activeMatch.awayTeamId)!
+  const leftTeam  = swapped ? awayTeamRaw  : homeTeamRaw
+  const rightTeam = swapped ? homeTeamRaw  : awayTeamRaw
+  const leftScore  = swapped ? activeMatch.awayScore : activeMatch.homeScore
+  const rightScore = swapped ? activeMatch.homeScore : activeMatch.awayScore
+  const leftTeamId  = swapped ? activeMatch.awayTeamId : activeMatch.homeTeamId
+  const rightTeamId = swapped ? activeMatch.homeTeamId : activeMatch.awayTeamId
+  // For the goal drawer we still use "home"/"away" to keep server action compatibility
+  const drawerTeam = drawerSide === "home" ? leftTeam : drawerSide === "away" ? rightTeam : null
+  const drawerTeamId = drawerSide === "home" ? leftTeamId : rightTeamId
 
-  const shortName = disambiguateNames([...homeTeam.players, ...awayTeam.players].map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
+  const shortName = disambiguateNames([...homeTeamRaw.players, ...awayTeamRaw.players].map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
 
   const isExpired = timer.state === "expired"
   const isRunning = timer.state === "running"
@@ -567,12 +575,21 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
           {activeMatch.roundNumber != null ? `${t("round", { round: activeMatch.roundNumber })} · ` : ""}
           {activeMatch.homeTeamName} vs {activeMatch.awayTeamName}
         </span>
-        <a
-          href={`/sessions/${sessionId}`}
-          className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
-        >
-          {t("sessionLink")}
-        </a>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSwapped((s) => !s)}
+            className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
+            title="Swap teams left/right"
+          >
+            ⇄
+          </button>
+          <a
+            href={`/sessions/${sessionId}`}
+            className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
+          >
+            {t("sessionLink")}
+          </a>
+        </div>
       </div>
 
       {/* Timer bar — only for tournament matches (roundNumber != null) */}
@@ -645,7 +662,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
 
       {/* Score zone */}
       <div className="flex flex-1 items-stretch">
-        {/* Home tap zone */}
+        {/* Left tap zone */}
         <button
           onClick={() => setDrawerSide("home")}
           className={cn(
@@ -655,27 +672,27 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
-          aria-label={t("recordGoalFor", { team: activeMatch.homeTeamName })}
+          aria-label={t("recordGoalFor", { team: leftTeam.name })}
         >
           <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
-            {activeMatch.homeScore}
+            {leftScore}
           </div>
           <div className={cn("text-sm font-medium transition-colors", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
-            {activeMatch.homeTeamName}
+            {leftTeam.name}
           </div>
           <ol className={cn("text-sm list-none space-y-1 text-left", inv ? "text-white/70" : "text-muted-foreground")}>
-            {[...homeTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
+            {[...leftTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
               <li key={p.id}>
                 {p.seasonRank != null ? <span className="opacity-50">#{p.seasonRank} </span> : null}
                 {shortName.get(p.id) ?? p.displayName} <span className="opacity-60">({p.seasonPoints} pts)</span>
               </li>
             ))}
             <li className="mt-2 pt-2 border-t border-current/20 font-medium">
-              Total: {homeTeam.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
+              Total: {leftTeam.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
             </li>
             <li className="font-normal opacity-70">
-              Avg: {homeTeam.players.length > 0
-                ? (homeTeam.players.reduce((s, p) => s + p.seasonPoints, 0) / homeTeam.players.length).toFixed(1)
+              Avg: {leftTeam.players.length > 0
+                ? (leftTeam.players.reduce((s, p) => s + p.seasonPoints, 0) / leftTeam.players.length).toFixed(1)
                 : "—"} pts
             </li>
           </ol>
@@ -686,7 +703,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
           <span className={cn("text-[clamp(4rem,16vw,10rem)] font-light", inv ? "text-white/50" : "text-muted-foreground")}>:</span>
         </div>
 
-        {/* Away tap zone */}
+        {/* Right tap zone */}
         <button
           onClick={() => setDrawerSide("away")}
           className={cn(
@@ -696,27 +713,27 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
-          aria-label={t("recordGoalFor", { team: activeMatch.awayTeamName })}
+          aria-label={t("recordGoalFor", { team: rightTeam.name })}
         >
           <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
-            {activeMatch.awayScore}
+            {rightScore}
           </div>
           <div className={cn("text-sm font-medium transition-colors", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
-            {activeMatch.awayTeamName}
+            {rightTeam.name}
           </div>
           <ol className={cn("text-sm list-none space-y-1 text-left", inv ? "text-white/70" : "text-muted-foreground")}>
-            {[...awayTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
+            {[...rightTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
               <li key={p.id}>
                 {p.seasonRank != null ? <span className="opacity-50">#{p.seasonRank} </span> : null}
                 {shortName.get(p.id) ?? p.displayName} <span className="opacity-60">({p.seasonPoints} pts)</span>
               </li>
             ))}
             <li className="mt-2 pt-2 border-t border-current/20 font-medium">
-              Total: {awayTeam.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
+              Total: {rightTeam.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
             </li>
             <li className="font-normal opacity-70">
-              Avg: {awayTeam.players.length > 0
-                ? (awayTeam.players.reduce((s, p) => s + p.seasonPoints, 0) / awayTeam.players.length).toFixed(1)
+              Avg: {rightTeam.players.length > 0
+                ? (rightTeam.players.reduce((s, p) => s + p.seasonPoints, 0) / rightTeam.players.length).toFixed(1)
                 : "—"} pts
             </li>
           </ol>
@@ -775,7 +792,7 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
           onOpenChange={(v) => { if (!v) setEditGoal(null) }}
           goal={editGoal}
           matchId={activeMatch.id}
-          allPlayers={[...homeTeam.players, ...awayTeam.players]}
+          allPlayers={[...homeTeamRaw.players, ...awayTeamRaw.players]}
         />
       )}
     </div>
