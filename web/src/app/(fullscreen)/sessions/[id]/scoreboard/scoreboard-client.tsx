@@ -671,7 +671,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
         <button
           onClick={() => setDrawerSide("home")}
           className={cn(
-            "group flex flex-1 flex-col items-center justify-center gap-3 transition-colors",
+            "group flex flex-1 flex-col items-stretch transition-colors",
             isExpired
               ? "hover:bg-red-500 active:bg-red-500"
               : "hover:bg-muted/50 active:bg-muted",
@@ -679,13 +679,17 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           )}
           aria-label={t("recordGoalFor", { team: leftTeam.name })}
         >
-          <div className={cn("text-[clamp(1.5rem,5vw,3rem)] font-bold tracking-wide", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
-            {leftTeam.name}
+          {/* Name + score: flex-1 so both sides occupy identical height, scores center together */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <div className={cn("text-[clamp(1.5rem,5vw,3rem)] font-bold tracking-wide", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
+              {leftTeam.name}
+            </div>
+            <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
+              {leftScore}
+            </div>
           </div>
-          <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
-            {leftScore}
-          </div>
-          <ol className={cn("text-sm list-none space-y-1 text-left", inv ? "text-white/70" : "text-muted-foreground")}>
+          {/* Player list pinned to bottom */}
+          <ol className={cn("text-sm list-none space-y-1 text-left px-4 pb-4", inv ? "text-white/70" : "text-muted-foreground")}>
             {[...leftTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
               <li key={p.id}>
                 {p.seasonRank != null ? <span className="opacity-50">#{p.seasonRank} </span> : null}
@@ -712,7 +716,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
         <button
           onClick={() => setDrawerSide("away")}
           className={cn(
-            "group flex flex-1 flex-col items-center justify-center gap-3 transition-colors",
+            "group flex flex-1 flex-col items-stretch transition-colors",
             isExpired
               ? "hover:bg-red-500 active:bg-red-500"
               : "hover:bg-muted/50 active:bg-muted",
@@ -720,13 +724,15 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           )}
           aria-label={t("recordGoalFor", { team: rightTeam.name })}
         >
-          <div className={cn("text-[clamp(1.5rem,5vw,3rem)] font-bold tracking-wide", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
-            {rightTeam.name}
+          <div className="flex flex-1 flex-col items-center justify-center gap-3">
+            <div className={cn("text-[clamp(1.5rem,5vw,3rem)] font-bold tracking-wide", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
+              {rightTeam.name}
+            </div>
+            <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
+              {rightScore}
+            </div>
           </div>
-          <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
-            {rightScore}
-          </div>
-          <ol className={cn("text-sm list-none space-y-1 text-left", inv ? "text-white/70" : "text-muted-foreground")}>
+          <ol className={cn("text-sm list-none space-y-1 text-left px-4 pb-4", inv ? "text-white/70" : "text-muted-foreground")}>
             {[...rightTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
               <li key={p.id}>
                 {p.seasonRank != null ? <span className="opacity-50">#{p.seasonRank} </span> : null}
