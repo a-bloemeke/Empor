@@ -46,6 +46,7 @@ type ActiveMatch = {
 type Props = {
   sessionId: string
   currentUserId: string
+  initialSwapped?: boolean
   activeMatch: ActiveMatch | null
   teams: Team[]
 }
@@ -497,12 +498,12 @@ function EditGoalDrawer({
 
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
-export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams }: Props) {
+export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = false, activeMatch, teams }: Props) {
   const t = useTranslations("scoreboard")
   const router = useRouter()
   const [drawerSide, setDrawerSide] = useState<"home" | "away" | null>(null)
   const [editGoal, setEditGoal] = useState<GoalEntry | null>(null)
-  const [swapped, setSwapped] = useState(false)
+  const [swapped, setSwapped] = useState(initialSwapped)
   const timer = useMatchTimer(activeMatch?.id ?? "")
 
   const refresh = useCallback(() => router.refresh(), [router])
@@ -570,26 +571,30 @@ export function ScoreboardClient({ sessionId, currentUserId, activeMatch, teams 
     <div className={cn("flex min-h-screen flex-col select-none", boardClass)} style={boardStyle}>
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-2">
+      <div className="relative flex items-center justify-between px-6 pt-4 pb-2">
         <span className={cn("text-sm", inv ? "text-white/80" : "text-muted-foreground")}>
           {activeMatch.roundNumber != null ? `${t("round", { round: activeMatch.roundNumber })} · ` : ""}
           {activeMatch.homeTeamName} vs {activeMatch.awayTeamName}
         </span>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSwapped((s) => !s)}
-            className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
-            title="Swap teams left/right"
-          >
-            ⇄
-          </button>
-          <a
-            href={`/sessions/${sessionId}`}
-            className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
-          >
-            {t("sessionLink")}
-          </a>
-        </div>
+        {/* Swap button — centered absolutely so it doesn't shift the flanking elements */}
+        <button
+          onClick={() => setSwapped((s) => !s)}
+          className={cn(
+            "absolute left-1/2 -translate-x-1/2 text-3xl leading-none px-3 py-1 rounded-lg transition-colors",
+            inv
+              ? "text-white/70 hover:text-white hover:bg-white/15 active:bg-white/25"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted/80",
+          )}
+          title="Swap teams left/right"
+        >
+          ⇄
+        </button>
+        <a
+          href={`/sessions/${sessionId}`}
+          className={cn("text-sm underline-offset-4 hover:underline", inv ? "text-white/80" : "text-muted-foreground")}
+        >
+          {t("sessionLink")}
+        </a>
       </div>
 
       {/* Timer bar — only for tournament matches (roundNumber != null) */}

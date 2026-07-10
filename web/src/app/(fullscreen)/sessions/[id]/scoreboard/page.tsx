@@ -20,7 +20,6 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
         orderBy: { name: "asc" },
       },
       matches: {
-        where: { status: "IN_PROGRESS" },
         include: {
           homeTeam: { select: { id: true, name: true } },
           awayTeam: { select: { id: true, name: true } },
@@ -32,10 +31,13 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
             orderBy: { scoredAt: "asc" },
           },
         },
+        orderBy: { id: "asc" },
       },
     },
   })
   if (!session) notFound()
+  // notFound() throws but TS doesn't always narrow — explicit cast for type safety
+  const s = session!
 
   const playerName = (p: { firstName: string; lastName: string; nickname: string | null }) =>
     p.nickname ? `${p.firstName} ${p.lastName} (${p.nickname})` : `${p.firstName} ${p.lastName}`
@@ -45,7 +47,7 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
 
   // Fetch ALL season stats to compute global ranking, not just the players in this session
   const allSeasonStats = await db.playerStats.findMany({
-    where: { seasonId: session.seasonId },
+    where: { seasonId: s.seasonId },
     orderBy: [{ points: "desc" }, { score: "desc" }],
   })
   const rankByPlayerId = new Map<string, number>()
@@ -56,12 +58,28 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
   }
   const pointsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.points]))
 
-  const activeMatch = session.matches[0] ?? null
+  const activeMatch = s.matches.find((m) => m.status === "IN_PROGRESS") ?? null
+
+  // For normal matches (no roundNumber): count completed matches between same two teams.
+  // Odd count → auto-swap display so teams alternate sides on each rematch.
+  let initialSwapped = false
+  if (activeMatch && activeMatch.roundNumber === null) {
+    const { homeTeamId, awayTeamId } = activeMatch
+    const priorCount = s.matches.filter(
+      (m) =>
+        m.status === "COMPLETED" &&
+        m.roundNumber === null &&
+        ((m.homeTeamId === homeTeamId && m.awayTeamId === awayTeamId) ||
+          (m.homeTeamId === awayTeamId && m.awayTeamId === homeTeamId)),
+    ).length
+    initialSwapped = priorCount % 2 === 1
+  }
 
   return (
     <ScoreboardClient
       sessionId={id}
       currentUserId={currentUserId}
+      initialSwapped={initialSwapped}
       activeMatch={
         activeMatch
           ? {
@@ -83,7 +101,7 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
             }
           : null
       }
-      teams={session.teams.map((t) => ({
+      teams={s.teams.map((t) => ({
         id: t.id,
         name: t.name,
         players: t.players.map((tp) => ({
