@@ -298,7 +298,14 @@ export function ScheduleClient({
         >
           <h2 className="font-bold tracking-wide uppercase text-xs">{t("upcomingGameDays")}</h2>
           {isOrganizer && (
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={open} onOpenChange={(v) => {
+              setOpen(v)
+              if (v && !dateValue) {
+                const d = new Date()
+                const pad = (n: number) => String(n).padStart(2, "0")
+                setDateValue(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T20:00`)
+              }
+            }}>
               <DialogTrigger render={<Button size="sm" className="bg-white/20 text-white hover:bg-white/30 border-0" />}>{t("newGameDay")}</DialogTrigger>
               <DialogContent>
                 <DialogHeader>
