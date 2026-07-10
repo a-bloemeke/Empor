@@ -12,6 +12,44 @@ import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
+// ─── Season-aware player rating ───────────────────────────────────────────────
+// Returns the two most recent season IDs (current first, previous second).
+async function getTwoRecentSeasonIds(currentSeasonId: string): Promise<[string, string | null]> {
+  const seasons = await db.season.findMany({
+    orderBy: { year: "desc" },
+    take: 2,
+    select: { id: true },
+  })
+  const current = seasons.find((s) => s.id === currentSeasonId) ?? seasons[0]
+  const previous = seasons.find((s) => s.id !== current?.id) ?? null
+  return [current?.id ?? currentSeasonId, previous?.id ?? null]
+}
+
+type PlayerWithSeasonStats = {
+  statsLifetime: { points: number; sessionsPlayed: number } | null
+  statsPerSeason: { seasonId: string; points: number; sessionsPlayed: number }[]
+}
+
+// Blended rating: 60% current-season pts/session + 40% previous-season pts/session.
+// Falls back to lifetime if a season bucket is empty.
+function blendedRating(
+  p: PlayerWithSeasonStats,
+  currentSeasonId: string,
+  prevSeasonId: string | null,
+): number {
+  const bucket = (seasonId: string) => {
+    const s = p.statsPerSeason.find((x) => x.seasonId === seasonId)
+    return s && s.sessionsPlayed > 0 ? s.points / s.sessionsPlayed : null
+  }
+  const lifetime =
+    p.statsLifetime && p.statsLifetime.sessionsPlayed > 0
+      ? p.statsLifetime.points / p.statsLifetime.sessionsPlayed
+      : 0
+  const cur = bucket(currentSeasonId) ?? lifetime
+  const prev = prevSeasonId ? (bucket(prevSeasonId) ?? lifetime) : lifetime
+  return 0.6 * cur + 0.4 * prev
+}
+
 export async function getDefaultInvitation(sessionId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
@@ -644,7 +682,17 @@ export async function generateTeams(
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: {
-      registrations: { where: { status: "REGISTERED" }, include: { player: { include: { statsLifetime: true } } } },
+      registrations: {
+        where: { status: "REGISTERED" },
+        include: {
+          player: {
+            include: {
+              statsLifetime: true,
+              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true } },
+            },
+          },
+        },
+      },
       teams: { include: { players: true } },
     },
   })
@@ -658,9 +706,8 @@ export async function generateTeams(
     throw new Error(`Need at least ${numTeams * 2} registered players to form ${numTeams} teams.`)
   }
 
-  const rating = (p: typeof players[0]) =>
-    p.statsLifetime && p.statsLifetime.sessionsPlayed > 0
-      ? p.statsLifetime.points / p.statsLifetime.sessionsPlayed : 0
+  const [curSeasonId, prevSeasonId] = await getTwoRecentSeasonIds(session.seasonId)
+  const rating = (p: typeof players[0]) => blendedRating(p, curSeasonId, prevSeasonId)
 
   // Build team slots
   const teamNames = Array.from({ length: numTeams }, (_, i) => `Team ${"ABCDEFGHIJKLMNOPQRSTUVWXYZ"[i]}`)
@@ -845,7 +892,17 @@ export async function generateTeamsWithPins(
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: {
-      registrations: { where: { status: "REGISTERED" }, include: { player: { include: { statsLifetime: true } } } },
+      registrations: {
+        where: { status: "REGISTERED" },
+        include: {
+          player: {
+            include: {
+              statsLifetime: true,
+              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true } },
+            },
+          },
+        },
+      },
       teams: { include: { players: true } },
     },
   })
@@ -862,9 +919,8 @@ export async function generateTeamsWithPins(
   const pinnedIds = new Set(Object.values(pins).flat())
   const freePlayers = allPlayers.filter((p) => !pinnedIds.has(p.id))
 
-  const rating = (p: typeof allPlayers[0]) =>
-    p.statsLifetime && p.statsLifetime.sessionsPlayed > 0
-      ? p.statsLifetime.points / p.statsLifetime.sessionsPlayed : 0
+  const [curSeasonId, prevSeasonId] = await getTwoRecentSeasonIds(session.seasonId)
+  const rating = (p: typeof allPlayers[0]) => blendedRating(p, curSeasonId, prevSeasonId)
 
   let freeSlots: string[][]
   if (mode === "BALANCED" && numTeams === 2) {
@@ -1156,7 +1212,17 @@ export async function addNewMatch(
   const session = await db.session.findUnique({
     where: { id: sessionId },
     include: {
-      registrations: { where: { status: "REGISTERED" }, include: { player: { include: { statsLifetime: true } } } },
+      registrations: {
+        where: { status: "REGISTERED" },
+        include: {
+          player: {
+            include: {
+              statsLifetime: true,
+              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true } },
+            },
+          },
+        },
+      },
       teams: true,
       matches: true,
     },
@@ -1167,26 +1233,14 @@ export async function addNewMatch(
   const players = session.registrations.map((r) => r.player)
   if (players.length < 2) throw new Error("Need at least 2 registered players.")
 
-  const ratingOf = (p: typeof players[0]) =>
-    p.statsLifetime && p.statsLifetime.sessionsPlayed > 0
-      ? p.statsLifetime.points / p.statsLifetime.sessionsPlayed : 0
+  const [curSeasonId, prevSeasonId] = await getTwoRecentSeasonIds(session.seasonId)
+  const ratingOf = (p: typeof players[0]) => blendedRating(p, curSeasonId, prevSeasonId)
 
   let slots: string[][]
 
-  if (mode === "BALANCED") {
-    // Optimal partition for 2 teams
+  if (mode === "BALANCED" || mode === "STRENGTH") {
+    // Optimal partition for 2 teams using blended season rating
     const ratings = players.map((p) => ratingOf(p))
-    const [idx0, idx1] = optimalPartition2(ratings)
-    slots = [idx0.map((i) => players[i].id), idx1.map((i) => players[i].id)]
-  } else if (mode === "STRENGTH") {
-    const str = (p: typeof players[0]) => {
-      const lt = p.statsLifetime
-      if (!lt || lt.sessionsPlayed === 0) return 0
-      const outcomePtsPerGD = (lt.points - lt.sessionsPlayed) / lt.sessionsPlayed
-      const scorePerGD = lt.score / lt.sessionsPlayed
-      return 0.6 * outcomePtsPerGD + 0.4 * scorePerGD
-    }
-    const ratings = players.map((p) => str(p))
     const [idx0, idx1] = optimalPartition2(ratings)
     slots = [idx0.map((i) => players[i].id), idx1.map((i) => players[i].id)]
   } else {
