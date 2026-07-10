@@ -73,6 +73,16 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
           (m.homeTeamId === awayTeamId && m.awayTeamId === homeTeamId)),
     ).length
     initialSwapped = priorCount % 2 === 1
+  } else if (activeMatch && activeMatch.roundNumber !== null) {
+    // Tournament: desired display pattern alternates per round.
+    // Odd rounds:  pos1=normal, pos2=swap, pos3=swap  (A-B, C-B, C-A)
+    // Even rounds: pos1=swap,   pos2=normal, pos3=normal  (B-A, B-C, A-C)
+    const roundMatches = s.matches
+      .filter((m) => m.roundNumber === activeMatch.roundNumber)
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+    const posInRound = roundMatches.findIndex((m) => m.id === activeMatch.id) + 1
+    const isOddRound = activeMatch.roundNumber % 2 === 1
+    initialSwapped = isOddRound ? posInRound >= 2 : posInRound === 1
   }
 
   return (
