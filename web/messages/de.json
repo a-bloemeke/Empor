@@ -302,9 +302,12 @@
     "history": "Verlauf",
     "year": "Jahr",
     "status": "Status",
-    "datePaid": "Bezahlt am"
+    "datePaid": "Bezahlt am",
+    "gameDayHistory": "Spieltage",
+    "noHistory": "Noch keine Spieltag-Historie.",
+    "vs": "vs",
+    "pts": "Pkt"
   },
-  "admin": {
     "players": {
       "title": "Spieler",
       "subtitle": "Registrierte Spieler und Gastkonten verwalten.",

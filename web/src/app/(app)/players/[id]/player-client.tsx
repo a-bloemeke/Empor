@@ -67,6 +67,21 @@ type LifetimeStat = {
 } | null
 type Fee = { year: number; status: string; paidAt: string | null }
 
+type SessionHistoryEntry = {
+  sessionId: string
+  date: string
+  seasonYear: number
+  teamName: string
+  matches: {
+    opponent: string
+    goalsFor: number
+    goalsAgainst: number
+    playerGoals: number
+    playerAssists: number
+    points: number
+  }[]
+}
+
 function initials(firstName: string, lastName: string) {
   return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase()
 }
@@ -324,6 +339,7 @@ export function PlayerClient({
   player,
   seasons,
   seasonStats,
+  sessionHistory,
   fees,
   currentYear,
   isCurrentUser,
@@ -333,6 +349,7 @@ export function PlayerClient({
   player: PlayerData
   seasons: { id: string; year: number }[]
   seasonStats: SeasonStat[]
+  sessionHistory: SessionHistoryEntry[]
   fees: Fee[]
   currentYear: number
   isCurrentUser: boolean
@@ -425,6 +442,7 @@ export function PlayerClient({
           <TabsList className="mb-4">
             <TabsTrigger value="lifetime">{t("lifetimeStats")}</TabsTrigger>
             <TabsTrigger value="season">{t("bySeason")}</TabsTrigger>
+            <TabsTrigger value="history">{t("gameDayHistory")}</TabsTrigger>
           </TabsList>
           <TabsContent value="lifetime" className="space-y-3">
             {seasonStats.length > 0 && (
@@ -469,6 +487,63 @@ export function PlayerClient({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">{t("noSeasons")}</p>
+            )}
+          </TabsContent>
+          <TabsContent value="history">
+            {sessionHistory.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noHistory")}</p>
+            ) : (
+              <div className="space-y-3">
+                {sessionHistory.map((s) => {
+                  const totalGoals = s.matches.reduce((n, m) => n + m.playerGoals, 0)
+                  const totalAssists = s.matches.reduce((n, m) => n + m.playerAssists, 0)
+                  const totalPoints = s.matches.reduce((n, m) => n + m.points, 0)
+                  return (
+                    <Card key={s.sessionId}>
+                      <CardHeader className="pb-2 pt-3 px-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{format(new Date(s.date), "EEE, d MMM yyyy")}</span>
+                            <Badge variant="outline" className="text-xs">{s.seasonYear}</Badge>
+                            <span className="text-xs text-muted-foreground">{s.teamName}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm">
+                            <span className="text-muted-foreground">{totalGoals}G {totalAssists}A</span>
+                            <span className="font-semibold">{totalPoints} {t("pts")}</span>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      {s.matches.length > 0 && (
+                        <CardContent className="px-4 pb-3 pt-0">
+                          <div className="space-y-1">
+                            {s.matches.map((m, i) => {
+                              const won = m.goalsFor > m.goalsAgainst
+                              const draw = m.goalsFor === m.goalsAgainst
+                              return (
+                                <div key={i} className="flex items-center gap-2 text-sm">
+                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${won ? "bg-green-500" : draw ? "bg-yellow-500" : "bg-red-500"}`}>
+                                    {won ? "W" : draw ? "D" : "L"}
+                                  </span>
+                                  <span className="font-mono tabular-nums w-8 shrink-0">{m.goalsFor}:{m.goalsAgainst}</span>
+                                  <span className="text-muted-foreground shrink-0">{t("vs")} {m.opponent}</span>
+                                  {(m.playerGoals > 0 || m.playerAssists > 0) && (
+                                    <span className="text-xs text-muted-foreground ml-auto">
+                                      {m.playerGoals > 0 && `${m.playerGoals}G`}
+                                      {m.playerGoals > 0 && m.playerAssists > 0 && " "}
+                                      {m.playerAssists > 0 && `${m.playerAssists}A`}
+                                    </span>
+                                  )}
+                                  <span className="font-medium tabular-nums w-10 text-right shrink-0">{m.points} {t("pts")}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  )
+                })}
+              </div>
             )}
           </TabsContent>
         </Tabs>

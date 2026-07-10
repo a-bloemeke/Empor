@@ -302,9 +302,12 @@
     "history": "History",
     "year": "Year",
     "status": "Status",
-    "datePaid": "Date paid"
+    "datePaid": "Date paid",
+    "gameDayHistory": "Game Days",
+    "noHistory": "No game day history yet.",
+    "vs": "vs",
+    "pts": "pts"
   },
-  "admin": {
     "players": {
       "title": "Players",
       "subtitle": "Manage registered players and guest accounts.",

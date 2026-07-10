@@ -47,6 +47,82 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
       }
     : null
 
+  // Per-session history: sessions where the player was on a team
+  const teamPlayerRows = await db.teamPlayer.findMany({
+    where: { playerId: id },
+    include: {
+      team: {
+        include: {
+          session: { select: { id: true, date: true, season: { select: { year: true } } } },
+          homeMatches: {
+            where: { status: "COMPLETED" },
+            include: { goals: { select: { scoredByPlayerId: true, assistedByPlayerId: true, teamId: true } }, awayTeam: { select: { name: true } } },
+          },
+          awayMatches: {
+            where: { status: "COMPLETED" },
+            include: { goals: { select: { scoredByPlayerId: true, assistedByPlayerId: true, teamId: true } }, homeTeam: { select: { name: true } } },
+          },
+        },
+      },
+    },
+    orderBy: { team: { session: { date: "desc" } } },
+  })
+
+  // Build one entry per session
+  const sessionHistoryMap = new Map<string, {
+    sessionId: string
+    date: string
+    seasonYear: number
+    teamName: string
+    matches: { opponent: string; goalsFor: number; goalsAgainst: number; playerGoals: number; playerAssists: number; points: number }[]
+  }>()
+
+  for (const row of teamPlayerRows) {
+    const session = row.team.session
+    const sessionId = session.id
+    if (sessionHistoryMap.has(sessionId)) continue
+
+    const allMatches = [
+      ...row.team.homeMatches.map((m) => ({
+        isHome: true,
+        opponent: m.awayTeam.name,
+        homeScore: m.homeScore,
+        awayScore: m.awayScore,
+        teamId: m.homeTeamId,
+        goals: m.goals,
+      })),
+      ...row.team.awayMatches.map((m) => ({
+        isHome: false,
+        opponent: m.homeTeam.name,
+        homeScore: m.homeScore,
+        awayScore: m.awayScore,
+        teamId: m.awayTeamId,
+        goals: m.goals,
+      })),
+    ]
+
+    const matches = allMatches.map((m) => {
+      const goalsFor = m.isHome ? m.homeScore : m.awayScore
+      const goalsAgainst = m.isHome ? m.awayScore : m.homeScore
+      const playerGoals = m.goals.filter((g) => g.scoredByPlayerId === id).length
+      const playerAssists = m.goals.filter((g) => g.assistedByPlayerId === id).length
+      const won = goalsFor > goalsAgainst
+      const draw = goalsFor === goalsAgainst
+      const points = 1 + (won ? 3 : draw ? 1 : 0)
+      return { opponent: m.opponent, goalsFor, goalsAgainst, playerGoals, playerAssists, points }
+    })
+
+    sessionHistoryMap.set(sessionId, {
+      sessionId,
+      date: session.date.toISOString(),
+      seasonYear: session.season.year,
+      teamName: row.team.name,
+      matches,
+    })
+  }
+
+  const sessionHistory = Array.from(sessionHistoryMap.values())
+
   const currentYear = new Date().getFullYear()
   const fees = (isCurrentUser || isOrganizer)
     ? await db.membershipFee.findMany({
@@ -80,6 +156,7 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
         score: s.score,
         points: s.points,
       }))}
+      sessionHistory={sessionHistory}
       fees={fees.map((f) => ({
         year: f.year,
         status: f.status as string,
