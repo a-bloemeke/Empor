@@ -679,11 +679,11 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           )}
           aria-label={t("recordGoalFor", { team: leftTeam.name })}
         >
+          <div className={cn("text-[clamp(1.5rem,5vw,3rem)] font-bold tracking-wide", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
+            {leftTeam.name}
+          </div>
           <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
             {leftScore}
-          </div>
-          <div className={cn("text-sm font-medium transition-colors", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
-            {leftTeam.name}
           </div>
           <ol className={cn("text-sm list-none space-y-1 text-left", inv ? "text-white/70" : "text-muted-foreground")}>
             {[...leftTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
@@ -720,11 +720,11 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           )}
           aria-label={t("recordGoalFor", { team: rightTeam.name })}
         >
+          <div className={cn("text-[clamp(1.5rem,5vw,3rem)] font-bold tracking-wide", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
+            {rightTeam.name}
+          </div>
           <div className={cn("text-[clamp(10rem,40vw,24rem)] font-bold leading-none tabular-nums", inv && "text-white")}>
             {rightScore}
-          </div>
-          <div className={cn("text-sm font-medium transition-colors", inv ? "text-white/80" : "text-muted-foreground group-hover:text-foreground")}>
-            {rightTeam.name}
           </div>
           <ol className={cn("text-sm list-none space-y-1 text-left", inv ? "text-white/70" : "text-muted-foreground")}>
             {[...rightTeam.players].sort((a, b) => b.seasonPoints - a.seasonPoints).map((p) => (
