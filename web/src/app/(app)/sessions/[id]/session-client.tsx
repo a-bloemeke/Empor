@@ -1525,7 +1525,7 @@ function TeamsView({
                       {playerInitials(p.displayName)}
                     </span>
                     <span className="flex-1">{p.displayName}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">
+                    <span className="text-xs text-muted-foreground tabular-nums" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD">
                       {playerStrength(p).toFixed(2)}
                     </span>
                     {isOrganizer && noMatchesStarted && session.teams.length > 1 && (
@@ -1544,13 +1544,13 @@ function TeamsView({
               </ul>
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-xs text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>{t("total")} strength</span>
+                  <span title="Strength = 0.6 × win pts/GD + 0.4 × score/GD">{t("total")} ⚡</span>
                   <span className="font-semibold tabular-nums">
                     {team.players.reduce((s, p) => s + playerStrength(p), 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{t("avg")} strength</span>
+                  <span>{t("avg")} ⚡</span>
                   <span className="tabular-nums">
                     {team.players.length > 0
                       ? (team.players.reduce((s, p) => s + playerStrength(p), 0) / team.players.length).toFixed(2)
@@ -1562,6 +1562,9 @@ function TeamsView({
           </Card>
         ))}
       </div>
+      <p className="text-xs text-muted-foreground">
+        ⚡ Strength = 0.6 × win pts/GD + 0.4 × score/GD (goals+assists per game day)
+      </p>
       {isOrganizer && canRegenerate && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={pending} onClick={() => handleRegenerate("RANDOM")}>
@@ -1748,7 +1751,7 @@ function ActiveMatch({
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
-                  <span className="opacity-60"> · {p.seasonPoints} pts</span>
+                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {playerStrength(p).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -1762,7 +1765,7 @@ function ActiveMatch({
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
-                  <span className="opacity-60"> · {p.seasonPoints} pts</span>
+                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {playerStrength(p).toFixed(2)}</span>
                 </div>
               ))}
             </div>
