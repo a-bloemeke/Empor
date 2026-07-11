@@ -232,7 +232,7 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
   }
 
   lines.push("=== Spieler-Statistiken ===")
-  lines.push("(Punkte: 1 Teilnahme + Sieg +3 / Unentschieden +1)")
+  lines.push("(Punkte: 1 Teilnahme + Siegpunkte: Sieg +3 / Unentschieden +1)")
   sorted.forEach((row, i) => {
     const name = nameById.get(row.playerId) ?? row.playerId
     const outcomePts = row.points - 1  // subtract attendance point to show breakdown
