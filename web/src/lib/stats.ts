@@ -128,9 +128,11 @@ export async function computeAndSaveStats(sessionId: string, pointsScope: Points
   for (const playerId of allPlayerIds) {
     const goals = playerGoals.get(playerId) ?? 0
     const assists = playerAssists.get(playerId) ?? 0
-    const points = playerPoints.get(playerId) ?? 0
+    const matchPoints = playerPoints.get(playerId) ?? 0
     const matchesPlayed = playerMatchCount.get(playerId) ?? 0
     const score = goals + assists
+    // +1 participation point for showing up, on top of match/tournament outcome points
+    const points = matchPoints + 1
 
     await db.playerStats.upsert({
       where: { playerId_seasonId: { playerId, seasonId: session.seasonId } },
