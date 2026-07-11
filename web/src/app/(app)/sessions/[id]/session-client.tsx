@@ -1107,6 +1107,7 @@ function SendSummaryDialog({ sessionId }: { sessionId: string }) {
 }
 
 function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrganizer: boolean }) {
+  const t = useTranslations("session")
   const { teamRefs, matchRefs } = useMemo(
     () => buildClientMatchRefs(session.teams, session.matches),
     [session.teams, session.matches]
@@ -1135,7 +1136,7 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Spieltag-Zusammenfassung</CardTitle>
+          <CardTitle className="text-base">{t("gameDaySummary")}</CardTitle>
           {isOrganizer && <SendSummaryDialog sessionId={session.id} />}
         </div>
       </CardHeader>
@@ -1149,7 +1150,7 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
               <div className="text-xs font-bold uppercase tracking-wide opacity-70">MVP</div>
               <div className="font-bold">{mvpName}</div>
               <div className="text-xs opacity-80 mt-0.5">
-                {mvp.goals}G · {mvp.assists}V · {mvp.goals + mvp.assists} Score · {mvp.points} Pkt
+                {t("mvpOutcome", { goals: mvp.goals, assists: mvp.assists, score: mvp.goals + mvp.assists, outcome: mvp.points - 1, points: mvp.points })}
               </div>
             </div>
           </div>
@@ -1159,24 +1160,37 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead>Spieler</TableHead>
-                <TableHead className="text-right">Tore</TableHead>
-                <TableHead className="text-right">Vorlagen</TableHead>
-                <TableHead className="text-right">Score</TableHead>
-                <TableHead className="text-right">Punkte</TableHead>
+                <TableHead>{t("summaryPlayer")}</TableHead>
+                <TableHead className="text-right">{t("summaryGoals")}</TableHead>
+                <TableHead className="text-right">{t("summaryAssists")}</TableHead>
+                <TableHead className="text-right">{t("summaryScore")}</TableHead>
+                <TableHead className="text-right">
+                  <span className="block leading-tight">{t("summaryOutcome")}</span>
+                  <span className="block text-[10px] font-normal opacity-60">{t("summaryOutcomeNote")}</span>
+                </TableHead>
+                <TableHead className="text-right">
+                  <span className="block leading-tight">{t("summaryAttend")}</span>
+                  <span className="block text-[10px] font-normal opacity-60">{t("summaryAttendNote")}</span>
+                </TableHead>
+                <TableHead className="text-right font-semibold">{t("summaryPoints")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row, i) => (
-                <TableRow key={row.playerId} className={i === 0 && mvp ? "font-semibold" : ""}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell>{shortNames.get(row.playerId) ?? row.playerId}</TableCell>
-                  <TableCell className="text-right">{row.goals}</TableCell>
-                  <TableCell className="text-right">{row.assists}</TableCell>
-                  <TableCell className="text-right">{row.goals + row.assists}</TableCell>
-                  <TableCell className="text-right">{row.points}</TableCell>
-                </TableRow>
-              ))}
+              {rows.map((row, i) => {
+                const outcomePts = row.points - 1
+                return (
+                  <TableRow key={row.playerId} className={i === 0 && mvp ? "font-semibold" : ""}>
+                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell>{shortNames.get(row.playerId) ?? row.playerId}</TableCell>
+                    <TableCell className="text-right">{row.goals}</TableCell>
+                    <TableCell className="text-right">{row.assists}</TableCell>
+                    <TableCell className="text-right">{row.goals + row.assists}</TableCell>
+                    <TableCell className="text-right tabular-nums">{outcomePts > 0 ? `+${outcomePts}` : "—"}</TableCell>
+                    <TableCell className="text-right text-muted-foreground tabular-nums">+1</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{row.points}</TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
@@ -1643,9 +1657,14 @@ function ActiveMatch({
   const t = useTranslations("session")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [swapped, setSwapped] = useState(false)
 
-  const homeTeam = session.teams.find((t) => t.id === match.homeTeamId)!
-  const awayTeam = session.teams.find((t) => t.id === match.awayTeamId)!
+  const homeTeamRaw = session.teams.find((t) => t.id === match.homeTeamId)!
+  const awayTeamRaw = session.teams.find((t) => t.id === match.awayTeamId)!
+  const leftTeam  = swapped ? awayTeamRaw  : homeTeamRaw
+  const rightTeam = swapped ? homeTeamRaw  : awayTeamRaw
+  const leftScore  = swapped ? match.awayScore : match.homeScore
+  const rightScore = swapped ? match.homeScore : match.awayScore
 
   function handleDeleteGoal(goalId: string) {
     startTransition(async () => {
@@ -1655,7 +1674,7 @@ function ActiveMatch({
   }
 
   // Disambiguated display names across both teams (uses displayName, not full name)
-  const allPlayers = [...homeTeam.players, ...awayTeam.players]
+  const allPlayers = [...homeTeamRaw.players, ...awayTeamRaw.players]
   const shortName = disambiguateNames(allPlayers.map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
 
   function handleUndo() {
@@ -1686,15 +1705,22 @@ function ActiveMatch({
           <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
           {match.roundNumber != null ? `Round ${match.roundNumber} · ` : ""}
           {match.homeTeamName} vs {match.awayTeamName}
+          <button
+            onClick={() => setSwapped((s) => !s)}
+            className="ml-auto text-muted-foreground hover:text-foreground transition-colors text-base"
+            title="Swap teams left/right"
+          >
+            ⇄
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-center gap-4 sm:gap-8 py-4">
           <div className="flex flex-col items-center flex-1">
-            <div className="text-4xl font-bold text-center">{match.homeScore}</div>
-            <div className="text-sm text-muted-foreground mt-1 text-center">{match.homeTeamName}</div>
+            <div className="text-4xl font-bold text-center">{leftScore}</div>
+            <div className="text-sm text-muted-foreground mt-1 text-center">{leftTeam.name}</div>
             <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5 text-center">
-              {homeTeam.players.map((p) => (
+              {leftTeam.players.map((p) => (
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
@@ -1705,10 +1731,10 @@ function ActiveMatch({
           </div>
           <div className="text-2xl font-light text-muted-foreground shrink-0">–</div>
           <div className="flex flex-col items-center flex-1">
-            <div className="text-4xl font-bold text-center">{match.awayScore}</div>
-            <div className="text-sm text-muted-foreground mt-1 text-center">{match.awayTeamName}</div>
+            <div className="text-4xl font-bold text-center">{rightScore}</div>
+            <div className="text-sm text-muted-foreground mt-1 text-center">{rightTeam.name}</div>
             <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5 text-center">
-              {awayTeam.players.map((p) => (
+              {rightTeam.players.map((p) => (
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
@@ -1730,16 +1756,16 @@ function ActiveMatch({
           <GoalDialog
             matchId={match.id}
             sessionId={session.id}
-            teamId={match.homeTeamId}
-            teamName={match.homeTeamName}
-            players={homeTeam.players}
+            teamId={leftTeam.id}
+            teamName={leftTeam.name}
+            players={leftTeam.players}
           />
           <GoalDialog
             matchId={match.id}
             sessionId={session.id}
-            teamId={match.awayTeamId}
-            teamName={match.awayTeamName}
-            players={awayTeam.players}
+            teamId={rightTeam.id}
+            teamName={rightTeam.name}
+            players={rightTeam.players}
           />
           {match.goals.length > 0 && (
             <Button variant="ghost" size="sm" disabled={pending} onClick={handleUndo}>

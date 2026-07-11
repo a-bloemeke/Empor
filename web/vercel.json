@@ -4,5 +4,11 @@
       "dev": true
     }
   },
-  "alias": ["empor-lichtenberg.vercel.app"]
+  "alias": ["empor-lichtenberg.vercel.app"],
+  "crons": [
+    {
+      "path": "/api/cron/game-day-status",
+      "schedule": "0 7 * * *"
+    }
+  ]
 }

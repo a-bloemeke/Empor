@@ -56,35 +56,38 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
         <TableRow>
           <TableHead className="w-8">{t("rank")}</TableHead>
           <TableHead>{t("player")}</TableHead>
-          <TableHead className="text-right hidden sm:table-cell">{t("gameDays")}</TableHead>
-          <TableHead className="text-right hidden sm:table-cell">{t("matches")}</TableHead>
-          <TableHead className="text-right hidden sm:table-cell">{t("goals")}</TableHead>
-          <TableHead className="text-right hidden sm:table-cell">{t("assists")}</TableHead>
-          <TableHead className="text-right hidden sm:table-cell">{t("score")}</TableHead>
+          <TableHead className="text-right hidden sm:table-cell">
+            <span className="block leading-tight">{t("attendPts")}</span>
+            <span className="block text-[10px] font-normal opacity-60">×1 / GD</span>
+          </TableHead>
+          <TableHead className="text-right">
+            <span className="block leading-tight">{t("outcomePts")}</span>
+            <span className="block text-[10px] font-normal opacity-60">{t("outcomePtsNote")}</span>
+          </TableHead>
           <TableHead className="text-right">{t("pts")}</TableHead>
           <TableHead className="text-right">{t("ptsPerGD")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sorted.map((row, i) => (
-          <TableRow key={row.playerId}>
-            <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-            <TableCell>
-              <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
-                {row.playerName}
-              </Link>
-            </TableCell>
-            <TableCell className="text-right hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
-            <TableCell className="text-right hidden sm:table-cell">{row.matchesPlayed}</TableCell>
-            <TableCell className="text-right hidden sm:table-cell">{row.goals}</TableCell>
-            <TableCell className="text-right hidden sm:table-cell">{row.assists}</TableCell>
-            <TableCell className="text-right hidden sm:table-cell">{row.score}</TableCell>
-            <TableCell className="text-right font-semibold">{row.points}</TableCell>
-            <TableCell className="text-right text-muted-foreground">
-              {row.sessionsPlayed > 0 ? (row.points / row.sessionsPlayed).toFixed(1) : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
+        {sorted.map((row, i) => {
+          const outcomePts = row.points - row.sessionsPlayed
+          return (
+            <TableRow key={row.playerId}>
+              <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+              <TableCell>
+                <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
+                  {row.playerName}
+                </Link>
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
+              <TableCell className="text-right tabular-nums">{outcomePts}</TableCell>
+              <TableCell className="text-right font-semibold tabular-nums">{row.points}</TableCell>
+              <TableCell className="text-right text-muted-foreground tabular-nums">
+                {row.sessionsPlayed > 0 ? (row.points / row.sessionsPlayed).toFixed(1) : "—"}
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </TableBody>
     </Table>
     </div>
@@ -352,6 +355,13 @@ export function LeaderboardClient({
 
   const selectedSeason = seasons.find((s) => s.id === selectedSeasonId)
 
+  const pointsHeader = (
+    <div>
+      <span>{t("pointsRanking")}</span>
+      <span className="ml-2 font-normal opacity-70 text-[10px]">{t("pointsFormula")}</span>
+    </div>
+  )
+
   const strengthHeader = (
     <>
       <span>{t("playerStrength")}</span>
@@ -360,13 +370,15 @@ export function LeaderboardClient({
   )
 
   const legend = [
-    [t("legendGDLabel"), t("legendGD")],
-    [t("pts"),      t("legendPts")],
-    [t("ptsPerGD"), t("legendPtsPerGD")],
-    [t("score"),    t("legendScore")],
-    [t("scorePerGD"), t("legendScorePerGD")],
-    [t("strength"), t("legendStrength")],
-    [t("rating"),   t("legendRating")],
+    [t("legendGDLabel"),    t("legendGD")],
+    [t("attendPts"),        t("legendAttendPts")],
+    [t("outcomePts"),       t("legendOutcomePts")],
+    [t("pts"),              t("legendPts")],
+    [t("ptsPerGD"),         t("legendPtsPerGD")],
+    [t("score"),            t("legendScore")],
+    [t("scorePerGD"),       t("legendScorePerGD")],
+    [t("strength"),         t("legendStrength")],
+    [t("rating"),           t("legendRating")],
   ]
 
   return (
@@ -410,7 +422,7 @@ export function LeaderboardClient({
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-                >{t("pointsRanking")}</div>
+                >{pointsHeader}</div>
                 <PointsTable rows={seasonStats} />
               </div>
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">

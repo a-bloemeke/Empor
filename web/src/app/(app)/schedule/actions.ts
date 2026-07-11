@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { notifyOrganizersSessionRegistration, sendGameDayCancellation } from "@/lib/email"
+import { notifyOrganizersSessionRegistration, sendGameDayCancellation, notifyOrganizersCancellation } from "@/lib/email"
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -202,6 +202,8 @@ export async function cancelSelf(sessionId: string) {
     where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },
   })
 
+  const wasRegistered = reg?.status === "REGISTERED"
+
   if (reg) {
     if (reg.status === "CANCELLED") throw new Error("Du hast bereits abgesagt.")
     await db.sessionRegistration.update({
@@ -218,6 +220,14 @@ export async function cancelSelf(sessionId: string) {
         cancelledAt: new Date(),
       },
     })
+  }
+
+  const player = await db.player.findUnique({
+    where: { id: authSession.user.id },
+    select: { firstName: true, lastName: true, email: true },
+  })
+  if (player) {
+    await notifyOrganizersCancellation(s, player, wasRegistered)
   }
 
   revalidatePath("/schedule")
