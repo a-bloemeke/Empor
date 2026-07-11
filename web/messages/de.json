@@ -332,6 +332,7 @@
     "pts": "Pkt",
     "attendPt": "Teilnahmepunkt"
   },
+  "admin": {
     "players": {
       "title": "Spieler",
       "subtitle": "Registrierte Spieler und Gastkonten verwalten.",

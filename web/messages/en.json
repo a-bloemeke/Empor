@@ -332,6 +332,7 @@
     "pts": "pts",
     "attendPt": "attendance pt"
   },
+  "admin": {
     "players": {
       "title": "Players",
       "subtitle": "Manage registered players and guest accounts.",
