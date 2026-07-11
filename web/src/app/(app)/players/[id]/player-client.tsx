@@ -534,9 +534,9 @@ export function PlayerClient({
                                       {m.playerAssists > 0 && `${m.playerAssists}A`}
                                     </span>
                                   )}
-                                  {m.winPts > 0 && (
-                                    <span className="font-medium tabular-nums w-10 text-right shrink-0">+{m.winPts} {t("pts")}</span>
-                                  )}
+                                  <span className={`font-medium tabular-nums w-10 text-right shrink-0 ${m.winPts === 0 ? "text-muted-foreground" : ""}`}>
+                                    {m.winPts > 0 ? `+${m.winPts}` : "0"} {t("pts")}
+                                  </span>
                                 </div>
                               )
                             })}
