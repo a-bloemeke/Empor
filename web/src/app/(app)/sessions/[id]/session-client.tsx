@@ -71,7 +71,7 @@ import { useTranslations } from "next-intl"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonRank: number | null }
+type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonSessions: number; seasonScore: number; seasonRank: number | null }
 type Goal = {
   id: string
   scoredByPlayerId: string
@@ -367,6 +367,13 @@ function RegistrationPanel({
 }
 
 // ─── Team-formation preview helpers ──────────────────────────────────────────
+
+function playerStrength(p: { seasonPoints: number; seasonSessions: number; seasonScore: number }): number {
+  if (p.seasonSessions === 0) return 0
+  const outcomePtsPerGD = (p.seasonPoints - p.seasonSessions) / p.seasonSessions
+  const scorePerGD = p.seasonScore / p.seasonSessions
+  return 0.6 * outcomePtsPerGD + 0.4 * scorePerGD
+}
 
 function playerRating(r: Registration, metric: "points" | "strength"): number {
   // Use season stats if enough data, else lifetime
@@ -1519,7 +1526,7 @@ function TeamsView({
                     </span>
                     <span className="flex-1">{p.displayName}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">
-                      {p.seasonRank != null ? `#${p.seasonRank} · ` : ""}{p.seasonPoints} pts
+                      {playerStrength(p).toFixed(2)}
                     </span>
                     {isOrganizer && noMatchesStarted && session.teams.length > 1 && (
                       <button
@@ -1537,17 +1544,17 @@ function TeamsView({
               </ul>
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-xs text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>{t("total")}</span>
+                  <span>{t("total")} strength</span>
                   <span className="font-semibold tabular-nums">
-                    {team.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
+                    {team.players.reduce((s, p) => s + playerStrength(p), 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{t("avg")}</span>
+                  <span>{t("avg")} strength</span>
                   <span className="tabular-nums">
                     {team.players.length > 0
-                      ? (team.players.reduce((s, p) => s + p.seasonPoints, 0) / team.players.length).toFixed(1)
-                      : "—"} pts
+                      ? (team.players.reduce((s, p) => s + playerStrength(p), 0) / team.players.length).toFixed(2)
+                      : "—"}
                   </span>
                 </div>
               </div>

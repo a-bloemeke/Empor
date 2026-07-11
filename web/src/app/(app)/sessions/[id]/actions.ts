@@ -26,12 +26,12 @@ async function getTwoRecentSeasonIds(currentSeasonId: string): Promise<[string, 
 }
 
 type PlayerWithSeasonStats = {
-  statsLifetime: { points: number; sessionsPlayed: number } | null
-  statsPerSeason: { seasonId: string; points: number; sessionsPlayed: number }[]
+  statsLifetime: { points: number; sessionsPlayed: number; score: number } | null
+  statsPerSeason: { seasonId: string; points: number; sessionsPlayed: number; score: number }[]
 }
 
-// Blended rating: 60% current-season pts/session + 40% previous-season pts/session.
-// Falls back to lifetime if a season bucket is empty.
+// Blended strength: 60% outcomePts/GD + 40% score/GD, blended across current + previous season.
+// Mirrors the leaderboard strength formula. Falls back to lifetime if season bucket is empty.
 function blendedRating(
   p: PlayerWithSeasonStats,
   currentSeasonId: string,
@@ -39,14 +39,21 @@ function blendedRating(
 ): number {
   const bucket = (seasonId: string) => {
     const s = p.statsPerSeason.find((x) => x.seasonId === seasonId)
-    return s && s.sessionsPlayed > 0 ? s.points / s.sessionsPlayed : null
+    if (!s || s.sessionsPlayed === 0) return null
+    const outcomePts = (s.points - s.sessionsPlayed) / s.sessionsPlayed
+    const scorePerGD = s.score / s.sessionsPlayed
+    return 0.6 * outcomePts + 0.4 * scorePerGD
   }
-  const lifetime =
-    p.statsLifetime && p.statsLifetime.sessionsPlayed > 0
-      ? p.statsLifetime.points / p.statsLifetime.sessionsPlayed
-      : 0
-  const cur = bucket(currentSeasonId) ?? lifetime
-  const prev = prevSeasonId ? (bucket(prevSeasonId) ?? lifetime) : lifetime
+  const lifetimeStrength = () => {
+    const lt = p.statsLifetime
+    if (!lt || lt.sessionsPlayed === 0) return 0
+    const outcomePts = (lt.points - lt.sessionsPlayed) / lt.sessionsPlayed
+    const scorePerGD = lt.score / lt.sessionsPlayed
+    return 0.6 * outcomePts + 0.4 * scorePerGD
+  }
+  const lt = lifetimeStrength()
+  const cur = bucket(currentSeasonId) ?? lt
+  const prev = prevSeasonId ? (bucket(prevSeasonId) ?? lt) : lt
   return 0.6 * cur + 0.4 * prev
 }
 
@@ -724,7 +731,7 @@ export async function generateTeams(
           player: {
             include: {
               statsLifetime: true,
-              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true } },
+              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true, score: true } },
             },
           },
         },
@@ -934,7 +941,7 @@ export async function generateTeamsWithPins(
           player: {
             include: {
               statsLifetime: true,
-              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true } },
+              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true, score: true } },
             },
           },
         },
@@ -1254,7 +1261,7 @@ export async function addNewMatch(
           player: {
             include: {
               statsLifetime: true,
-              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true } },
+              statsPerSeason: { select: { seasonId: true, points: true, sessionsPlayed: true, score: true } },
             },
           },
         },

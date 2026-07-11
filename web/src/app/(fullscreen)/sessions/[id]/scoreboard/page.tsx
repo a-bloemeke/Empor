@@ -57,6 +57,8 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
     rankByPlayerId.set(allSeasonStats[i].playerId, rank)
   }
   const pointsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.points]))
+  const sessionsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.sessionsPlayed]))
+  const scoreByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.score]))
 
   const activeMatch = s.matches.find((m) => m.status === "IN_PROGRESS") ?? null
 
@@ -119,6 +121,8 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
           name: playerName(tp.player),
           displayName: displayName(tp.player),
           seasonPoints: pointsByPlayerId.get(tp.player.id) ?? 0,
+          seasonSessions: sessionsByPlayerId.get(tp.player.id) ?? 0,
+          seasonScore: scoreByPlayerId.get(tp.player.id) ?? 0,
           seasonRank: rankByPlayerId.get(tp.player.id) ?? null,
         })),
       }))}

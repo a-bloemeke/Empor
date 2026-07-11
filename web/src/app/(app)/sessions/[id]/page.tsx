@@ -107,6 +107,8 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             name: pName(tp.player),
             displayName: pName(tp.player),
             seasonPoints: pointsByPlayerId.get(tp.player.id) ?? 0,
+            seasonSessions: sessionsByPlayerId.get(tp.player.id) ?? 0,
+            seasonScore: scoreByPlayerId.get(tp.player.id) ?? 0,
             seasonRank: rankByPlayerId.get(tp.player.id) ?? null,
           })),
         })),
@@ -132,7 +134,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             scoredAt: g.scoredAt.toISOString(),
           })),
         })),
-        allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonRank: null })),
+        allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, seasonRank: null })),
       }}
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}
