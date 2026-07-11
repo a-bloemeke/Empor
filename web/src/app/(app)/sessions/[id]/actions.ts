@@ -149,7 +149,7 @@ type SummarySession = {
   }[]
 }
 
-function buildSummaryText(session: SummarySession, dateStr: string): string {
+function buildSummaryText(session: SummarySession, dateStr: string, beerBringerName?: string | null): string {
   const teamRefs: TeamRef[] = session.teams.map((t) => ({
     id: t.id,
     playerIds: t.players.map((tp) => tp.playerId),
@@ -257,6 +257,9 @@ function buildSummaryText(session: SummarySession, dateStr: string): string {
   }
 
   lines.push("Empor Lichtenberg")
+  if (beerBringerName) {
+    lines.splice(lines.length - 1, 0, `🍺 Hat Bier mitgebracht: ${beerBringerName}`, "")
+  }
   return lines.join("\n")
 }
 
@@ -296,7 +299,16 @@ export async function getSummaryEmailDefaults(sessionId: string) {
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const subject = `📊 Spieltag-Zusammenfassung – ${dateStr}`
-  const body = buildSummaryText(session, dateStr)
+
+  const beerReg = await db.sessionRegistration.findFirst({
+    where: { sessionId, beerBringer: true },
+    include: { player: { select: { firstName: true, nickname: true } } },
+  })
+  const beerBringerName = beerReg
+    ? (beerReg.player.nickname ?? beerReg.player.firstName)
+    : null
+
+  const body = buildSummaryText(session, dateStr, beerBringerName)
 
   const summaryDisplayNames = buildPlayerNames(players)
 
@@ -380,6 +392,11 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
 
+  const beerBringerReg = session.registrations.find((r) => r.status === "REGISTERED" && r.beerBringer)
+  const beerBringerName = beerBringerReg
+    ? (displayNames.get(beerBringerReg.player.id) ?? beerBringerReg.player.firstName)
+    : null
+
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const link = `${appUrl}/sessions/${session.id}`
@@ -395,7 +412,7 @@ ${statusText}
 
 ✅ Zugesagt (${count}):
 ${registeredList}
-${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}
+${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
 ${link}
 
 Empor Lichtenberg`
@@ -572,6 +589,11 @@ export async function reopenSession(sessionId: string) {
   const allPlayerIds = new Set<string>()
   for (const team of session.teams) for (const tp of team.players) allPlayerIds.add(tp.playerId)
 
+  const beerReg = await db.sessionRegistration.findFirst({
+    where: { sessionId, beerBringer: true },
+    select: { playerId: true },
+  })
+
   await db.$transaction(async (tx) => {
     // Reverse stats for each player who participated
     for (const playerId of allPlayerIds) {
@@ -607,6 +629,17 @@ export async function reopenSession(sessionId: string) {
     }
 
     await tx.session.update({ where: { id: sessionId }, data: { status: "IN_PROGRESS" } })
+
+    if (beerReg) {
+      await tx.playerStats.updateMany({
+        where: { playerId: beerReg.playerId, seasonId: session.seasonId },
+        data: { beers: { decrement: 1 } },
+      })
+      await tx.playerStatsLifetime.updateMany({
+        where: { playerId: beerReg.playerId },
+        data: { beers: { decrement: 1 } },
+      })
+    }
   })
 
   revalidate(sessionId)
@@ -669,7 +702,7 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   if (!reg || reg.status === "CANCELLED") throw new Error("Player is not registered.")
   await db.sessionRegistration.update({
     where: { id: reg.id },
-    data: { status: "CANCELLED", cancelledAt: new Date() },
+    data: { status: "CANCELLED", cancelledAt: new Date(), beerBringer: false },
   })
   revalidate(sessionId)
 }

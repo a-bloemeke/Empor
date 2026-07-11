@@ -89,6 +89,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             playerId: r.playerId,
             playerName: pName(r.player),
             status: r.status as string,
+            beerBringer: r.beerBringer,
             // Stats for balanced-team preview
             seasonPoints: pointsByPlayerId.get(r.playerId) ?? 0,
             seasonSessions: sessionsByPlayerId.get(r.playerId) ?? 0,

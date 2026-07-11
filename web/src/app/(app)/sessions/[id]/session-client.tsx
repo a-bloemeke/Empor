@@ -100,6 +100,7 @@ type Registration = {
   playerId: string
   playerName: string
   status: string
+  beerBringer: boolean
   seasonPoints: number
   seasonSessions: number
   seasonScore: number
@@ -286,7 +287,12 @@ function RegistrationPanel({
                 {registered.map((r, i) => (
                   <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
-                    <td className="py-1 px-2">{r.playerName}</td>
+                    <td className="py-1 px-2">
+                      <span className="flex items-center gap-1">
+                        {r.playerName}
+                        {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
+                      </span>
+                    </td>
                     {isOrganizer && (
                       <td className="py-1 px-2 text-right w-7">
                         <button
