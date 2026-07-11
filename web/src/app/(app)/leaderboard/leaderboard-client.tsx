@@ -56,7 +56,6 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
         <TableRow>
           <TableHead className="w-8">{t("rank")}</TableHead>
           <TableHead>{t("player")}</TableHead>
-          <TableHead className="text-right hidden sm:table-cell">{t("gameDays")}</TableHead>
           <TableHead className="text-right hidden sm:table-cell">
             <span className="block leading-tight">{t("attendPts")}</span>
             <span className="block text-[10px] font-normal opacity-60">×1 / GD</span>
@@ -80,7 +79,6 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
                   {row.playerName}
                 </Link>
               </TableCell>
-              <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
               <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
               <TableCell className="text-right tabular-nums">{outcomePts}</TableCell>
               <TableCell className="text-right font-semibold tabular-nums">{row.points}</TableCell>
