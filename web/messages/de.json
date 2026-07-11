@@ -224,6 +224,7 @@
     "active": "(aktiv)",
     "loading": "Lädt…",
     "pointsRanking": "Punkterangliste",
+    "pointsFormula": "Teilnahme +1 · normales Spiel Sieg +3 · Unentschieden +1 · Turnier 1. +6 / 2. +3 / 3. +0",
     "topScorers": "Torjäger",
     "playerStrength": "Spielerstärke",
     "strengthFormula": "= 60% Gewinnquote + 40% Score/ST · min. {min} Spieltage",
@@ -253,7 +254,12 @@
     "legendScore": "Tore + Assists",
     "legendScorePerGD": "Ø Tore + Assists pro Spieltag",
     "legendStrength": "0,6 × Pkt/ST + 0,4 × Score/ST — Gesamtwertung",
-    "legendRating": "Stärke in % des bestplatzierten Spielers"
+    "legendRating": "Stärke in % des bestplatzierten Spielers",
+    "attendPts": "Teilnahme",
+    "outcomePts": "Ergebnis",
+    "outcomePtsNote": "Sieg +3 / Unbent. +1",
+    "legendAttendPts": "Teilnahmepunkte — 1 pro Spieltag für jeden, der gespielt hat",
+    "legendOutcomePts": "Ergebnispunkte — normal: Sieg +3, Unentschieden +1 · Turnier: 1. +6, 2. +3, 3. +0"
   },
   "player": {
     "editProfile": "Profil bearbeiten",
