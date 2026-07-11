@@ -323,7 +323,8 @@
     "gameDayHistory": "Spieltage",
     "noHistory": "Noch keine Spieltag-Historie.",
     "vs": "vs",
-    "pts": "Pkt"
+    "pts": "Pkt",
+    "attendPt": "Teilnahmepunkt"
   },
     "players": {
       "title": "Spieler",

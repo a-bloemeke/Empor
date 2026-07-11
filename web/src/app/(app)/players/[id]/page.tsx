@@ -74,7 +74,7 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
     date: string
     seasonYear: number
     teamName: string
-    matches: { opponent: string; goalsFor: number; goalsAgainst: number; playerGoals: number; playerAssists: number; points: number }[]
+    matches: { opponent: string; goalsFor: number; goalsAgainst: number; playerGoals: number; playerAssists: number; winPts: number }[]
   }>()
 
   for (const row of teamPlayerRows) {
@@ -108,8 +108,8 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
       const playerAssists = m.goals.filter((g) => g.assistedByPlayerId === id).length
       const won = goalsFor > goalsAgainst
       const draw = goalsFor === goalsAgainst
-      const points = 1 + (won ? 3 : draw ? 1 : 0)
-      return { opponent: m.opponent, goalsFor, goalsAgainst, playerGoals, playerAssists, points }
+      const winPts = won ? 3 : draw ? 1 : 0
+      return { opponent: m.opponent, goalsFor, goalsAgainst, playerGoals, playerAssists, winPts }
     })
 
     sessionHistoryMap.set(sessionId, {
