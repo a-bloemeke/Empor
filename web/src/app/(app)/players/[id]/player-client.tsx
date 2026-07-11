@@ -78,7 +78,7 @@ type SessionHistoryEntry = {
     goalsAgainst: number
     playerGoals: number
     playerAssists: number
-    points: number
+    winPts: number
   }[]
 }
 
@@ -497,7 +497,8 @@ export function PlayerClient({
                 {sessionHistory.map((s) => {
                   const totalGoals = s.matches.reduce((n, m) => n + m.playerGoals, 0)
                   const totalAssists = s.matches.reduce((n, m) => n + m.playerAssists, 0)
-                  const totalPoints = s.matches.reduce((n, m) => n + m.points, 0)
+                  const totalWinPts = s.matches.reduce((n, m) => n + m.winPts, 0)
+                  const totalPoints = totalWinPts + 1 // +1 attendance
                   return (
                     <Card key={s.sessionId}>
                       <CardHeader className="pb-2 pt-3 px-4">
@@ -533,10 +534,16 @@ export function PlayerClient({
                                       {m.playerAssists > 0 && `${m.playerAssists}A`}
                                     </span>
                                   )}
-                                  <span className="font-medium tabular-nums w-10 text-right shrink-0">{m.points} {t("pts")}</span>
+                                  {m.winPts > 0 && (
+                                    <span className="font-medium tabular-nums w-10 text-right shrink-0">+{m.winPts} {t("pts")}</span>
+                                  )}
                                 </div>
                               )
                             })}
+                            <div className="flex items-center justify-between pt-1 mt-1 border-t border-border/50 text-xs text-muted-foreground">
+                              <span>+1 {t("attendPt")}</span>
+                              <span className="font-semibold text-foreground">{totalPoints} {t("pts")}</span>
+                            </div>
                           </div>
                         </CardContent>
                       )}

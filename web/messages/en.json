@@ -323,7 +323,8 @@
     "gameDayHistory": "Game Days",
     "noHistory": "No game day history yet.",
     "vs": "vs",
-    "pts": "pts"
+    "pts": "pts",
+    "attendPt": "attendance pt"
   },
     "players": {
       "title": "Players",
