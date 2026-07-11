@@ -71,7 +71,7 @@ import { useTranslations } from "next-intl"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonSessions: number; seasonScore: number; seasonRank: number | null }
+type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonSessions: number; seasonScore: number; strength: number; seasonRank: number | null }
 type Goal = {
   id: string
   scoredByPlayerId: string
@@ -367,13 +367,6 @@ function RegistrationPanel({
 }
 
 // ─── Team-formation preview helpers ──────────────────────────────────────────
-
-function playerStrength(p: { seasonPoints: number; seasonSessions: number; seasonScore: number }): number {
-  if (p.seasonSessions === 0) return 0
-  const outcomePtsPerGD = (p.seasonPoints - p.seasonSessions) / p.seasonSessions
-  const scorePerGD = p.seasonScore / p.seasonSessions
-  return 0.6 * outcomePtsPerGD + 0.4 * scorePerGD
-}
 
 function playerRating(r: Registration, metric: "points" | "strength"): number {
   // Use season stats if enough data, else lifetime
@@ -1526,7 +1519,7 @@ function TeamsView({
                     </span>
                     <span className="flex-1">{p.displayName}</span>
                     <span className="text-xs text-muted-foreground tabular-nums" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD">
-                      {playerStrength(p).toFixed(2)}
+                      {p.strength.toFixed(2)}
                     </span>
                     {isOrganizer && noMatchesStarted && session.teams.length > 1 && (
                       <button
@@ -1546,14 +1539,14 @@ function TeamsView({
                 <div className="flex justify-between">
                   <span title="Strength = 0.6 × win pts/GD + 0.4 × score/GD">{t("total")} ⚡</span>
                   <span className="font-semibold tabular-nums">
-                    {team.players.reduce((s, p) => s + playerStrength(p), 0).toFixed(2)}
+                    {team.players.reduce((s, p) => s + p.strength, 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>{t("avg")} ⚡</span>
                   <span className="tabular-nums">
                     {team.players.length > 0
-                      ? (team.players.reduce((s, p) => s + playerStrength(p), 0) / team.players.length).toFixed(2)
+                      ? (team.players.reduce((s, p) => s + p.strength, 0) / team.players.length).toFixed(2)
                       : "—"}
                   </span>
                 </div>
@@ -1751,7 +1744,7 @@ function ActiveMatch({
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
-                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {playerStrength(p).toFixed(2)}</span>
+                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {p.strength.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -1765,7 +1758,7 @@ function ActiveMatch({
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
-                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {playerStrength(p).toFixed(2)}</span>
+                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {p.strength.toFixed(2)}</span>
                 </div>
               ))}
             </div>

@@ -59,6 +59,34 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const sessionsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.sessionsPlayed]))
   const scoreByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.score]))
 
+  // Previous season stats for blended strength display
+  const seasons = await db.season.findMany({ orderBy: { year: "desc" }, take: 2, select: { id: true } })
+  const prevSeasonId = seasons.find((s) => s.id !== session.seasonId)?.id ?? null
+  const prevSeasonStats = prevSeasonId
+    ? await db.playerStats.findMany({ where: { seasonId: prevSeasonId } })
+    : []
+  const prevByPlayerId = new Map(prevSeasonStats.map((s) => [s.playerId, s]))
+
+  function computeBlendedStrength(playerId: string): number {
+    const curSessions = sessionsByPlayerId.get(playerId) ?? 0
+    const curStr = curSessions > 0
+      ? 0.6 * ((pointsByPlayerId.get(playerId)! - curSessions) / curSessions)
+        + 0.4 * ((scoreByPlayerId.get(playerId) ?? 0) / curSessions)
+      : null
+    const prev = prevByPlayerId.get(playerId)
+    const prevStr = prev && prev.sessionsPlayed > 0
+      ? 0.6 * ((prev.points - prev.sessionsPlayed) / prev.sessionsPlayed)
+        + 0.4 * (prev.score / prev.sessionsPlayed)
+      : null
+    const lt = allSeasonStats.find((s) => s.playerId === playerId)
+    const ltStr = lt && lt.sessionsPlayed > 0
+      ? 0.6 * ((lt.points - lt.sessionsPlayed) / lt.sessionsPlayed) + 0.4 * (lt.score / lt.sessionsPlayed)
+      : 0
+    const cur = curStr ?? ltStr
+    const prv = prevStr ?? ltStr
+    return 0.6 * cur + 0.4 * prv
+  }
+
   // Lifetime stats for registered players (needed for balanced-team preview)
   const registeredPlayerIds = session.registrations.map((r) => r.playerId)
   const lifetimeStatsRows = await db.playerStatsLifetime.findMany({
@@ -109,6 +137,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             seasonPoints: pointsByPlayerId.get(tp.player.id) ?? 0,
             seasonSessions: sessionsByPlayerId.get(tp.player.id) ?? 0,
             seasonScore: scoreByPlayerId.get(tp.player.id) ?? 0,
+            strength: computeBlendedStrength(tp.player.id),
             seasonRank: rankByPlayerId.get(tp.player.id) ?? null,
           })),
         })),
@@ -134,7 +163,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             scoredAt: g.scoredAt.toISOString(),
           })),
         })),
-        allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, seasonRank: null })),
+        allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, strength: 0, seasonRank: null })),
       }}
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}

@@ -22,7 +22,7 @@ import { useTranslations } from "next-intl"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonSessions: number; seasonScore: number; seasonRank: number | null }
+type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonSessions: number; seasonScore: number; strength: number; seasonRank: number | null }
 type Team = { id: string; name: string; players: Player[] }
 type GoalEntry = {
   id: string
@@ -690,24 +690,18 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           </div>
           {/* Player list pinned to bottom */}
           <ol className={cn("text-sm list-none space-y-1 text-left px-4 pb-4", inv ? "text-white/70" : "text-muted-foreground")}>
-            {[...leftTeam.players].sort((a, b) => {
-              const sa = a.seasonSessions > 0 ? 0.6 * (a.seasonPoints - a.seasonSessions) / a.seasonSessions + 0.4 * a.seasonScore / a.seasonSessions : 0
-              const sb = b.seasonSessions > 0 ? 0.6 * (b.seasonPoints - b.seasonSessions) / b.seasonSessions + 0.4 * b.seasonScore / b.seasonSessions : 0
-              return sb - sa
-            }).map((p) => {
-              const str = p.seasonSessions > 0 ? 0.6 * (p.seasonPoints - p.seasonSessions) / p.seasonSessions + 0.4 * p.seasonScore / p.seasonSessions : 0
-              return (
+            {[...leftTeam.players].sort((a, b) => b.strength - a.strength).map((p) => (
               <li key={p.id}>
                 {p.seasonRank != null ? <span className="opacity-50">#{p.seasonRank} </span> : null}
-                {shortName.get(p.id) ?? p.displayName} <span className="opacity-60">({str.toFixed(2)})</span>
+                {shortName.get(p.id) ?? p.displayName} <span className="opacity-60">({p.strength.toFixed(2)})</span>
               </li>
-            )})}
+            ))}
             <li className="mt-2 pt-2 border-t border-current/20 font-medium">
-              ∑ {leftTeam.players.reduce((s, p) => s + (p.seasonSessions > 0 ? 0.6 * (p.seasonPoints - p.seasonSessions) / p.seasonSessions + 0.4 * p.seasonScore / p.seasonSessions : 0), 0).toFixed(2)}
+              ∑ {leftTeam.players.reduce((s, p) => s + p.strength, 0).toFixed(2)}
             </li>
             <li className="font-normal opacity-70">
               Avg: {leftTeam.players.length > 0
-                ? (leftTeam.players.reduce((s, p) => s + (p.seasonSessions > 0 ? 0.6 * (p.seasonPoints - p.seasonSessions) / p.seasonSessions + 0.4 * p.seasonScore / p.seasonSessions : 0), 0) / leftTeam.players.length).toFixed(2)
+                ? (leftTeam.players.reduce((s, p) => s + p.strength, 0) / leftTeam.players.length).toFixed(2)
                 : "—"}
             </li>
           </ol>
@@ -739,24 +733,18 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
             </div>
           </div>
           <ol className={cn("text-sm list-none space-y-1 text-left px-4 pb-4", inv ? "text-white/70" : "text-muted-foreground")}>
-            {[...rightTeam.players].sort((a, b) => {
-              const sa = a.seasonSessions > 0 ? 0.6 * (a.seasonPoints - a.seasonSessions) / a.seasonSessions + 0.4 * a.seasonScore / a.seasonSessions : 0
-              const sb = b.seasonSessions > 0 ? 0.6 * (b.seasonPoints - b.seasonSessions) / b.seasonSessions + 0.4 * b.seasonScore / b.seasonSessions : 0
-              return sb - sa
-            }).map((p) => {
-              const str = p.seasonSessions > 0 ? 0.6 * (p.seasonPoints - p.seasonSessions) / p.seasonSessions + 0.4 * p.seasonScore / p.seasonSessions : 0
-              return (
+            {[...rightTeam.players].sort((a, b) => b.strength - a.strength).map((p) => (
               <li key={p.id}>
                 {p.seasonRank != null ? <span className="opacity-50">#{p.seasonRank} </span> : null}
-                {shortName.get(p.id) ?? p.displayName} <span className="opacity-60">({str.toFixed(2)})</span>
+                {shortName.get(p.id) ?? p.displayName} <span className="opacity-60">({p.strength.toFixed(2)})</span>
               </li>
-            )})}
+            ))}
             <li className="mt-2 pt-2 border-t border-current/20 font-medium">
-              ∑ {rightTeam.players.reduce((s, p) => s + (p.seasonSessions > 0 ? 0.6 * (p.seasonPoints - p.seasonSessions) / p.seasonSessions + 0.4 * p.seasonScore / p.seasonSessions : 0), 0).toFixed(2)}
+              ∑ {rightTeam.players.reduce((s, p) => s + p.strength, 0).toFixed(2)}
             </li>
             <li className="font-normal opacity-70">
               Avg: {rightTeam.players.length > 0
-                ? (rightTeam.players.reduce((s, p) => s + (p.seasonSessions > 0 ? 0.6 * (p.seasonPoints - p.seasonSessions) / p.seasonSessions + 0.4 * p.seasonScore / p.seasonSessions : 0), 0) / rightTeam.players.length).toFixed(2)
+                ? (rightTeam.players.reduce((s, p) => s + p.strength, 0) / rightTeam.players.length).toFixed(2)
                 : "—"}
             </li>
           </ol>
