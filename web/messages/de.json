@@ -213,7 +213,18 @@
     "gameDayCancelled": "Dieser Spieltag wurde abgesagt.",
     "rematch": "Revanche (gleiche Teams)",
     "reopenGameDay": "Spieltag wieder öffnen",
-    "tournamentPaused": "Turnier pausiert — weiter mit normalem Spiel"
+    "tournamentPaused": "Turnier pausiert — weiter mit normalem Spiel",
+    "gameDaySummary": "Spieltag-Zusammenfassung",
+    "summaryPlayer": "Spieler",
+    "summaryGoals": "Tore",
+    "summaryAssists": "Vorlagen",
+    "summaryScore": "Score",
+    "summaryOutcome": "Ergebnis",
+    "summaryOutcomeNote": "Sieg +3 / Unent. +1",
+    "summaryAttend": "Teilnahme",
+    "summaryAttendNote": "+1",
+    "summaryPoints": "Punkte",
+    "mvpOutcome": "{goals}T · {assists}V · Score {score} · Ergebnis +{outcome} · Teilnahme +1 · {points} Pkt"
   },
   "leaderboard": {
     "title": "Rangliste",

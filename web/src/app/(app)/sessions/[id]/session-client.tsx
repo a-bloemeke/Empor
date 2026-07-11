@@ -1107,6 +1107,7 @@ function SendSummaryDialog({ sessionId }: { sessionId: string }) {
 }
 
 function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrganizer: boolean }) {
+  const t = useTranslations("session")
   const { teamRefs, matchRefs } = useMemo(
     () => buildClientMatchRefs(session.teams, session.matches),
     [session.teams, session.matches]
@@ -1135,7 +1136,7 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Spieltag-Zusammenfassung</CardTitle>
+          <CardTitle className="text-base">{t("gameDaySummary")}</CardTitle>
           {isOrganizer && <SendSummaryDialog sessionId={session.id} />}
         </div>
       </CardHeader>
@@ -1149,7 +1150,7 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
               <div className="text-xs font-bold uppercase tracking-wide opacity-70">MVP</div>
               <div className="font-bold">{mvpName}</div>
               <div className="text-xs opacity-80 mt-0.5">
-                {mvp.goals}G · {mvp.assists}V · Ergebnis +{mvp.points - 1} · Teilnahme +1 · {mvp.points} Pkt
+                {t("mvpOutcome", { goals: mvp.goals, assists: mvp.assists, score: mvp.goals + mvp.assists, outcome: mvp.points - 1, points: mvp.points })}
               </div>
             </div>
           </div>
@@ -1159,18 +1160,19 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead>Spieler</TableHead>
-                <TableHead className="text-right">Tore</TableHead>
-                <TableHead className="text-right">Vorlagen</TableHead>
+                <TableHead>{t("summaryPlayer")}</TableHead>
+                <TableHead className="text-right">{t("summaryGoals")}</TableHead>
+                <TableHead className="text-right">{t("summaryAssists")}</TableHead>
+                <TableHead className="text-right">{t("summaryScore")}</TableHead>
                 <TableHead className="text-right">
-                  <span className="block leading-tight">Ergebnis</span>
-                  <span className="block text-[10px] font-normal opacity-60">Sieg+3 · Unent.+1</span>
+                  <span className="block leading-tight">{t("summaryOutcome")}</span>
+                  <span className="block text-[10px] font-normal opacity-60">{t("summaryOutcomeNote")}</span>
                 </TableHead>
                 <TableHead className="text-right">
-                  <span className="block leading-tight">Teilnahme</span>
-                  <span className="block text-[10px] font-normal opacity-60">+1</span>
+                  <span className="block leading-tight">{t("summaryAttend")}</span>
+                  <span className="block text-[10px] font-normal opacity-60">{t("summaryAttendNote")}</span>
                 </TableHead>
-                <TableHead className="text-right font-semibold">Punkte</TableHead>
+                <TableHead className="text-right font-semibold">{t("summaryPoints")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1182,6 +1184,7 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
                     <TableCell>{shortNames.get(row.playerId) ?? row.playerId}</TableCell>
                     <TableCell className="text-right">{row.goals}</TableCell>
                     <TableCell className="text-right">{row.assists}</TableCell>
+                    <TableCell className="text-right">{row.goals + row.assists}</TableCell>
                     <TableCell className="text-right tabular-nums">{outcomePts > 0 ? `+${outcomePts}` : "—"}</TableCell>
                     <TableCell className="text-right text-muted-foreground tabular-nums">+1</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{row.points}</TableCell>

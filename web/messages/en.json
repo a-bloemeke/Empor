@@ -213,7 +213,18 @@
     "gameDayCancelled": "This game day was cancelled.",
     "rematch": "Rematch (same teams)",
     "reopenGameDay": "Re-open Game Day",
-    "tournamentPaused": "Tournament paused — continuing with normal play"
+    "tournamentPaused": "Tournament paused — continuing with normal play",
+    "gameDaySummary": "Game Day Summary",
+    "summaryPlayer": "Player",
+    "summaryGoals": "Goals",
+    "summaryAssists": "Assists",
+    "summaryScore": "Score",
+    "summaryOutcome": "Outcome",
+    "summaryOutcomeNote": "win +3 / draw +1",
+    "summaryAttend": "Attend",
+    "summaryAttendNote": "+1",
+    "summaryPoints": "Points",
+    "mvpOutcome": "{goals}G · {assists}A · Score {score} · Outcome +{outcome} · Attend +1 · {points} pts"
   },
   "leaderboard": {
     "title": "Leaderboard",
