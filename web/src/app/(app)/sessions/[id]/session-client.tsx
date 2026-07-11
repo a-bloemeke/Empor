@@ -1149,7 +1149,7 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
               <div className="text-xs font-bold uppercase tracking-wide opacity-70">MVP</div>
               <div className="font-bold">{mvpName}</div>
               <div className="text-xs opacity-80 mt-0.5">
-                {mvp.goals}G · {mvp.assists}V · {mvp.goals + mvp.assists} Score · {mvp.points} Pkt
+                {mvp.goals}G · {mvp.assists}V · Ergebnis +{mvp.points - 1} · Teilnahme +1 · {mvp.points} Pkt
               </div>
             </div>
           </div>
@@ -1162,21 +1162,32 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
                 <TableHead>Spieler</TableHead>
                 <TableHead className="text-right">Tore</TableHead>
                 <TableHead className="text-right">Vorlagen</TableHead>
-                <TableHead className="text-right">Score</TableHead>
-                <TableHead className="text-right">Punkte</TableHead>
+                <TableHead className="text-right">
+                  <span className="block leading-tight">Ergebnis</span>
+                  <span className="block text-[10px] font-normal opacity-60">Sieg+3 · Unent.+1</span>
+                </TableHead>
+                <TableHead className="text-right">
+                  <span className="block leading-tight">Teilnahme</span>
+                  <span className="block text-[10px] font-normal opacity-60">+1</span>
+                </TableHead>
+                <TableHead className="text-right font-semibold">Punkte</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row, i) => (
-                <TableRow key={row.playerId} className={i === 0 && mvp ? "font-semibold" : ""}>
-                  <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                  <TableCell>{shortNames.get(row.playerId) ?? row.playerId}</TableCell>
-                  <TableCell className="text-right">{row.goals}</TableCell>
-                  <TableCell className="text-right">{row.assists}</TableCell>
-                  <TableCell className="text-right">{row.goals + row.assists}</TableCell>
-                  <TableCell className="text-right">{row.points}</TableCell>
-                </TableRow>
-              ))}
+              {rows.map((row, i) => {
+                const outcomePts = row.points - 1
+                return (
+                  <TableRow key={row.playerId} className={i === 0 && mvp ? "font-semibold" : ""}>
+                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                    <TableCell>{shortNames.get(row.playerId) ?? row.playerId}</TableCell>
+                    <TableCell className="text-right">{row.goals}</TableCell>
+                    <TableCell className="text-right">{row.assists}</TableCell>
+                    <TableCell className="text-right tabular-nums">{outcomePts > 0 ? `+${outcomePts}` : "—"}</TableCell>
+                    <TableCell className="text-right text-muted-foreground tabular-nums">+1</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{row.points}</TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
