@@ -228,7 +228,8 @@
     "summaryAttendNote": "+1",
     "summaryPoints": "Punkte",
     "mvpOutcome": "{goals}T · {assists}V · Score {score} · Siegpunkte +{outcome} · Teilnahme +1 · {points} Pkt",
-    "beerBringerLabel": "Bringt Bier"
+    "beerBringerLabel": "Bringt Bier",
+    "beerBroughtBy": "🍺 Bier mitgebracht von: {name}"
   },
   "leaderboard": {
     "title": "Rangliste",

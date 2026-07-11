@@ -228,7 +228,8 @@
     "summaryAttendNote": "+1",
     "summaryPoints": "Points",
     "mvpOutcome": "{goals}G · {assists}A · Score {score} · Win pts +{outcome} · Attend +1 · {points} pts",
-    "beerBringerLabel": "Bringing beer"
+    "beerBringerLabel": "Bringing beer",
+    "beerBroughtBy": "🍺 Beer brought by: {name}"
   },
   "leaderboard": {
     "title": "Leaderboard",

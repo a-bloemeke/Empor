@@ -1133,6 +1133,11 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
   const allPlayers = session.teams.flatMap((t) => t.players)
   const shortNames = disambiguateNames(allPlayers.map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
 
+  const beerBringerReg = session.registrations.find((r) => r.beerBringer)
+  const beerBringerName = beerBringerReg
+    ? (shortNames.get(beerBringerReg.playerId) ?? beerBringerReg.playerName)
+    : null
+
   const mvp = rows.length > 0 && (rows[0].goals + rows[0].assists + rows[0].points) > 0 ? rows[0] : null
   const mvpName = mvp ? (shortNames.get(mvp.playerId) ?? mvp.playerId) : null
 
@@ -1200,6 +1205,12 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
             </TableBody>
           </Table>
         </div>
+        {beerBringerName && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+            <span>🍺</span>
+            <span>{t("beerBroughtBy", { name: beerBringerName })}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
