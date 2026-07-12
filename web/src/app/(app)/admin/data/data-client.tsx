@@ -156,17 +156,21 @@ function CsvImportDialog({
 
 // ─── Excel Full-Restore Import Dialog ────────────────────────────────────────
 
-function ExcelImportDialog() {
+// ─── Excel Full-Restore Import Dialog ────────────────────────────────────────
+
+function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
   const fileRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [importScope, setImportScope] = useState<string>("all")
   const [confirmed, setConfirmed] = useState(false)
   const [importing, setImporting] = useState(false)
 
   function openDialog() {
     setFile(null)
     setConfirmed(false)
+    setImportScope("all")
     setOpen(true)
   }
 
@@ -179,13 +183,19 @@ function ExcelImportDialog() {
     if (!file || !confirmed) return
     setImporting(true)
     try {
-      const res = await fetch("/api/admin/import-xlsx", {
+      const url = importScope === "all"
+        ? "/api/admin/import-xlsx"
+        : `/api/admin/import-xlsx?season=${importScope}`
+      const res = await fetch(url, {
         method: "POST",
         body: await file.arrayBuffer(),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Import fehlgeschlagen.")
-      toast.success("Daten erfolgreich wiederhergestellt.")
+      const msg = importScope === "all"
+        ? "Alle Daten erfolgreich wiederhergestellt."
+        : `Saison ${importScope} erfolgreich importiert.`
+      toast.success(msg)
       setOpen(false)
       window.location.reload()
     } catch (err) {
@@ -195,19 +205,42 @@ function ExcelImportDialog() {
     }
   }
 
+  const isFullRestore = importScope === "all"
+
   return (
     <>
       <Button variant="outline" className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={openDialog}>
-        <UploadIcon className="size-4" /> Excel wiederherstellen
+        <UploadIcon className="size-4" /> Excel importieren
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!importing) setOpen(o) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Vollständige Wiederherstellung aus Excel</DialogTitle>
+            <DialogTitle>Aus Excel importieren</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              ⚠️ Diese Aktion ersetzt <strong>alle Daten</strong> in der Datenbank durch den Inhalt der Excel-Datei. Nicht rückgängig zu machen.
+            <div className="space-y-1.5">
+              <Label>Was importieren?</Label>
+              <Select value={importScope} onValueChange={(v) => { if (v) { setImportScope(v); setConfirmed(false) } }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(v: string) => v === "all" ? "Alles (vollständige Wiederherstellung)" : `Nur Saison ${v}`}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Alles (vollständige Wiederherstellung)</SelectItem>
+                  {seasons.map((s) => (
+                    <SelectItem key={s.year} value={String(s.year)}>
+                      Nur Saison {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className={`rounded-lg px-4 py-3 text-sm ${isFullRestore ? "bg-destructive/10 border border-destructive/30 text-destructive" : "bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300"}`}>
+              {isFullRestore
+                ? "⚠️ Diese Aktion ersetzt alle Daten in der Datenbank. Nicht rückgängig zu machen."
+                : `ℹ️ Die bestehenden Daten für Saison ${importScope} werden durch den Inhalt der Datei ersetzt. Andere Saisons bleiben unberührt.`
+              }
             </div>
             <div className="space-y-1.5">
               <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
@@ -228,13 +261,20 @@ function ExcelImportDialog() {
                 onChange={(e) => setConfirmed(e.target.checked)}
                 className="h-4 w-4 rounded border"
               />
-              Ich habe ein Backup und verstehe, dass alle Daten ersetzt werden.
+              {isFullRestore
+                ? "Ich habe ein Backup und verstehe, dass alle Daten ersetzt werden."
+                : `Ich verstehe, dass Saison ${importScope} überschrieben wird.`
+              }
             </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
-            <Button variant="destructive" onClick={handleImport} disabled={importing || !file || !confirmed}>
-              {importing ? t("importing") : "Jetzt wiederherstellen"}
+            <Button
+              variant={isFullRestore ? "destructive" : "default"}
+              onClick={handleImport}
+              disabled={importing || !file || !confirmed}
+            >
+              {importing ? t("importing") : isFullRestore ? "Jetzt wiederherstellen" : `Saison ${importScope} importieren`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -447,7 +487,7 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
           </div>
           <div className="border-t pt-4 space-y-2">
             <p className="text-xs text-muted-foreground">Vollständige Wiederherstellung — stellt alle Daten aus einer Excel-Exportdatei wieder her.</p>
-            <ExcelImportDialog />
+            <ExcelImportDialog seasons={seasons} />
           </div>
         </div>
       </div>
