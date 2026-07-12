@@ -58,6 +58,8 @@ export async function POST(req: NextRequest) {
   }
 
   const importSeasonYear = req.nextUrl.searchParams.get("season")
+  const mode = req.nextUrl.searchParams.get("mode") === "merge" ? "merge" : "replace"
+
   if (importSeasonYear) {
     try {
       bundle = filterBundleToSeason(bundle, Number(importSeasonYear))
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await importBundle(bundle)
+    await importBundle(bundle, mode)
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 })
   }

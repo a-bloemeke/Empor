@@ -164,6 +164,7 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [importScope, setImportScope] = useState<string>("all")
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge")
   const [confirmed, setConfirmed] = useState(false)
   const [importing, setImporting] = useState(false)
 
@@ -171,6 +172,7 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
     setFile(null)
     setConfirmed(false)
     setImportScope("all")
+    setImportMode("merge")
     setOpen(true)
   }
 
@@ -183,19 +185,20 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
     if (!file || !confirmed) return
     setImporting(true)
     try {
-      const url = importScope === "all"
-        ? "/api/admin/import-xlsx"
-        : `/api/admin/import-xlsx?season=${importScope}`
+      const params = new URLSearchParams()
+      if (importScope !== "all") params.set("season", importScope)
+      params.set("mode", importMode)
+      const url = `/api/admin/import-xlsx?${params}`
       const res = await fetch(url, {
         method: "POST",
         body: await file.arrayBuffer(),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Import fehlgeschlagen.")
-      const msg = importScope === "all"
-        ? "Alle Daten erfolgreich wiederhergestellt."
-        : `Saison ${importScope} erfolgreich importiert.`
-      toast.success(msg)
+      toast.success(importMode === "merge"
+        ? "Daten erfolgreich hinzugefügt."
+        : importScope === "all" ? "Alle Daten wiederhergestellt." : `Saison ${importScope} wiederhergestellt.`
+      )
       setOpen(false)
       window.location.reload()
     } catch (err) {
@@ -205,7 +208,8 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
     }
   }
 
-  const isFullRestore = importScope === "all"
+  const isReplace = importMode === "replace"
+  const isMerge = importMode === "merge"
 
   return (
     <>
@@ -218,30 +222,57 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
             <DialogTitle>Aus Excel importieren</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Mode */}
             <div className="space-y-1.5">
-              <Label>Was importieren?</Label>
-              <Select value={importScope} onValueChange={(v) => { if (v) { setImportScope(v); setConfirmed(false) } }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {(v: string) => v === "all" ? "Alles (vollständige Wiederherstellung)" : `Nur Saison ${v}`}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alles (vollständige Wiederherstellung)</SelectItem>
-                  {seasons.map((s) => (
-                    <SelectItem key={s.year} value={String(s.year)}>
-                      Nur Saison {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Modus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { setImportMode("merge"); setConfirmed(false) }}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${isMerge ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Hinzufügen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Bestehende Daten bleiben erhalten</div>
+                </button>
+                <button
+                  onClick={() => { setImportMode("replace"); setConfirmed(false) }}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${isReplace ? "border-destructive bg-destructive/10 text-destructive" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Ersetzen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Bestehende Daten werden überschrieben</div>
+                </button>
+              </div>
             </div>
-            <div className={`rounded-lg px-4 py-3 text-sm ${isFullRestore ? "bg-destructive/10 border border-destructive/30 text-destructive" : "bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300"}`}>
-              {isFullRestore
-                ? "⚠️ Diese Aktion ersetzt alle Daten in der Datenbank. Nicht rückgängig zu machen."
-                : `ℹ️ Die bestehenden Daten für Saison ${importScope} werden durch den Inhalt der Datei ersetzt. Andere Saisons bleiben unberührt.`
+            {/* Scope — only relevant for replace mode */}
+            {isReplace && (
+              <div className="space-y-1.5">
+                <Label>Was ersetzen?</Label>
+                <Select value={importScope} onValueChange={(v) => { if (v) { setImportScope(v); setConfirmed(false) } }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(v: string) => v === "all" ? "Alles" : `Nur Saison ${v}`}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alles (vollständige Wiederherstellung)</SelectItem>
+                    {seasons.map((s) => (
+                      <SelectItem key={s.year} value={String(s.year)}>
+                        Nur Saison {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {/* Warning */}
+            <div className={`rounded-lg px-4 py-3 text-sm ${isReplace ? "bg-destructive/10 border border-destructive/30 text-destructive" : "bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"}`}>
+              {isMerge
+                ? "ℹ️ Neue Spieler, Saisons, Spieltage und Statistiken werden hinzugefügt. Bereits vorhandene Einträge bleiben unverändert — Statistiken werden aufaddiert."
+                : importScope === "all"
+                ? "⚠️ Alle bestehenden Daten werden gelöscht und durch den Inhalt der Datei ersetzt."
+                : `⚠️ Alle Daten für Saison ${importScope} werden gelöscht und durch den Inhalt der Datei ersetzt.`
               }
             </div>
+            {/* File picker */}
             <div className="space-y-1.5">
               <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
               <div className="flex items-center gap-2">
@@ -255,26 +286,14 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                className="h-4 w-4 rounded border"
-              />
-              {isFullRestore
-                ? "Ich habe ein Backup und verstehe, dass alle Daten ersetzt werden."
-                : `Ich verstehe, dass Saison ${importScope} überschrieben wird.`
-              }
+              <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="h-4 w-4 rounded border" />
+              {isMerge ? "Ich verstehe, dass Statistiken aufaddiert werden." : "Ich habe ein Backup und verstehe, dass Daten überschrieben werden."}
             </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
-            <Button
-              variant={isFullRestore ? "destructive" : "default"}
-              onClick={handleImport}
-              disabled={importing || !file || !confirmed}
-            >
-              {importing ? t("importing") : isFullRestore ? "Jetzt wiederherstellen" : `Saison ${importScope} importieren`}
+            <Button variant={isReplace ? "destructive" : "default"} onClick={handleImport} disabled={importing || !file || !confirmed}>
+              {importing ? t("importing") : isMerge ? "Hinzufügen" : "Ersetzen"}
             </Button>
           </DialogFooter>
         </DialogContent>
