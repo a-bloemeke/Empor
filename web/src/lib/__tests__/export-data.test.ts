@@ -23,8 +23,8 @@ function baseBundle(): ExportBundle {
       { seasonYear: 2026, date: "2026-06-01T18:00:00Z", status: "COMPLETED", organizerEmail: "a@x.com" },
     ],
     registrations: [
-      { sessionDate: "2025-06-01T18:00:00Z", playerEmail: "a@x.com", status: "REGISTERED", registeredAt: "2025-06-01T10:00:00Z", cancelledAt: null, registeredByEmail: "a@x.com" },
-      { sessionDate: "2026-06-01T18:00:00Z", playerEmail: "a@x.com", status: "REGISTERED", registeredAt: "2026-06-01T10:00:00Z", cancelledAt: null, registeredByEmail: "a@x.com" },
+      { sessionDate: "2025-06-01T18:00:00Z", playerEmail: "a@x.com", status: "REGISTERED", registeredAt: "2025-06-01T10:00:00Z", cancelledAt: null, beerBringer: false, registeredByEmail: "a@x.com" },
+      { sessionDate: "2026-06-01T18:00:00Z", playerEmail: "a@x.com", status: "REGISTERED", registeredAt: "2026-06-01T10:00:00Z", cancelledAt: null, beerBringer: false, registeredByEmail: "a@x.com" },
     ],
     teams: [
       { sessionDate: "2025-06-01T18:00:00Z", name: "Team A", playerEmails: ["a@x.com"] },
@@ -43,11 +43,11 @@ function baseBundle(): ExportBundle {
       { playerEmail: "a@x.com", year: 2026, status: "NOT_PAID", paidAt: null, recordedByEmail: "a@x.com" },
     ],
     seasonStats: [
-      { playerEmail: "a@x.com", seasonYear: 2025, sessionsPlayed: 1, matchesPlayed: 1, goals: 1, assists: 0, score: 1, points: 3 },
-      { playerEmail: "a@x.com", seasonYear: 2026, sessionsPlayed: 1, matchesPlayed: 1, goals: 1, assists: 0, score: 1, points: 3 },
+      { playerEmail: "a@x.com", seasonYear: 2025, sessionsPlayed: 1, matchesPlayed: 1, goals: 1, assists: 0, score: 1, points: 3, beers: 0 },
+      { playerEmail: "a@x.com", seasonYear: 2026, sessionsPlayed: 1, matchesPlayed: 1, goals: 1, assists: 0, score: 1, points: 3, beers: 0 },
     ],
     lifetimeStats: [
-      { playerEmail: "a@x.com", sessionsPlayed: 2, matchesPlayed: 2, goals: 2, assists: 0, score: 2, points: 6 },
+      { playerEmail: "a@x.com", sessionsPlayed: 2, matchesPlayed: 2, goals: 2, assists: 0, score: 2, points: 6, beers: 0 },
     ],
   }
 }

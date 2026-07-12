@@ -154,18 +154,233 @@ function CsvImportDialog({
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Excel Full-Restore Import Dialog ────────────────────────────────────────
+
+function ExcelImportDialog() {
+  const t = useTranslations("admin.data")
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
+  const [importing, setImporting] = useState(false)
+
+  function openDialog() {
+    setFile(null)
+    setConfirmed(false)
+    setOpen(true)
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setFile(e.target.files?.[0] ?? null)
+    e.target.value = ""
+  }
+
+  async function handleImport() {
+    if (!file || !confirmed) return
+    setImporting(true)
+    try {
+      const res = await fetch("/api/admin/import-xlsx", {
+        method: "POST",
+        body: await file.arrayBuffer(),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Import fehlgeschlagen.")
+      toast.success("Daten erfolgreich wiederhergestellt.")
+      setOpen(false)
+      window.location.reload()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button variant="outline" className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={openDialog}>
+        <UploadIcon className="size-4" /> Excel wiederherstellen
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!importing) setOpen(o) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Vollständige Wiederherstellung aus Excel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              ⚠️ Diese Aktion ersetzt <strong>alle Daten</strong> in der Datenbank durch den Inhalt der Excel-Datei. Nicht rückgängig zu machen.
+            </div>
+            <div className="space-y-1.5">
+              <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                  Excel-Datei wählen
+                </Button>
+                {file
+                  ? <span className="text-sm text-muted-foreground truncate max-w-[220px]">{file.name}</span>
+                  : <span className="text-sm text-muted-foreground">Keine Datei gewählt</span>
+                }
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="h-4 w-4 rounded border"
+              />
+              Ich habe ein Backup und verstehe, dass alle Daten ersetzt werden.
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
+            <Button variant="destructive" onClick={handleImport} disabled={importing || !file || !confirmed}>
+              {importing ? t("importing") : "Jetzt wiederherstellen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ─── Export Dialog ────────────────────────────────────────────────────────────
+
+function ExportDialog({ seasons }: { seasons: Season[] }) {
+  const t = useTranslations("admin.data")
+  const [open, setOpen] = useState(false)
+  const [exportYear, setExportYear] = useState<string>("all")
+  const [format, setFormat] = useState<"json" | "xlsx">("xlsx")
+  const [filename, setFilename] = useState("")
+  const [exporting, setExporting] = useState(false)
+
+  function defaultFilename(fmt: "json" | "xlsx", year: string) {
+    const scope = year === "all" ? "all-seasons" : `season-${year}`
+    const ext = fmt === "json" ? "json" : "xlsx"
+    return `empor-export-${scope}.${ext}`
+  }
+
+  function openDialog() {
+    setExportYear("all")
+    setFormat("xlsx")
+    setFilename(defaultFilename("xlsx", "all"))
+    setOpen(true)
+  }
+
+  function handleFormatChange(fmt: "json" | "xlsx") {
+    setFormat(fmt)
+    setFilename((prev) => {
+      const base = prev.replace(/\.(json|xlsx)$/, "")
+      return `${base}.${fmt === "json" ? "json" : "xlsx"}`
+    })
+  }
+
+  function handleYearChange(year: string) {
+    setExportYear(year)
+    setFilename(defaultFilename(format, year))
+  }
+
+  async function handleExport() {
+    const base = format === "json" ? "/api/admin/export" : "/api/admin/export-xlsx"
+    const url = exportYear === "all" ? base : `${base}?season=${exportYear}`
+    const name = (filename.trim() || defaultFilename(format, exportYear))
+    setExporting(true)
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Export fehlgeschlagen.")
+      const blob = await res.blob()
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = name
+      a.click()
+      URL.revokeObjectURL(a.href)
+      setOpen(false)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const exportSeasonOptions = (
+    <>
+      <SelectItem value="all">{t("allSeasons")}</SelectItem>
+      {seasons.map((s) => (
+        <SelectItem key={s.year} value={String(s.year)}>
+          {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+        </SelectItem>
+      ))}
+    </>
+  )
+
+  return (
+    <>
+      <Button variant="outline" className="gap-2" onClick={openDialog}>
+        <DownloadIcon className="size-4" /> {t("exportTitle")}
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!exporting) setOpen(o) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("exportTitle")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>{t("scope")}</Label>
+              <Select value={exportYear} onValueChange={(v) => { if (v) handleYearChange(v) }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>{exportSeasonOptions}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Format</Label>
+              <div className="flex gap-2">
+                {(["xlsx", "json"] as const).map((fmt) => (
+                  <button
+                    key={fmt}
+                    onClick={() => handleFormatChange(fmt)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                      format === fmt
+                        ? "border-primary bg-primary/10 text-primary font-medium"
+                        : "border-border hover:border-primary/40"
+                    }`}
+                  >
+                    {fmt === "xlsx" ? "Excel (.xlsx)" : "JSON (.json)"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Dateiname</Label>
+              <input
+                type="text"
+                value={filename}
+                onChange={(e) => setFilename(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder={defaultFilename(format, exportYear)}
+              />
+              <p className="text-xs text-muted-foreground">Der Speicherort wird vom Browser bestimmt.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={exporting}>Abbrechen</Button>
+            <Button onClick={handleExport} disabled={exporting} className="gap-2">
+              <DownloadIcon className="size-4" />
+              {exporting ? "Exportiere…" : "Herunterladen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 export function DataClient({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
-  const [exportYear, setExportYear] = useState<string>("all")
   const [resetYear, setResetYear] = useState<string>(String(new Date().getFullYear()))
   const [resetting, setResetting] = useState(false)
-
-  function exportUrl(format: "json" | "xlsx") {
-    const base = format === "json" ? "/api/admin/export" : "/api/admin/export-xlsx"
-    return exportYear === "all" ? base : `${base}?season=${exportYear}`
-  }
 
   async function handleReset(type: "points" | "scores") {
     const label = type === "points" ? "Punkte & Spieltage" : "Tore & Assists"
@@ -189,17 +404,6 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
       setResetting(false)
     }
   }
-
-  const exportSeasonOptions = (
-    <>
-      <SelectItem value="all">{t("allSeasons")}</SelectItem>
-      {seasons.map((s) => (
-        <SelectItem key={s.year} value={String(s.year)}>
-          {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
-        </SelectItem>
-      ))}
-    </>
-  )
 
   const resetSeasonOptions = (
     <>
@@ -226,25 +430,7 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
             <h2 className="font-semibold">{t("exportTitle")}</h2>
             <p className="text-sm text-muted-foreground mt-1">{t("exportDesc")}</p>
           </div>
-          <div className="space-y-1.5">
-            <Label>{t("scope")}</Label>
-            <Select value={exportYear} onValueChange={(v) => { if (v) setExportYear(v) }}>
-              <SelectTrigger className="w-48">
-                <SelectValue>
-                  {(v: string) => v === "all" ? t("allSeasons") : t("seasonN", { year: v })}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>{exportSeasonOptions}</SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => { window.location.href = exportUrl("json") }}>
-              <DownloadIcon className="size-4" /> {t("json")}
-            </Button>
-            <Button variant="outline" className="gap-2" onClick={() => { window.location.href = exportUrl("xlsx") }}>
-              <DownloadIcon className="size-4" /> {t("excel")}
-            </Button>
-          </div>
+          <ExportDialog seasons={seasons} />
         </div>
 
         {/* Import */}
@@ -258,6 +444,10 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
           <div className="flex flex-wrap gap-2">
             <CsvImportDialog seasons={seasons} type="scores" />
             <CsvImportDialog seasons={seasons} type="points" />
+          </div>
+          <div className="border-t pt-4 space-y-2">
+            <p className="text-xs text-muted-foreground">Vollständige Wiederherstellung — stellt alle Daten aus einer Excel-Exportdatei wieder her.</p>
+            <ExcelImportDialog />
           </div>
         </div>
       </div>
