@@ -313,187 +313,173 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
 export async function importBundle(data: ExportBundle) {
   if (data.version !== 2) throw new Error("Unsupported export version. Only version 2 is supported.")
 
-  await db.$transaction(async (tx) => {
-    // ── Wipe scope ──
-    if (data.scope === "all") {
-      await tx.playerStatsLifetime.deleteMany()
-      await tx.playerStats.deleteMany()
-      await tx.membershipFee.deleteMany()
-      await tx.goal.deleteMany()
-      await tx.match.deleteMany()
-      await tx.teamPlayer.deleteMany()
-      await tx.team.deleteMany()
-      await tx.sessionRegistration.deleteMany()
-      await tx.session.deleteMany()
-      await tx.season.deleteMany()
-    } else {
-      // Season-scoped: only wipe data for this season year
-      const existingSeason = await tx.season.findUnique({ where: { year: Number(data.seasonYear!) } })
-      if (existingSeason) {
-        const sessionsInSeason = await tx.session.findMany({ where: { seasonId: existingSeason.id } })
-        const sessionIds = sessionsInSeason.map((s) => s.id)
-        const matchesInSeason = await tx.match.findMany({ where: { sessionId: { in: sessionIds } } })
-        const matchIds = matchesInSeason.map((m) => m.id)
-        await tx.goal.deleteMany({ where: { matchId: { in: matchIds } } })
-        await tx.match.deleteMany({ where: { id: { in: matchIds } } })
-        const teamIds = (await tx.team.findMany({ where: { sessionId: { in: sessionIds } } })).map((t) => t.id)
-        await tx.teamPlayer.deleteMany({ where: { teamId: { in: teamIds } } })
-        await tx.team.deleteMany({ where: { id: { in: teamIds } } })
-        await tx.sessionRegistration.deleteMany({ where: { sessionId: { in: sessionIds } } })
-        await tx.session.deleteMany({ where: { id: { in: sessionIds } } })
-        await tx.playerStats.deleteMany({ where: { seasonId: existingSeason.id } })
-        await tx.membershipFee.deleteMany({ where: { year: data.seasonYear! } })
-        await tx.season.delete({ where: { id: existingSeason.id } })
-      }
+  // ── Wipe phase (outside transaction — fast deletes, no rollback needed) ──
+  if (data.scope === "all") {
+    await db.playerStatsLifetime.deleteMany()
+    await db.playerStats.deleteMany()
+    await db.membershipFee.deleteMany()
+    await db.goal.deleteMany()
+    await db.match.deleteMany()
+    await db.teamPlayer.deleteMany()
+    await db.team.deleteMany()
+    await db.sessionRegistration.deleteMany()
+    await db.session.deleteMany()
+    await db.season.deleteMany()
+  } else {
+    const existingSeason = await db.season.findUnique({ where: { year: Number(data.seasonYear!) } })
+    if (existingSeason) {
+      const sessionIds = (await db.session.findMany({ where: { seasonId: existingSeason.id }, select: { id: true } })).map((s) => s.id)
+      const matchIds = (await db.match.findMany({ where: { sessionId: { in: sessionIds } }, select: { id: true } })).map((m) => m.id)
+      const teamIds = (await db.team.findMany({ where: { sessionId: { in: sessionIds } }, select: { id: true } })).map((t) => t.id)
+      await db.goal.deleteMany({ where: { matchId: { in: matchIds } } })
+      await db.match.deleteMany({ where: { id: { in: matchIds } } })
+      await db.teamPlayer.deleteMany({ where: { teamId: { in: teamIds } } })
+      await db.team.deleteMany({ where: { id: { in: teamIds } } })
+      await db.sessionRegistration.deleteMany({ where: { sessionId: { in: sessionIds } } })
+      await db.session.deleteMany({ where: { id: { in: sessionIds } } })
+      await db.playerStats.deleteMany({ where: { seasonId: existingSeason.id } })
+      await db.membershipFee.deleteMany({ where: { year: data.seasonYear! } })
+      await db.season.delete({ where: { id: existingSeason.id } })
     }
+  }
 
-    // ── Players: upsert by email ──
-    const playerIdByEmail = new Map<string, string>()
-    for (const p of data.players ?? []) {
-      const row = await tx.player.upsert({
-        where: { email: p.email },
-        update: {
-          firstName: p.firstName, lastName: p.lastName, nickname: p.nickname ?? null,
-          dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
-          addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
-          addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
-        },
-        create: {
-          email: p.email, firstName: p.firstName, lastName: p.lastName,
-          nickname: p.nickname ?? null,
-          dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
-          addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
-          addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
-        },
-      })
-      playerIdByEmail.set(p.email, row.id)
-    }
+  // ── Restore phase ──
+  // Players: upsert individually (need ID map)
+  const playerIdByEmail = new Map<string, string>()
+  for (const p of data.players ?? []) {
+    const row = await db.player.upsert({
+      where: { email: p.email },
+      update: {
+        firstName: p.firstName, lastName: p.lastName, nickname: p.nickname ?? null,
+        dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
+        addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
+        addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
+      },
+      create: {
+        email: p.email, firstName: p.firstName, lastName: p.lastName,
+        nickname: p.nickname ?? null,
+        dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
+        addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
+        addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
+      },
+    })
+    playerIdByEmail.set(p.email, row.id)
+  }
 
-    // ── Seasons: upsert by year ──
-    const seasonIdByYear = new Map<number, string>()
-    for (const s of data.seasons ?? []) {
-      const year = Number(s.year)
-      const row = await tx.season.upsert({
-        where: { year },
-        update: { status: s.status as any },
-        create: { year, status: s.status as any },
-      })
-      seasonIdByYear.set(year, row.id)
-    }
+  // Seasons: upsert individually (need ID map)
+  const seasonIdByYear = new Map<number, string>()
+  for (const s of data.seasons ?? []) {
+    const year = Number(s.year)
+    const row = await db.season.upsert({
+      where: { year },
+      update: { status: s.status as any },
+      create: { year, status: s.status as any },
+    })
+    seasonIdByYear.set(year, row.id)
+  }
 
-    // ── Sessions: create (natural key = seasonYear + date) ──
-    const sessionIdByDate = new Map<string, string>()
-    for (const s of data.sessions ?? []) {
-      const seasonId = seasonIdByYear.get(Number(s.seasonYear))!
-      const organizerId = playerIdByEmail.get(s.organizerEmail)!
-      const row = await tx.session.create({
-        data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId },
-      })
-      sessionIdByDate.set(s.date, row.id)
-    }
+  // Sessions: create individually (need ID map)
+  const sessionIdByDate = new Map<string, string>()
+  for (const s of data.sessions ?? []) {
+    const seasonId = seasonIdByYear.get(Number(s.seasonYear))!
+    const organizerId = playerIdByEmail.get(s.organizerEmail)!
+    const row = await db.session.create({
+      data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId },
+    })
+    sessionIdByDate.set(s.date, row.id)
+  }
 
-    // ── Registrations ──
-    for (const r of data.registrations ?? []) {
-      const sessionId = sessionIdByDate.get(r.sessionDate)
-      const playerId = playerIdByEmail.get(r.playerEmail)
-      const registeredById = playerIdByEmail.get(r.registeredByEmail)
-      if (!sessionId || !playerId || !registeredById) continue
-      await tx.sessionRegistration.create({
-        data: {
-          sessionId, playerId, registeredById,
-          status: r.status as any,
-          registeredAt: new Date(r.registeredAt),
-          cancelledAt: r.cancelledAt ? new Date(r.cancelledAt) : null,
-          beerBringer: r.beerBringer === true || String(r.beerBringer) === "true",
-        },
-      })
-    }
+  // Registrations: bulk create
+  const registrationData = (data.registrations ?? []).flatMap((r) => {
+    const sessionId = sessionIdByDate.get(r.sessionDate)
+    const playerId = playerIdByEmail.get(r.playerEmail)
+    const registeredById = playerIdByEmail.get(r.registeredByEmail)
+    if (!sessionId || !playerId || !registeredById) return []
+    return [{
+      sessionId, playerId, registeredById,
+      status: r.status as any,
+      registeredAt: new Date(r.registeredAt),
+      cancelledAt: r.cancelledAt ? new Date(r.cancelledAt) : null,
+      beerBringer: r.beerBringer === true || String(r.beerBringer) === "true",
+    }]
+  })
+  if (registrationData.length) await db.sessionRegistration.createMany({ data: registrationData })
 
-    // ── Teams ──
-    const teamIdByKey = new Map<string, string>() // `${sessionDate}:${teamName}` → id
-    for (const t of data.teams ?? []) {
-      const sessionId = sessionIdByDate.get(t.sessionDate)
-      if (!sessionId) continue
-      const row = await tx.team.create({ data: { sessionId, name: t.name } })
-      teamIdByKey.set(`${t.sessionDate}:${t.name}`, row.id)
-      for (const email of t.playerEmails) {
-        const playerId = playerIdByEmail.get(email)
-        if (playerId) await tx.teamPlayer.create({ data: { teamId: row.id, playerId } })
-      }
+  // Teams: create individually (need ID map), then bulk create TeamPlayers
+  const teamIdByKey = new Map<string, string>()
+  const teamPlayerData: { teamId: string; playerId: string }[] = []
+  for (const t of data.teams ?? []) {
+    const sessionId = sessionIdByDate.get(t.sessionDate)
+    if (!sessionId) continue
+    const row = await db.team.create({ data: { sessionId, name: t.name } })
+    teamIdByKey.set(`${t.sessionDate}:${t.name}`, row.id)
+    for (const email of t.playerEmails) {
+      const playerId = playerIdByEmail.get(email)
+      if (playerId) teamPlayerData.push({ teamId: row.id, playerId })
     }
+  }
+  if (teamPlayerData.length) await db.teamPlayer.createMany({ data: teamPlayerData })
 
-    // ── Matches ──
-    const matchIdByKey = new Map<string, string>() // `${sessionDate}:${round}:${home}:${away}` → id
-    for (const m of data.matches ?? []) {
-      const sessionId = sessionIdByDate.get(m.sessionDate)
-      const homeTeamId = teamIdByKey.get(`${m.sessionDate}:${m.homeTeam}`)
-      const awayTeamId = teamIdByKey.get(`${m.sessionDate}:${m.awayTeam}`)
-      if (!sessionId || !homeTeamId || !awayTeamId) continue
-      const row = await tx.match.create({
-        data: {
-          sessionId, homeTeamId, awayTeamId,
-          roundNumber: m.roundNumber != null ? Number(m.roundNumber) : null,
-          homeScore: Number(m.homeScore), awayScore: Number(m.awayScore),
-          status: m.status as any,
-          endCondition: m.endCondition as any ?? null,
-          startedAt: m.startedAt ? new Date(m.startedAt) : null,
-          endedAt: m.endedAt ? new Date(m.endedAt) : null,
-        },
-      })
-      const key = `${m.sessionDate}:${m.roundNumber ?? ""}:${m.homeTeam}:${m.awayTeam}`
-      matchIdByKey.set(key, row.id)
-    }
+  // Matches: bulk create (need ID map — create individually but collect in parallel batches)
+  const matchIdByKey = new Map<string, string>()
+  const matchRows = await Promise.all((data.matches ?? []).map(async (m) => {
+    const sessionId = sessionIdByDate.get(m.sessionDate)
+    const homeTeamId = teamIdByKey.get(`${m.sessionDate}:${m.homeTeam}`)
+    const awayTeamId = teamIdByKey.get(`${m.sessionDate}:${m.awayTeam}`)
+    if (!sessionId || !homeTeamId || !awayTeamId) return null
+    const row = await db.match.create({
+      data: {
+        sessionId, homeTeamId, awayTeamId,
+        roundNumber: m.roundNumber != null ? Number(m.roundNumber) : null,
+        homeScore: Number(m.homeScore), awayScore: Number(m.awayScore),
+        status: m.status as any,
+        endCondition: m.endCondition as any ?? null,
+        startedAt: m.startedAt ? new Date(m.startedAt) : null,
+        endedAt: m.endedAt ? new Date(m.endedAt) : null,
+      },
+    })
+    return { key: `${m.sessionDate}:${m.roundNumber ?? ""}:${m.homeTeam}:${m.awayTeam}`, id: row.id }
+  }))
+  for (const r of matchRows) if (r) matchIdByKey.set(r.key, r.id)
 
-    // ── Goals ──
-    for (const g of data.goals ?? []) {
-      const key = `${g.sessionDate}:${g.roundNumber ?? ""}:${g.homeTeam}:${g.awayTeam}`
-      const matchId = matchIdByKey.get(key)
-      const scoredByPlayerId = playerIdByEmail.get(g.scorerEmail)
-      const teamId = teamIdByKey.get(`${g.sessionDate}:${g.teamName}`)
-      if (!matchId || !scoredByPlayerId || !teamId) continue
-      await tx.goal.create({
-        data: {
-          matchId, scoredByPlayerId, teamId,
-          assistedByPlayerId: g.assisterEmail ? (playerIdByEmail.get(g.assisterEmail) ?? null) : null,
-          scoredAt: new Date(g.scoredAt),
-        },
-      })
-    }
+  // Goals: bulk create
+  const goalData = (data.goals ?? []).flatMap((g) => {
+    const key = `${g.sessionDate}:${g.roundNumber ?? ""}:${g.homeTeam}:${g.awayTeam}`
+    const matchId = matchIdByKey.get(key)
+    const scoredByPlayerId = playerIdByEmail.get(g.scorerEmail)
+    const teamId = teamIdByKey.get(`${g.sessionDate}:${g.teamName}`)
+    if (!matchId || !scoredByPlayerId || !teamId) return []
+    return [{
+      matchId, scoredByPlayerId, teamId,
+      assistedByPlayerId: g.assisterEmail ? (playerIdByEmail.get(g.assisterEmail) ?? null) : null,
+      scoredAt: new Date(g.scoredAt),
+    }]
+  })
+  if (goalData.length) await db.goal.createMany({ data: goalData })
 
-    // ── Fees ──
-    for (const f of data.fees ?? []) {
-      const playerId = playerIdByEmail.get(f.playerEmail)
-      const recordedById = playerIdByEmail.get(f.recordedByEmail)
-      if (!playerId || !recordedById) continue
-      const year = Number(f.year)
-      await tx.membershipFee.upsert({
-        where: { playerId_year: { playerId, year } },
-        update: { status: f.status as any, paidAt: f.paidAt ? new Date(f.paidAt) : null, recordedById },
-        create: { playerId, year, status: f.status as any, paidAt: f.paidAt ? new Date(f.paidAt) : null, recordedById },
-      })
-    }
+  // Fees: bulk upsert via createMany (skipDuplicates handles existing)
+  const feeData = (data.fees ?? []).flatMap((f) => {
+    const playerId = playerIdByEmail.get(f.playerEmail)
+    const recordedById = playerIdByEmail.get(f.recordedByEmail)
+    if (!playerId || !recordedById) return []
+    return [{ playerId, year: Number(f.year), status: f.status as any, paidAt: f.paidAt ? new Date(f.paidAt) : null, recordedById }]
+  })
+  if (feeData.length) await db.membershipFee.createMany({ data: feeData, skipDuplicates: true })
 
-    // ── Season stats ──
-    for (const s of data.seasonStats ?? []) {
-      const playerId = playerIdByEmail.get(s.playerEmail)
-      const seasonId = seasonIdByYear.get(Number(s.seasonYear))
-      if (!playerId || !seasonId) continue
-      await tx.playerStats.upsert({
-        where: { playerId_seasonId: { playerId, seasonId } },
-        update: { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
-        create: { playerId, seasonId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
-      })
-    }
+  // Season stats: bulk upsert
+  const seasonStatData = (data.seasonStats ?? []).flatMap((s) => {
+    const playerId = playerIdByEmail.get(s.playerEmail)
+    const seasonId = seasonIdByYear.get(Number(s.seasonYear))
+    if (!playerId || !seasonId) return []
+    return [{ playerId, seasonId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) }]
+  })
+  if (seasonStatData.length) await db.playerStats.createMany({ data: seasonStatData, skipDuplicates: true })
 
-    // ── Lifetime stats (only in full export) ──
-    for (const s of data.lifetimeStats ?? []) {
-      const playerId = playerIdByEmail.get(s.playerEmail)
-      if (!playerId) continue
-      await tx.playerStatsLifetime.upsert({
-        where: { playerId },
-        update: { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
-        create: { playerId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
-      })
-    }
-  }, { timeout: 30000 })
+  // Lifetime stats: bulk upsert
+  const lifetimeStatData = (data.lifetimeStats ?? []).flatMap((s) => {
+    const playerId = playerIdByEmail.get(s.playerEmail)
+    if (!playerId) return []
+    return [{ playerId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) }]
+  })
+  if (lifetimeStatData.length) await db.playerStatsLifetime.createMany({ data: lifetimeStatData, skipDuplicates: true })
 }
