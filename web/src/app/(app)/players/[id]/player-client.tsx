@@ -56,6 +56,7 @@ type SeasonStat = {
   assists: number
   score: number
   points: number
+  beers: number
 }
 type LifetimeStat = {
   sessionsPlayed: number
@@ -64,6 +65,7 @@ type LifetimeStat = {
   assists: number
   score: number
   points: number
+  beers: number
 } | null
 type Fee = { year: number; status: string; paidAt: string | null }
 
@@ -110,6 +112,9 @@ function StatsCard({ data }: { data: NonNullable<LifetimeStat> }) {
           label={t("ptsPerGameDay")}
           value={data.sessionsPlayed > 0 ? (data.points / data.sessionsPlayed).toFixed(1) : "—"}
         />
+        {data.beers > 0 && (
+          <StatRow label={t("beers")} value={`${data.beers} 🍺`} />
+        )}
       </CardContent>
     </Card>
   )
@@ -383,6 +388,7 @@ export function PlayerClient({
         assists:        filteredLifetime.reduce((s, r) => s + r.assists,        0),
         score:          filteredLifetime.reduce((s, r) => s + r.score,          0),
         points:         filteredLifetime.reduce((s, r) => s + r.points,         0),
+        beers:          filteredLifetime.reduce((s, r) => s + r.beers,          0),
       }
     : null
 
@@ -534,9 +540,9 @@ export function PlayerClient({
                                       {m.playerAssists > 0 && `${m.playerAssists}A`}
                                     </span>
                                   )}
-                                  {m.winPts > 0 && (
-                                    <span className="font-medium tabular-nums w-10 text-right shrink-0">+{m.winPts} {t("pts")}</span>
-                                  )}
+                                  <span className={`font-medium tabular-nums w-10 text-right shrink-0 ${m.winPts === 0 ? "text-muted-foreground" : ""}`}>
+                                    {m.winPts > 0 ? `+${m.winPts}` : "0"} {t("pts")}
+                                  </span>
                                 </div>
                               )
                             })}

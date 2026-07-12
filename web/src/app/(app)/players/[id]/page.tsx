@@ -44,6 +44,7 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
         assists:        seasonStats.reduce((s, r) => s + r.assists,        0),
         score:          seasonStats.reduce((s, r) => s + r.score,          0),
         points:         seasonStats.reduce((s, r) => s + r.points,         0),
+        beers:          seasonStats.reduce((s, r) => s + r.beers,          0),
       }
     : null
 
@@ -155,6 +156,7 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
         assists: s.assists,
         score: s.score,
         points: s.points,
+        beers: s.beers,
       }))}
       sessionHistory={sessionHistory}
       fees={fees.map((f) => ({

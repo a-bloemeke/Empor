@@ -148,6 +148,7 @@ model SessionRegistration {
   status         RegistrationStatus @default(REGISTERED)
   registeredAt   DateTime           @default(now())
   cancelledAt    DateTime?
+  beerBringer    Boolean            @default(false)
   registeredById String
 
   session  Session @relation(fields: [sessionId], references: [id])
@@ -233,6 +234,7 @@ model PlayerStats {
   assists        Int    @default(0)
   score          Int    @default(0)
   points         Int    @default(0)
+  beers          Int    @default(0)
 
   player Player @relation(fields: [playerId], references: [id])
   season Season @relation(fields: [seasonId], references: [id])
@@ -248,6 +250,7 @@ model PlayerStatsLifetime {
   assists        Int    @default(0)
   score          Int    @default(0)
   points         Int    @default(0)
+  beers          Int    @default(0)
 
   player Player @relation(fields: [playerId], references: [id])
 }

@@ -71,7 +71,7 @@ import { useTranslations } from "next-intl"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonRank: number | null }
+type Player = { id: string; name: string; displayName: string; seasonPoints: number; seasonSessions: number; seasonScore: number; strength: number; seasonRank: number | null }
 type Goal = {
   id: string
   scoredByPlayerId: string
@@ -100,9 +100,11 @@ type Registration = {
   playerId: string
   playerName: string
   status: string
+  beerBringer: boolean
   seasonPoints: number
   seasonSessions: number
   seasonScore: number
+  strength: number
   lifetimePoints: number
   lifetimeSessions: number
   lifetimeScore: number
@@ -286,7 +288,12 @@ function RegistrationPanel({
                 {registered.map((r, i) => (
                   <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
-                    <td className="py-1 px-2">{r.playerName}</td>
+                    <td className="py-1 px-2">
+                      <span className="flex items-center gap-1">
+                        {r.playerName}
+                        {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
+                      </span>
+                    </td>
                     {isOrganizer && (
                       <td className="py-1 px-2 text-right w-7">
                         <button
@@ -362,20 +369,6 @@ function RegistrationPanel({
 
 // ─── Team-formation preview helpers ──────────────────────────────────────────
 
-function playerRating(r: Registration, metric: "points" | "strength"): number {
-  // Use season stats if enough data, else lifetime
-  const MIN = 3
-  const pts = r.seasonSessions >= MIN ? r.seasonPoints : r.lifetimePoints
-  const sessions = r.seasonSessions >= MIN ? r.seasonSessions : r.lifetimeSessions
-  const score = r.seasonSessions >= MIN ? r.seasonScore : r.lifetimeScore
-  if (sessions === 0) return 0
-  if (metric === "points") return pts / sessions
-  // strength = 0.6 × outcomePtsPerGD + 0.4 × scorePerGD
-  const outcomePtsPerGD = (pts - sessions) / sessions
-  const scorePerGD = score / sessions
-  return 0.6 * outcomePtsPerGD + 0.4 * scorePerGD
-}
-
 function snakeDraft(players: Registration[], numTeams: number): Registration[][] {
   const slots: Registration[][] = Array.from({ length: numTeams }, () => [])
   players.forEach((p, i) => {
@@ -387,57 +380,8 @@ function snakeDraft(players: Registration[], numTeams: number): Registration[][]
 }
 
 function buildSplit(registered: Registration[], numTeams: number, metric: "points" | "strength"): Registration[][] {
-  const sorted = [...registered].sort((a, b) => playerRating(b, metric) - playerRating(a, metric))
+  const sorted = [...registered].sort((a, b) => b.strength - a.strength)
   return snakeDraft(sorted, numTeams)
-}
-
-function SplitPreview({
-  split,
-  metric,
-  otherSplit,
-}: {
-  split: Registration[][]
-  metric: "points" | "strength"
-  otherSplit: Registration[][]
-}) {
-  const teamNames = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  const otherById = new Map(otherSplit.flatMap((team, ti) => team.map((p) => [p.playerId, ti])))
-
-  return (
-    <div className="space-y-3">
-      {split.map((team, ti) => {
-        const total = team.reduce((s, p) => s + playerRating(p, metric), 0)
-        return (
-          <div key={ti} className="rounded-lg border border-border/60 overflow-hidden">
-            <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white flex justify-between"
-              style={{ background: "oklch(0.30 0.10 150)" }}
-            >
-              <span>Team {teamNames[ti]}</span>
-              <span className="opacity-80">{metric === "points" ? "Pts/GD" : "Strength"} ∑ {total.toFixed(1)}</span>
-            </div>
-            <ul className="divide-y divide-border/40">
-              {team.map((p) => {
-                const otherTeam = otherById.get(p.playerId)
-                const moved = otherTeam !== undefined && otherTeam !== ti
-                const rating = playerRating(p, metric)
-                return (
-                  <li key={p.playerId} className="flex items-center gap-2 px-3 py-1.5 text-sm">
-                    <span className="flex-1">{p.playerName}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">{rating.toFixed(2)}</span>
-                    {moved && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/40 leading-none">
-                        ↔ {teamNames[otherTeam!]}
-                      </span>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 // ─── New Match Dialog — preview teams before committing ──────────────────────
@@ -445,22 +389,8 @@ function SplitPreview({
 type NewMatchMode = "RANDOM" | "BALANCED" | "STRENGTH"
 
 function buildNewMatchSplit(registered: Registration[], mode: NewMatchMode): Registration[][] {
-  const ratingOf = (p: Registration) =>
-    p.lifetimeSessions > 0 ? p.lifetimePoints / p.lifetimeSessions : 0
-  const strengthOf = (p: Registration) => {
-    if (p.lifetimeSessions === 0) return 0
-    const outcomePtsPerGD = (p.lifetimePoints - p.lifetimeSessions) / p.lifetimeSessions
-    const scorePerGD = p.lifetimeScore / p.lifetimeSessions
-    return 0.6 * outcomePtsPerGD + 0.4 * scorePerGD
-  }
-
-  if (mode === "BALANCED") {
-    const ratings = registered.map((p) => ratingOf(p))
-    const [idx0, idx1] = optimalPartition2(ratings)
-    return [idx0.map((i) => registered[i]), idx1.map((i) => registered[i])]
-  }
-  if (mode === "STRENGTH") {
-    const ratings = registered.map((p) => strengthOf(p))
+  if (mode === "BALANCED" || mode === "STRENGTH") {
+    const ratings = registered.map((p) => p.strength)
     const [idx0, idx1] = optimalPartition2(ratings)
     return [idx0.map((i) => registered[i]), idx1.map((i) => registered[i])]
   }
@@ -495,14 +425,7 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
   )
 
   const ratingLabel = (p: Registration) => {
-    if (mode === "STRENGTH" && p.lifetimeSessions > 0) {
-      const outcomePtsPerGD = (p.lifetimePoints - p.lifetimeSessions) / p.lifetimeSessions
-      const scorePerGD = p.lifetimeScore / p.lifetimeSessions
-      return (0.6 * outcomePtsPerGD + 0.4 * scorePerGD).toFixed(2)
-    }
-    if (mode === "BALANCED" && p.lifetimeSessions > 0) {
-      return (p.lifetimePoints / p.lifetimeSessions).toFixed(2) + " pts/GD"
-    }
+    if (mode === "STRENGTH" || mode === "BALANCED") return p.strength.toFixed(2)
     return null
   }
 
@@ -551,12 +474,19 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
 
           {/* Team preview */}
           <div className="space-y-2">
-            {[split[0], split[1]].map((team, ti) => (
+            {[split[0], split[1]].map((team, ti) => {
+              const total = team.reduce((s, p) => s + p.strength, 0)
+              const avg = team.length > 0 ? total / team.length : 0
+              const showStrength = mode === "STRENGTH" || mode === "BALANCED"
+              return (
               <div key={ti} className="rounded-lg border border-border/60 overflow-hidden">
-                <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white"
+                <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white flex justify-between"
                   style={{ background: "oklch(0.30 0.10 150)" }}
                 >
-                  {ti === 0 ? nameHome : nameAway}
+                  <span>{ti === 0 ? nameHome : nameAway}</span>
+                  {showStrength && (
+                    <span className="font-normal opacity-80">∑ {total.toFixed(2)} · Ø {avg.toFixed(2)}</span>
+                  )}
                 </div>
                 <ul className="divide-y divide-border/40">
                   {team.map((p) => (
@@ -569,7 +499,7 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
                   ))}
                 </ul>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -1127,6 +1057,11 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
   const allPlayers = session.teams.flatMap((t) => t.players)
   const shortNames = disambiguateNames(allPlayers.map((p) => ({ id: p.id, name: p.displayName, fullName: p.name })))
 
+  const beerBringerReg = session.registrations.find((r) => r.beerBringer)
+  const beerBringerName = beerBringerReg
+    ? (shortNames.get(beerBringerReg.playerId) ?? beerBringerReg.playerName)
+    : null
+
   const mvp = rows.length > 0 && (rows[0].goals + rows[0].assists + rows[0].points) > 0 ? rows[0] : null
   const mvpName = mvp ? (shortNames.get(mvp.playerId) ?? mvp.playerId) : null
 
@@ -1194,6 +1129,12 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
             </TableBody>
           </Table>
         </div>
+        {beerBringerName && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+            <span>🍺</span>
+            <span>{t("beerBroughtBy", { name: beerBringerName })}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
@@ -1501,8 +1442,8 @@ function TeamsView({
                       {playerInitials(p.displayName)}
                     </span>
                     <span className="flex-1">{p.displayName}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {p.seasonRank != null ? `#${p.seasonRank} · ` : ""}{p.seasonPoints} pts
+                    <span className="text-xs text-muted-foreground tabular-nums" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD">
+                      {p.strength.toFixed(2)}
                     </span>
                     {isOrganizer && noMatchesStarted && session.teams.length > 1 && (
                       <button
@@ -1520,17 +1461,17 @@ function TeamsView({
               </ul>
               <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5 text-xs text-muted-foreground">
                 <div className="flex justify-between">
-                  <span>{t("total")}</span>
+                  <span title="Strength = 0.6 × win pts/GD + 0.4 × score/GD">{t("total")} ⚡</span>
                   <span className="font-semibold tabular-nums">
-                    {team.players.reduce((s, p) => s + p.seasonPoints, 0)} pts
+                    {team.players.reduce((s, p) => s + p.strength, 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>{t("avg")}</span>
+                  <span>{t("avg")} ⚡</span>
                   <span className="tabular-nums">
                     {team.players.length > 0
-                      ? (team.players.reduce((s, p) => s + p.seasonPoints, 0) / team.players.length).toFixed(1)
-                      : "—"} pts
+                      ? (team.players.reduce((s, p) => s + p.strength, 0) / team.players.length).toFixed(2)
+                      : "—"}
                   </span>
                 </div>
               </div>
@@ -1538,6 +1479,9 @@ function TeamsView({
           </Card>
         ))}
       </div>
+      <p className="text-xs text-muted-foreground">
+        ⚡ Strength = 0.6 × win pts/GD + 0.4 × score/GD (goals+assists per game day)
+      </p>
       {isOrganizer && canRegenerate && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={pending} onClick={() => handleRegenerate("RANDOM")}>
@@ -1724,7 +1668,7 @@ function ActiveMatch({
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
-                  <span className="opacity-60"> · {p.seasonPoints} pts</span>
+                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {p.strength.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -1738,7 +1682,7 @@ function ActiveMatch({
                 <div key={p.id}>
                   {p.seasonRank != null ? <span className="opacity-60">#{p.seasonRank} </span> : null}
                   {shortName.get(p.id) ?? p.displayName}
-                  <span className="opacity-60"> · {p.seasonPoints} pts</span>
+                  <span className="opacity-60" title="Strength = 0.6 × win pts/GD + 0.4 × score/GD"> · {p.strength.toFixed(2)}</span>
                 </div>
               ))}
             </div>

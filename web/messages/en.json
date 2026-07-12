@@ -118,7 +118,10 @@
     "sendCancelEmail": "Send to {count} player{count, plural, one {} other {s}}",
     "cancelEmailSent": "Cancellation email sent to {count} player{count, plural, one {} other {s}}.",
     "reopenGameDay": "Re-open",
-    "gameDayReopened": "Game day re-opened."
+    "gameDayReopened": "Game day re-opened.",
+    "bringBeer": "Bring beer 🍺",
+    "bringingBeer": "Bringing beer 🍺",
+    "beerToggled": "Beer bringer updated."
   },
   "session": {
     "noPlayersYet": "No players registered yet.",
@@ -224,7 +227,9 @@
     "summaryAttend": "Attend",
     "summaryAttendNote": "+1",
     "summaryPoints": "Points",
-    "mvpOutcome": "{goals}G · {assists}A · Score {score} · Win pts +{outcome} · Attend +1 · {points} pts"
+    "mvpOutcome": "{goals}G · {assists}A · Score {score} · Win pts +{outcome} · Attend +1 · {points} pts",
+    "beerBringerLabel": "Bringing beer",
+    "beerBroughtBy": "🍺 Beer brought by: {name}"
   },
   "leaderboard": {
     "title": "Leaderboard",
@@ -270,7 +275,9 @@
     "outcomePts": "Win pts",
     "outcomePtsNote": "win +3 / draw +1",
     "legendAttendPts": "Attendance points — 1 per game day, everyone who played",
-    "legendOutcomePts": "Winning points — normal: win +3, draw +1 · tournament: 1st +6, 2nd +3, 3rd +0"
+    "legendOutcomePts": "Winning points — normal: win +3, draw +1 · tournament: 1st +6, 2nd +3, 3rd +0",
+    "beerKing": "Beer King",
+    "beers": "Beers"
   },
   "player": {
     "editProfile": "Edit Profile",
@@ -313,6 +320,7 @@
     "scoreGA": "Score (G+A)",
     "points": "Points",
     "ptsPerGameDay": "Pts / game day",
+    "beers": "Beer brought 🍺",
     "membershipFee": "Membership Fee {year}",
     "paid": "Paid",
     "notPaid": "Not paid",
@@ -326,6 +334,7 @@
     "pts": "pts",
     "attendPt": "attendance pt"
   },
+  "admin": {
     "players": {
       "title": "Players",
       "subtitle": "Manage registered players and guest accounts.",

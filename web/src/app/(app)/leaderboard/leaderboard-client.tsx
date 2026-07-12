@@ -32,6 +32,7 @@ type StatsRow = {
   assists: number
   score: number
   points: number
+  beers: number
   seasonId?: string
 }
 
@@ -90,6 +91,47 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
         })}
       </TableBody>
     </Table>
+    </div>
+  )
+}
+
+// ─── Beer King table ──────────────────────────────────────────────────────────
+
+function BeerKingTable({ rows }: { rows: StatsRow[] }) {
+  const t = useTranslations("leaderboard")
+  const sorted = [...rows].filter((r) => r.beers > 0).sort((a, b) => b.beers - a.beers)
+
+  if (sorted.length === 0) return null
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+      <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+        style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+      >🍺 {t("beerKing")}</div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-8">{t("rank")}</TableHead>
+              <TableHead>{t("player")}</TableHead>
+              <TableHead className="text-right">{t("beers")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((row, i) => (
+              <TableRow key={row.playerId} className={i === 0 ? "font-semibold" : ""}>
+                <TableCell className="text-muted-foreground">{i === 0 ? "👑" : i + 1}</TableCell>
+                <TableCell>
+                  <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
+                    {row.playerName}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{row.beers} 🍺</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
@@ -437,6 +479,7 @@ export function LeaderboardClient({
                 >{strengthHeader}</div>
                 <StrengthTable rows={seasonStats} fallbackRows={lifetimeStats} />
               </div>
+              <BeerKingTable rows={seasonStats} />
             </>
           )}
         </TabsContent>
@@ -478,6 +521,7 @@ export function LeaderboardClient({
             >{strengthHeader}</div>
             <StrengthTable rows={currentLifetimeStats} />
           </div>
+          <BeerKingTable rows={currentLifetimeStats} />
           </>
           )}
         </TabsContent>

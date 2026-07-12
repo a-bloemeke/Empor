@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -35,6 +35,9 @@ type GameSession = {
   seasonYear: number
   registrationCount: number
   myStatus: string | null
+  beerBringerId: string | null
+  beerBringerName: string | null
+  myBeer: boolean
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -278,6 +281,18 @@ export function ScheduleClient({
     })
   }
 
+  function handleToggleBeer(id: string) {
+    setActionId(id)
+    startTransition(async () => {
+      try {
+        await toggleBeer(id)
+        toast.success(t("beerToggled"))
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setActionId(null) }
+    })
+  }
+
   function handleReopen(id: string) {
     setActionId(id)
     startTransition(async () => {
@@ -368,7 +383,7 @@ export function ScheduleClient({
                     <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
                     <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
                         {s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
                             {busy ? "…" : t("register")}
@@ -378,6 +393,25 @@ export function ScheduleClient({
                           <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleCancelReg(s.id)}>
                             {busy ? "…" : t("cancel")}
                           </Button>
+                        )}
+                        {s.status === "SCHEDULED" && s.myStatus === "REGISTERED" && (
+                          s.myBeer ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() => handleToggleBeer(s.id)}
+                              className="border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+                            >
+                              {t("bringingBeer")}
+                            </Button>
+                          ) : s.beerBringerId ? (
+                            <span className="text-xs text-muted-foreground">🍺 {s.beerBringerName}</span>
+                          ) : (
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleToggleBeer(s.id)}>
+                              {t("bringBeer")}
+                            </Button>
+                          )
                         )}
                         {isOrganizer && s.status === "SCHEDULED" && (
                           <CancelGameDayDialog

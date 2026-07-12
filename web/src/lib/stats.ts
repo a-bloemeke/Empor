@@ -160,4 +160,22 @@ export async function computeAndSaveStats(sessionId: string, pointsScope: Points
       },
     })
   }
+
+  // Increment beer counter for the player who brought beer to this session
+  const beerReg = await db.sessionRegistration.findFirst({
+    where: { sessionId, beerBringer: true, status: "REGISTERED" },
+    select: { playerId: true },
+  })
+  if (beerReg) {
+    await db.playerStats.upsert({
+      where: { playerId_seasonId: { playerId: beerReg.playerId, seasonId: session.seasonId } },
+      create: { playerId: beerReg.playerId, seasonId: session.seasonId, sessionsPlayed: 0, beers: 1 },
+      update: { beers: { increment: 1 } },
+    })
+    await db.playerStatsLifetime.upsert({
+      where: { playerId: beerReg.playerId },
+      create: { playerId: beerReg.playerId, beers: 1 },
+      update: { beers: { increment: 1 } },
+    })
+  }
 }

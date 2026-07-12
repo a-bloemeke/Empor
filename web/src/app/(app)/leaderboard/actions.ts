@@ -29,6 +29,7 @@ export async function getSeasonStats(seasonId: string) {
     assists: s.assists,
     score: s.score,
     points: s.points,
+    beers: s.beers,
     seasonId: s.seasonId,
   }))
 }
@@ -46,7 +47,7 @@ export async function getAggregatedStats(seasonIds: string[]) {
 
   const map = new Map<string, {
     playerId: string; playerName: string
-    sessionsPlayed: number; matchesPlayed: number; goals: number; assists: number; score: number; points: number
+    sessionsPlayed: number; matchesPlayed: number; goals: number; assists: number; score: number; points: number; beers: number
   }>()
 
   for (const s of stats) {
@@ -59,11 +60,12 @@ export async function getAggregatedStats(seasonIds: string[]) {
       existing.assists += s.assists
       existing.score += s.score
       existing.points += s.points
+      existing.beers += s.beers
     } else {
       map.set(s.playerId, {
         playerId: s.playerId, playerName,
         sessionsPlayed: s.sessionsPlayed, matchesPlayed: s.matchesPlayed,
-        goals: s.goals, assists: s.assists, score: s.score, points: s.points,
+        goals: s.goals, assists: s.assists, score: s.score, points: s.points, beers: s.beers,
       })
     }
   }

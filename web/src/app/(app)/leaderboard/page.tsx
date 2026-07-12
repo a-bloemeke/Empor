@@ -20,7 +20,7 @@ export default async function LeaderboardPage() {
 
   const lifetimeMap = new Map<string, {
     player: { id: string; firstName: string; lastName: string; nickname: string | null }
-    sessionsPlayed: number; matchesPlayed: number; goals: number; assists: number; score: number; points: number
+    sessionsPlayed: number; matchesPlayed: number; goals: number; assists: number; score: number; points: number; beers: number
   }>()
 
   for (const s of allStats) {
@@ -32,6 +32,7 @@ export default async function LeaderboardPage() {
       existing.assists += s.assists
       existing.score += s.score
       existing.points += s.points
+      existing.beers += s.beers
     } else {
       lifetimeMap.set(s.playerId, {
         player: s.player,
@@ -41,6 +42,7 @@ export default async function LeaderboardPage() {
         assists: s.assists,
         score: s.score,
         points: s.points,
+        beers: s.beers,
       })
     }
   }
@@ -62,6 +64,7 @@ export default async function LeaderboardPage() {
         assists: s.assists,
         score: s.score,
         points: s.points,
+        beers: s.beers,
         seasonId: s.seasonId,
       }))}
       lifetimeStats={[...lifetimeMap.values()].map((s) => ({
@@ -73,6 +76,7 @@ export default async function LeaderboardPage() {
         assists: s.assists,
         score: s.score,
         points: s.points,
+        beers: s.beers,
       }))}
     />
   )

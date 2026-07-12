@@ -208,7 +208,7 @@ export async function cancelSelf(sessionId: string) {
     if (reg.status === "CANCELLED") throw new Error("Du hast bereits abgesagt.")
     await db.sessionRegistration.update({
       where: { id: reg.id },
-      data: { status: "CANCELLED", cancelledAt: new Date() },
+      data: { status: "CANCELLED", cancelledAt: new Date(), beerBringer: false },
     })
   } else {
     await db.sessionRegistration.create({
@@ -228,6 +228,42 @@ export async function cancelSelf(sessionId: string) {
   })
   if (player) {
     await notifyOrganizersCancellation(s, player, wasRegistered)
+  }
+
+  revalidatePath("/schedule")
+}
+
+export async function toggleBeer(sessionId: string) {
+  const authSession = await auth()
+  if (!authSession?.user?.id) throw new Error("Unauthorized")
+
+  const s = await db.session.findUnique({ where: { id: sessionId } })
+  if (!s) throw new Error("Session not found.")
+  if (s.status !== "SCHEDULED") throw new Error("Registration is closed for this session.")
+
+  const myReg = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },
+  })
+  if (!myReg || myReg.status !== "REGISTERED") {
+    throw new Error("Du musst angemeldet sein, um Bier mitzubringen.")
+  }
+
+  if (myReg.beerBringer) {
+    await db.sessionRegistration.update({
+      where: { id: myReg.id },
+      data: { beerBringer: false },
+    })
+  } else {
+    await db.$transaction([
+      db.sessionRegistration.updateMany({
+        where: { sessionId, beerBringer: true },
+        data: { beerBringer: false },
+      }),
+      db.sessionRegistration.update({
+        where: { id: myReg.id },
+        data: { beerBringer: true },
+      }),
+    ])
   }
 
   revalidatePath("/schedule")

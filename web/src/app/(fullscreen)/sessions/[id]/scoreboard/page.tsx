@@ -57,6 +57,32 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
     rankByPlayerId.set(allSeasonStats[i].playerId, rank)
   }
   const pointsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.points]))
+  const sessionsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.sessionsPlayed]))
+  const scoreByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.score]))
+
+  // Previous season for blended strength
+  const allSeasons = await db.season.findMany({ orderBy: { year: "desc" }, take: 2, select: { id: true } })
+  const prevSeasonId = allSeasons.find((season) => season.id !== s.seasonId)?.id ?? null
+  const prevSeasonStats = prevSeasonId
+    ? await db.playerStats.findMany({ where: { seasonId: prevSeasonId } })
+    : []
+  const prevByPlayerId = new Map(prevSeasonStats.map((ps) => [ps.playerId, ps]))
+
+  function computeStrength(playerId: string): number {
+    const curSessions = sessionsByPlayerId.get(playerId) ?? 0
+    const curStr = curSessions > 0
+      ? 0.6 * ((pointsByPlayerId.get(playerId)! - curSessions) / curSessions)
+        + 0.4 * ((scoreByPlayerId.get(playerId) ?? 0) / curSessions)
+      : null
+    const prev = prevByPlayerId.get(playerId)
+    const prevStr = prev && prev.sessionsPlayed > 0
+      ? 0.6 * ((prev.points - prev.sessionsPlayed) / prev.sessionsPlayed) + 0.4 * (prev.score / prev.sessionsPlayed)
+      : null
+    const lt = curStr ?? 0
+    const cur = curStr ?? lt
+    const prv = prevStr ?? lt
+    return 0.6 * cur + 0.4 * prv
+  }
 
   const activeMatch = s.matches.find((m) => m.status === "IN_PROGRESS") ?? null
 
@@ -119,6 +145,9 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
           name: playerName(tp.player),
           displayName: displayName(tp.player),
           seasonPoints: pointsByPlayerId.get(tp.player.id) ?? 0,
+          seasonSessions: sessionsByPlayerId.get(tp.player.id) ?? 0,
+          seasonScore: scoreByPlayerId.get(tp.player.id) ?? 0,
+          strength: computeStrength(tp.player.id),
           seasonRank: rankByPlayerId.get(tp.player.id) ?? null,
         })),
       }))}

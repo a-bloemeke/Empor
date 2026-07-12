@@ -26,16 +26,33 @@ export default async function SchedulePage() {
     : []
   const myRegMap = new Map(myRegistrations.map((r) => [r.sessionId, r.status]))
 
+  // Load beer bringers for all sessions
+  const beerRegs = await db.sessionRegistration.findMany({
+    where: { beerBringer: true },
+    select: {
+      sessionId: true,
+      playerId: true,
+      player: { select: { firstName: true, nickname: true } },
+    },
+  })
+  const beerMap = new Map(beerRegs.map((r) => [r.sessionId, r]))
+
   const now = new Date()
 
-  const toRow = (s: (typeof sessions)[number]) => ({
-    id: s.id,
-    date: s.date.toISOString(),
-    status: s.status as string,
-    seasonYear: s.season.year,
-    registrationCount: s._count.registrations,
-    myStatus: (myRegMap.get(s.id) ?? null) as string | null,
-  })
+  const toRow = (s: (typeof sessions)[number]) => {
+    const beerReg = beerMap.get(s.id)
+    return {
+      id: s.id,
+      date: s.date.toISOString(),
+      status: s.status as string,
+      seasonYear: s.season.year,
+      registrationCount: s._count.registrations,
+      myStatus: (myRegMap.get(s.id) ?? null) as string | null,
+      beerBringerId: beerReg?.playerId ?? null,
+      beerBringerName: beerReg ? (beerReg.player.nickname ?? beerReg.player.firstName) : null,
+      myBeer: beerReg?.playerId === currentUserId,
+    }
+  }
 
   const upcoming = sessions
     .filter((s) => s.date >= now && s.status !== "CANCELLED")
