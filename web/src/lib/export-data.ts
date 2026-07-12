@@ -32,6 +32,7 @@ export type ExportRegistration = {
   status: string
   registeredAt: string
   cancelledAt: string | null
+  beerBringer: boolean
   registeredByEmail: string
 }
 
@@ -82,6 +83,7 @@ export type ExportSeasonStat = {
   assists: number
   score: number
   points: number
+  beers: number
 }
 
 export type ExportLifetimeStat = {
@@ -92,6 +94,7 @@ export type ExportLifetimeStat = {
   assists: number
   score: number
   points: number
+  beers: number
 }
 
 export type ExportBundle = {
@@ -207,6 +210,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
       status: r.status,
       registeredAt: r.registeredAt.toISOString(),
       cancelledAt: r.cancelledAt?.toISOString() ?? null,
+      beerBringer: r.beerBringer,
       registeredByEmail: emailById.get(r.registeredById)!,
     }))
   )
@@ -270,6 +274,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     assists: s.assists,
     score: s.score,
     points: s.points,
+    beers: s.beers,
   }))
 
   const exportLifetimeStats: ExportLifetimeStat[] | undefined = lifetimeStats?.map((s) => ({
@@ -280,6 +285,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     assists: s.assists,
     score: s.score,
     points: s.points,
+    beers: s.beers,
   }))
 
   const targetSeason = seasonId ? seasons.find((s) => s.id === seasonId) : undefined
@@ -398,6 +404,7 @@ export async function importBundle(data: ExportBundle) {
           status: r.status as any,
           registeredAt: new Date(r.registeredAt),
           cancelledAt: r.cancelledAt ? new Date(r.cancelledAt) : null,
+          beerBringer: r.beerBringer === true || String(r.beerBringer) === "true",
         },
       })
     }
@@ -473,8 +480,8 @@ export async function importBundle(data: ExportBundle) {
       if (!playerId || !seasonId) continue
       await tx.playerStats.upsert({
         where: { playerId_seasonId: { playerId, seasonId } },
-        update: { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points) },
-        create: { playerId, seasonId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points) },
+        update: { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
+        create: { playerId, seasonId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
       })
     }
 
@@ -484,8 +491,8 @@ export async function importBundle(data: ExportBundle) {
       if (!playerId) continue
       await tx.playerStatsLifetime.upsert({
         where: { playerId },
-        update: { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points) },
-        create: { playerId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points) },
+        update: { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
+        create: { playerId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) },
       })
     }
   }, { timeout: 30000 })

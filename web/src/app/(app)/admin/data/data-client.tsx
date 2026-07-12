@@ -154,7 +154,94 @@ function CsvImportDialog({
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Excel Full-Restore Import Dialog ────────────────────────────────────────
+
+function ExcelImportDialog() {
+  const t = useTranslations("admin.data")
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
+  const [importing, setImporting] = useState(false)
+
+  function openDialog() {
+    setFile(null)
+    setConfirmed(false)
+    setOpen(true)
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setFile(e.target.files?.[0] ?? null)
+    e.target.value = ""
+  }
+
+  async function handleImport() {
+    if (!file || !confirmed) return
+    setImporting(true)
+    try {
+      const res = await fetch("/api/admin/import-xlsx", {
+        method: "POST",
+        body: await file.arrayBuffer(),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Import fehlgeschlagen.")
+      toast.success("Daten erfolgreich wiederhergestellt.")
+      setOpen(false)
+      window.location.reload()
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button variant="outline" className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={openDialog}>
+        <UploadIcon className="size-4" /> Excel wiederherstellen
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!importing) setOpen(o) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Vollständige Wiederherstellung aus Excel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              ⚠️ Diese Aktion ersetzt <strong>alle Daten</strong> in der Datenbank durch den Inhalt der Excel-Datei. Nicht rückgängig zu machen.
+            </div>
+            <div className="space-y-1.5">
+              <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                  Excel-Datei wählen
+                </Button>
+                {file
+                  ? <span className="text-sm text-muted-foreground truncate max-w-[220px]">{file.name}</span>
+                  : <span className="text-sm text-muted-foreground">Keine Datei gewählt</span>
+                }
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+                className="h-4 w-4 rounded border"
+              />
+              Ich habe ein Backup und verstehe, dass alle Daten ersetzt werden.
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
+            <Button variant="destructive" onClick={handleImport} disabled={importing || !file || !confirmed}>
+              {importing ? t("importing") : "Jetzt wiederherstellen"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
 export function DataClient({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
@@ -258,6 +345,10 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
           <div className="flex flex-wrap gap-2">
             <CsvImportDialog seasons={seasons} type="scores" />
             <CsvImportDialog seasons={seasons} type="points" />
+          </div>
+          <div className="border-t pt-4 space-y-2">
+            <p className="text-xs text-muted-foreground">Vollständige Wiederherstellung — stellt alle Daten aus einer Excel-Exportdatei wieder her.</p>
+            <ExcelImportDialog />
           </div>
         </div>
       </div>
