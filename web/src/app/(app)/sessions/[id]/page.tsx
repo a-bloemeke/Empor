@@ -122,6 +122,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             seasonPoints: pointsByPlayerId.get(r.playerId) ?? 0,
             seasonSessions: sessionsByPlayerId.get(r.playerId) ?? 0,
             seasonScore: scoreByPlayerId.get(r.playerId) ?? 0,
+            strength: computeBlendedStrength(r.playerId),
             lifetimePoints: lt?.points ?? 0,
             lifetimeSessions: lt?.sessionsPlayed ?? 0,
             lifetimeScore: lt?.score ?? 0,
