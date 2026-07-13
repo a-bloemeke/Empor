@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
   const seasonYearParam = req.nextUrl.searchParams.get("season")
   const seasonYear = seasonYearParam ? parseInt(seasonYearParam, 10) : new Date().getFullYear()
-  const mode = req.nextUrl.searchParams.get("mode") === "overwrite" ? "overwrite" : "merge"
+  const mode = req.nextUrl.searchParams.get("mode") === "overwrite" ? "overwrite" : "add"
 
   const text = await req.text()
   const summaryRows = parseSummaryRows(text)
@@ -158,14 +158,12 @@ export async function POST(req: NextRequest) {
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
     })
 
-    if (existing && existing.points > 0 && mode !== "overwrite") {
-      skipped.push(`${label} (already has points)`)
-      continue
-    }
-
     // matchesPlayed from left-side rows; fall back to kicks if name not found there
     const matches = matchCounts.get(row.name) ?? row.kicks
-    const data = { points: row.gesamt, sessionsPlayed: row.kicks, matchesPlayed: matches }
+    const newPoints = mode === "add" ? (existing?.points ?? 0) + row.gesamt : row.gesamt
+    const newSessions = mode === "add" ? (existing?.sessionsPlayed ?? 0) + row.kicks : row.kicks
+    const newMatches = mode === "add" ? (existing?.matchesPlayed ?? 0) + matches : matches
+    const data = { points: newPoints, sessionsPlayed: newSessions, matchesPlayed: newMatches }
 
     if (existing) {
       await db.playerStats.update({
@@ -179,14 +177,16 @@ export async function POST(req: NextRequest) {
     }
 
     const existingLt = await db.playerStatsLifetime.findUnique({ where: { playerId } })
-    if (existingLt) {
-      if (existingLt.points === 0 || mode === "overwrite") {
-        await db.playerStatsLifetime.update({ where: { playerId }, data })
-      }
-    } else {
+    const ltPoints = mode === "add" ? (existingLt?.points ?? 0) + row.gesamt : row.gesamt
+    const ltSessions = mode === "add" ? (existingLt?.sessionsPlayed ?? 0) + row.kicks : row.kicks
+    const ltMatches = mode === "add" ? (existingLt?.matchesPlayed ?? 0) + matches : matches
+    const ltData = { points: ltPoints, sessionsPlayed: ltSessions, matchesPlayed: ltMatches }
+    if (!existingLt) {
       await db.playerStatsLifetime.create({
-        data: { playerId, ...data, goals: 0, assists: 0, score: 0 },
+        data: { playerId, ...ltData, goals: 0, assists: 0, score: 0 },
       })
+    } else {
+      await db.playerStatsLifetime.update({ where: { playerId }, data: ltData })
     }
 
     imported.push(label)

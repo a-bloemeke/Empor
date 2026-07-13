@@ -114,15 +114,15 @@ function CsvImportDialog({
                   onClick={() => setImportMode("merge")}
                   className={`rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "merge" ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"}`}
                 >
-                  <div className="text-xs font-semibold">Hinzufügen</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">Überspringt Spieler mit vorhandenen Daten</div>
+                  <div className="text-xs font-semibold">Aufaddieren</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">CSV-Werte zu vorhandenen addieren</div>
                 </button>
                 <button
                   onClick={() => setImportMode("overwrite")}
                   className={`rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "overwrite" ? "border-destructive bg-destructive/10 text-destructive" : "border-border hover:border-primary/40"}`}
                 >
-                  <div className="text-xs font-semibold">Überschreiben</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">Ersetzt vorhandene Werte</div>
+                  <div className="text-xs font-semibold">Ersetzen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Vorhandene Werte überschreiben</div>
                 </button>
               </div>
             </div>
@@ -166,7 +166,7 @@ function CsvImportDialog({
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
             <Button variant={importMode === "overwrite" ? "destructive" : "default"} onClick={handleImport} disabled={importing || !file}>
-              {importing ? t("importing") : importMode === "overwrite" ? `Überschreiben für ${year}` : `Importieren für ${year}`}
+              {importing ? t("importing") : importMode === "overwrite" ? `Ersetzen für ${year}` : `Aufaddieren für ${year}`}
             </Button>
           </DialogFooter>
         </DialogContent>
