@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
 
   const seasonYearParam = req.nextUrl.searchParams.get("season")
   const seasonYear = seasonYearParam ? parseInt(seasonYearParam, 10) : new Date().getFullYear()
+  const mode = req.nextUrl.searchParams.get("mode") === "overwrite" ? "overwrite" : "merge"
 
   const text = await req.text()
   const rows = parseCsvRows(text)
@@ -124,7 +125,7 @@ export async function POST(req: NextRequest) {
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
     })
 
-    if (existing && existing.goals > 0) {
+    if (existing && existing.goals > 0 && mode !== "overwrite") {
       skipped.push(`${label} (already has goals)`)
       continue
     }
@@ -146,6 +147,11 @@ export async function POST(req: NextRequest) {
     if (!existingLt) {
       await db.playerStatsLifetime.create({
         data: { playerId, goals: row.goals, assists: row.assists, score, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
+      })
+    } else if (mode === "overwrite") {
+      await db.playerStatsLifetime.update({
+        where: { playerId },
+        data: { goals: row.goals, assists: row.assists, score, sessionsPlayed: row.sessions },
       })
     }
 

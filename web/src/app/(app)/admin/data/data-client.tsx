@@ -44,6 +44,7 @@ function CsvImportDialog({
   const [year, setYear] = useState(defaultYear)
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importMode, setImportMode] = useState<"merge" | "overwrite">("merge")
   const label = type === "scores" ? "CSV Scores" : "CSV Points"
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,6 +56,7 @@ function CsvImportDialog({
   function openDialog() {
     setFile(null)
     setYear(defaultYear)
+    setImportMode("merge")
     setOpen(true)
   }
 
@@ -72,7 +74,7 @@ function CsvImportDialog({
     setImporting(true)
     try {
       const base = type === "scores" ? "/api/admin/import-csv" : "/api/admin/import-csv-points"
-      const res = await fetch(`${base}?season=${year}`, {
+      const res = await fetch(`${base}?season=${year}&mode=${importMode}`, {
         method: "POST",
         headers: { "Content-Type": "text/csv" },
         body: await file.text(),
@@ -105,6 +107,25 @@ function CsvImportDialog({
             <DialogTitle>{label} importieren</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Modus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setImportMode("merge")}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "merge" ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Hinzufügen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Überspringt Spieler mit vorhandenen Daten</div>
+                </button>
+                <button
+                  onClick={() => setImportMode("overwrite")}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "overwrite" ? "border-destructive bg-destructive/10 text-destructive" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Überschreiben</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Ersetzt vorhandene Werte</div>
+                </button>
+              </div>
+            </div>
             <div className="space-y-1.5">
               <Label>Saison (Jahr)</Label>
               <Select value={year} onValueChange={(v) => { if (v) setYear(v) }}>
@@ -144,8 +165,8 @@ function CsvImportDialog({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
-            <Button onClick={handleImport} disabled={importing || !file}>
-              {importing ? t("importing") : `Importieren für ${year}`}
+            <Button variant={importMode === "overwrite" ? "destructive" : "default"} onClick={handleImport} disabled={importing || !file}>
+              {importing ? t("importing") : importMode === "overwrite" ? `Überschreiben für ${year}` : `Importieren für ${year}`}
             </Button>
           </DialogFooter>
         </DialogContent>

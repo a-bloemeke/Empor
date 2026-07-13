@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
 
   const seasonYearParam = req.nextUrl.searchParams.get("season")
   const seasonYear = seasonYearParam ? parseInt(seasonYearParam, 10) : new Date().getFullYear()
+  const mode = req.nextUrl.searchParams.get("mode") === "overwrite" ? "overwrite" : "merge"
 
   const text = await req.text()
   const summaryRows = parseSummaryRows(text)
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
     })
 
-    if (existing && existing.points > 0) {
+    if (existing && existing.points > 0 && mode !== "overwrite") {
       skipped.push(`${label} (already has points)`)
       continue
     }
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
 
     const existingLt = await db.playerStatsLifetime.findUnique({ where: { playerId } })
     if (existingLt) {
-      if (existingLt.points === 0) {
+      if (existingLt.points === 0 || mode === "overwrite") {
         await db.playerStatsLifetime.update({ where: { playerId }, data })
       }
     } else {
