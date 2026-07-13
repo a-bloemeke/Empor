@@ -69,7 +69,7 @@ function parseSummaryRows(text: string): { name: string; punkte: number; kicks: 
     if (!rank || !/^\d+$/.test(rank)) { skipNext = false; continue }
     const name = cols[15]?.trim()
     if (!name) continue
-    const punkte = parseInt(cols[17]?.trim() ?? "", 10)  // col 17 = Punkte (win points), NOT col 16 (Gesamt = Punkte+kicks)
+    const punkte = parseInt(cols[16]?.trim() ?? "", 10)  // col 16 = Gesamt = Punkte + kicks, matches app's points (win pts + 1 per session)
     const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
     if (isNaN(punkte) || isNaN(kicks)) continue
     if (punkte === 0 && kicks === 0) continue
