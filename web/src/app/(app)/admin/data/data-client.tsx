@@ -461,6 +461,29 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
   const [resetYear, setResetYear] = useState<string>(String(new Date().getFullYear()))
   const [resetting, setResetting] = useState(false)
+  const [recomputeYear, setRecomputeYear] = useState<string>(
+    seasons.find((s) => s.status === "ACTIVE") ? String(seasons.find((s) => s.status === "ACTIVE")!.year) : String(new Date().getFullYear())
+  )
+  const [recomputing, setRecomputing] = useState(false)
+
+  async function handleRecompute() {
+    if (!confirm(`Session-Statistiken für Saison ${recomputeYear} neu berechnen und aufaddieren?`)) return
+    setRecomputing(true)
+    try {
+      const res = await fetch("/api/admin/recompute-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seasonYear: parseInt(recomputeYear) }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Recompute failed.")
+      toast.success(`${json.sessions} Session(s) neu berechnet und aufaddiert.`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setRecomputing(false)
+    }
+  }
 
   async function handleReset(type: "points" | "scores") {
     const label = type === "points" ? "Punkte & Spieltage" : "Tore & Assists"
@@ -530,6 +553,35 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
             <ExcelImportDialog seasons={seasons} />
           </div>
         </div>
+      </div>
+
+      {/* Recompute from sessions */}
+      <div className="rounded-xl border p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold">Session-Statistiken aufaddieren</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Berechnet Statistiken aus allen abgeschlossenen Sessions der Saison und addiert sie zu den aktuellen Werten hinzu.
+            Verwende dies nach einem CSV-Import, um die live erfassten Session-Daten hinzuzufügen.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Saison</Label>
+          <Select value={recomputeYear} onValueChange={(v) => { if (v) setRecomputeYear(v) }}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {seasons.map((s) => (
+                <SelectItem key={s.year} value={String(s.year)}>
+                  {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" disabled={recomputing} className="gap-2" onClick={handleRecompute}>
+          {recomputing ? "Wird berechnet…" : `Sessions aufaddieren für ${recomputeYear}`}
+        </Button>
       </div>
 
       {/* Reset */}
