@@ -310,10 +310,11 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
 
 // ─── Import: rebuild from natural keys, generate fresh IDs ───────────────────
 
-export async function importBundle(data: ExportBundle) {
+export async function importBundle(data: ExportBundle, mode: "replace" | "merge" = "replace") {
   if (data.version !== 2) throw new Error("Unsupported export version. Only version 2 is supported.")
 
-  // ── Wipe phase (outside transaction — fast deletes, no rollback needed) ──
+  // ── Wipe phase — skipped entirely in merge mode ──
+  if (mode === "replace") {
   if (data.scope === "all") {
     await db.playerStatsLifetime.deleteMany()
     await db.playerStats.deleteMany()
@@ -342,19 +343,20 @@ export async function importBundle(data: ExportBundle) {
       await db.season.delete({ where: { id: existingSeason.id } })
     }
   }
+  } // end replace-only wipe
 
-  // ── Restore phase ──
-  // Players: upsert individually (need ID map)
+  // ── Restore/merge phase ──
+  // Players: upsert — in merge mode, only create if not existing (no update)
   const playerIdByEmail = new Map<string, string>()
   for (const p of data.players ?? []) {
     const row = await db.player.upsert({
       where: { email: p.email },
-      update: {
+      update: mode === "replace" ? {
         firstName: p.firstName, lastName: p.lastName, nickname: p.nickname ?? null,
         dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
         addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
         addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
-      },
+      } : {}, // merge: don't overwrite existing player data
       create: {
         email: p.email, firstName: p.firstName, lastName: p.lastName,
         nickname: p.nickname ?? null,
@@ -378,18 +380,23 @@ export async function importBundle(data: ExportBundle) {
     seasonIdByYear.set(year, row.id)
   }
 
-  // Sessions: create individually (need ID map)
+  // Sessions: upsert by date (merge skips existing, replace always creates fresh after wipe)
   const sessionIdByDate = new Map<string, string>()
   for (const s of data.sessions ?? []) {
     const seasonId = seasonIdByYear.get(Number(s.seasonYear))!
     const organizerId = playerIdByEmail.get(s.organizerEmail)!
+    if (mode === "merge") {
+      // Check if session already exists by date+seasonId
+      const existing = await db.session.findFirst({ where: { seasonId, date: new Date(s.date) } })
+      if (existing) { sessionIdByDate.set(s.date, existing.id); continue }
+    }
     const row = await db.session.create({
       data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId },
     })
     sessionIdByDate.set(s.date, row.id)
   }
 
-  // Registrations: bulk create
+  // Registrations: skip duplicates in both modes (safe to always use skipDuplicates)
   const registrationData = (data.registrations ?? []).flatMap((r) => {
     const sessionId = sessionIdByDate.get(r.sessionDate)
     const playerId = playerIdByEmail.get(r.playerEmail)
@@ -403,7 +410,7 @@ export async function importBundle(data: ExportBundle) {
       beerBringer: r.beerBringer === true || String(r.beerBringer) === "true",
     }]
   })
-  if (registrationData.length) await db.sessionRegistration.createMany({ data: registrationData })
+  if (registrationData.length) await db.sessionRegistration.createMany({ data: registrationData, skipDuplicates: true })
 
   // Teams: create individually (need ID map), then bulk create TeamPlayers
   const teamIdByKey = new Map<string, string>()
@@ -411,6 +418,11 @@ export async function importBundle(data: ExportBundle) {
   for (const t of data.teams ?? []) {
     const sessionId = sessionIdByDate.get(t.sessionDate)
     if (!sessionId) continue
+    // In merge mode, skip teams that already exist for this session
+    if (mode === "merge") {
+      const existing = await db.team.findFirst({ where: { sessionId, name: t.name } })
+      if (existing) { teamIdByKey.set(`${t.sessionDate}:${t.name}`, existing.id); continue }
+    }
     const row = await db.team.create({ data: { sessionId, name: t.name } })
     teamIdByKey.set(`${t.sessionDate}:${t.name}`, row.id)
     for (const email of t.playerEmails) {
@@ -418,7 +430,7 @@ export async function importBundle(data: ExportBundle) {
       if (playerId) teamPlayerData.push({ teamId: row.id, playerId })
     }
   }
-  if (teamPlayerData.length) await db.teamPlayer.createMany({ data: teamPlayerData })
+  if (teamPlayerData.length) await db.teamPlayer.createMany({ data: teamPlayerData, skipDuplicates: true })
 
   // Matches: bulk create (need ID map — create individually but collect in parallel batches)
   const matchIdByKey = new Map<string, string>()
@@ -455,9 +467,9 @@ export async function importBundle(data: ExportBundle) {
       scoredAt: new Date(g.scoredAt),
     }]
   })
-  if (goalData.length) await db.goal.createMany({ data: goalData })
+  if (goalData.length) await db.goal.createMany({ data: goalData, skipDuplicates: true })
 
-  // Fees: bulk upsert via createMany (skipDuplicates handles existing)
+  // Fees: skip duplicates (don't overwrite existing fee records in merge)
   const feeData = (data.fees ?? []).flatMap((f) => {
     const playerId = playerIdByEmail.get(f.playerEmail)
     const recordedById = playerIdByEmail.get(f.recordedByEmail)
@@ -466,20 +478,45 @@ export async function importBundle(data: ExportBundle) {
   })
   if (feeData.length) await db.membershipFee.createMany({ data: feeData, skipDuplicates: true })
 
-  // Season stats: bulk upsert
-  const seasonStatData = (data.seasonStats ?? []).flatMap((s) => {
+  // Season stats
+  for (const s of data.seasonStats ?? []) {
     const playerId = playerIdByEmail.get(s.playerEmail)
     const seasonId = seasonIdByYear.get(Number(s.seasonYear))
-    if (!playerId || !seasonId) return []
-    return [{ playerId, seasonId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) }]
-  })
-  if (seasonStatData.length) await db.playerStats.createMany({ data: seasonStatData, skipDuplicates: true })
+    if (!playerId || !seasonId) continue
+    const vals = { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) }
+    if (mode === "merge") {
+      // Add imported values on top of whatever is already in DB
+      await db.playerStats.upsert({
+        where: { playerId_seasonId: { playerId, seasonId } },
+        create: { playerId, seasonId, ...vals },
+        update: { sessionsPlayed: { increment: vals.sessionsPlayed }, matchesPlayed: { increment: vals.matchesPlayed }, goals: { increment: vals.goals }, assists: { increment: vals.assists }, score: { increment: vals.score }, points: { increment: vals.points }, beers: { increment: vals.beers } },
+      })
+    } else {
+      await db.playerStats.upsert({
+        where: { playerId_seasonId: { playerId, seasonId } },
+        create: { playerId, seasonId, ...vals },
+        update: vals,
+      })
+    }
+  }
 
-  // Lifetime stats: bulk upsert
-  const lifetimeStatData = (data.lifetimeStats ?? []).flatMap((s) => {
+  // Lifetime stats
+  for (const s of data.lifetimeStats ?? []) {
     const playerId = playerIdByEmail.get(s.playerEmail)
-    if (!playerId) return []
-    return [{ playerId, sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) }]
-  })
-  if (lifetimeStatData.length) await db.playerStatsLifetime.createMany({ data: lifetimeStatData, skipDuplicates: true })
+    if (!playerId) continue
+    const vals = { sessionsPlayed: Number(s.sessionsPlayed), matchesPlayed: Number(s.matchesPlayed), goals: Number(s.goals), assists: Number(s.assists), score: Number(s.score), points: Number(s.points), beers: Number(s.beers ?? 0) }
+    if (mode === "merge") {
+      await db.playerStatsLifetime.upsert({
+        where: { playerId },
+        create: { playerId, ...vals },
+        update: { sessionsPlayed: { increment: vals.sessionsPlayed }, matchesPlayed: { increment: vals.matchesPlayed }, goals: { increment: vals.goals }, assists: { increment: vals.assists }, score: { increment: vals.score }, points: { increment: vals.points }, beers: { increment: vals.beers } },
+      })
+    } else {
+      await db.playerStatsLifetime.upsert({
+        where: { playerId },
+        create: { playerId, ...vals },
+        update: vals,
+      })
+    }
+  }
 }

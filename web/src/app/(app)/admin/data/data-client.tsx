@@ -44,6 +44,7 @@ function CsvImportDialog({
   const [year, setYear] = useState(defaultYear)
   const [file, setFile] = useState<File | null>(null)
   const [importing, setImporting] = useState(false)
+  const [importMode, setImportMode] = useState<"merge" | "overwrite">("merge")
   const label = type === "scores" ? "CSV Scores" : "CSV Points"
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -55,6 +56,7 @@ function CsvImportDialog({
   function openDialog() {
     setFile(null)
     setYear(defaultYear)
+    setImportMode("merge")
     setOpen(true)
   }
 
@@ -72,7 +74,7 @@ function CsvImportDialog({
     setImporting(true)
     try {
       const base = type === "scores" ? "/api/admin/import-csv" : "/api/admin/import-csv-points"
-      const res = await fetch(`${base}?season=${year}`, {
+      const res = await fetch(`${base}?season=${year}&mode=${importMode}`, {
         method: "POST",
         headers: { "Content-Type": "text/csv" },
         body: await file.text(),
@@ -105,6 +107,25 @@ function CsvImportDialog({
             <DialogTitle>{label} importieren</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Modus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setImportMode("merge")}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "merge" ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Aufaddieren</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">CSV-Werte zu vorhandenen addieren</div>
+                </button>
+                <button
+                  onClick={() => setImportMode("overwrite")}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "overwrite" ? "border-destructive bg-destructive/10 text-destructive" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Ersetzen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Vorhandene Werte überschreiben</div>
+                </button>
+              </div>
+            </div>
             <div className="space-y-1.5">
               <Label>Saison (Jahr)</Label>
               <Select value={year} onValueChange={(v) => { if (v) setYear(v) }}>
@@ -144,8 +165,8 @@ function CsvImportDialog({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
-            <Button onClick={handleImport} disabled={importing || !file}>
-              {importing ? t("importing") : `Importieren für ${year}`}
+            <Button variant={importMode === "overwrite" ? "destructive" : "default"} onClick={handleImport} disabled={importing || !file}>
+              {importing ? t("importing") : importMode === "overwrite" ? `Ersetzen für ${year}` : `Aufaddieren für ${year}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -156,17 +177,23 @@ function CsvImportDialog({
 
 // ─── Excel Full-Restore Import Dialog ────────────────────────────────────────
 
-function ExcelImportDialog() {
+// ─── Excel Full-Restore Import Dialog ────────────────────────────────────────
+
+function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
   const fileRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  const [importScope, setImportScope] = useState<string>("all")
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge")
   const [confirmed, setConfirmed] = useState(false)
   const [importing, setImporting] = useState(false)
 
   function openDialog() {
     setFile(null)
     setConfirmed(false)
+    setImportScope("all")
+    setImportMode("merge")
     setOpen(true)
   }
 
@@ -179,13 +206,20 @@ function ExcelImportDialog() {
     if (!file || !confirmed) return
     setImporting(true)
     try {
-      const res = await fetch("/api/admin/import-xlsx", {
+      const params = new URLSearchParams()
+      if (importScope !== "all") params.set("season", importScope)
+      params.set("mode", importMode)
+      const url = `/api/admin/import-xlsx?${params}`
+      const res = await fetch(url, {
         method: "POST",
         body: await file.arrayBuffer(),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Import fehlgeschlagen.")
-      toast.success("Daten erfolgreich wiederhergestellt.")
+      toast.success(importMode === "merge"
+        ? "Daten erfolgreich hinzugefügt."
+        : importScope === "all" ? "Alle Daten wiederhergestellt." : `Saison ${importScope} wiederhergestellt.`
+      )
       setOpen(false)
       window.location.reload()
     } catch (err) {
@@ -195,20 +229,71 @@ function ExcelImportDialog() {
     }
   }
 
+  const isReplace = importMode === "replace"
+  const isMerge = importMode === "merge"
+
   return (
     <>
       <Button variant="outline" className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={openDialog}>
-        <UploadIcon className="size-4" /> Excel wiederherstellen
+        <UploadIcon className="size-4" /> Excel importieren
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!importing) setOpen(o) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Vollständige Wiederherstellung aus Excel</DialogTitle>
+            <DialogTitle>Aus Excel importieren</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              ⚠️ Diese Aktion ersetzt <strong>alle Daten</strong> in der Datenbank durch den Inhalt der Excel-Datei. Nicht rückgängig zu machen.
+            {/* Mode */}
+            <div className="space-y-1.5">
+              <Label>Modus</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { setImportMode("merge"); setConfirmed(false) }}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${isMerge ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Hinzufügen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Bestehende Daten bleiben erhalten</div>
+                </button>
+                <button
+                  onClick={() => { setImportMode("replace"); setConfirmed(false) }}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${isReplace ? "border-destructive bg-destructive/10 text-destructive" : "border-border hover:border-primary/40"}`}
+                >
+                  <div className="text-xs font-semibold">Ersetzen</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Bestehende Daten werden überschrieben</div>
+                </button>
+              </div>
             </div>
+            {/* Scope — only relevant for replace mode */}
+            {isReplace && (
+              <div className="space-y-1.5">
+                <Label>Was ersetzen?</Label>
+                <Select value={importScope} onValueChange={(v) => { if (v) { setImportScope(v); setConfirmed(false) } }}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {(v: string) => v === "all" ? "Alles" : `Nur Saison ${v}`}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Alles (vollständige Wiederherstellung)</SelectItem>
+                    {seasons.map((s) => (
+                      <SelectItem key={s.year} value={String(s.year)}>
+                        Nur Saison {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {/* Warning */}
+            <div className={`rounded-lg px-4 py-3 text-sm ${isReplace ? "bg-destructive/10 border border-destructive/30 text-destructive" : "bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300"}`}>
+              {isMerge
+                ? "ℹ️ Neue Spieler, Saisons, Spieltage und Statistiken werden hinzugefügt. Bereits vorhandene Einträge bleiben unverändert — Statistiken werden aufaddiert."
+                : importScope === "all"
+                ? "⚠️ Alle bestehenden Daten werden gelöscht und durch den Inhalt der Datei ersetzt."
+                : `⚠️ Alle Daten für Saison ${importScope} werden gelöscht und durch den Inhalt der Datei ersetzt.`
+              }
+            </div>
+            {/* File picker */}
             <div className="space-y-1.5">
               <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
               <div className="flex items-center gap-2">
@@ -222,19 +307,14 @@ function ExcelImportDialog() {
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                className="h-4 w-4 rounded border"
-              />
-              Ich habe ein Backup und verstehe, dass alle Daten ersetzt werden.
+              <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="h-4 w-4 rounded border" />
+              {isMerge ? "Ich verstehe, dass Statistiken aufaddiert werden." : "Ich habe ein Backup und verstehe, dass Daten überschrieben werden."}
             </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={importing}>Abbrechen</Button>
-            <Button variant="destructive" onClick={handleImport} disabled={importing || !file || !confirmed}>
-              {importing ? t("importing") : "Jetzt wiederherstellen"}
+            <Button variant={isReplace ? "destructive" : "default"} onClick={handleImport} disabled={importing || !file || !confirmed}>
+              {importing ? t("importing") : isMerge ? "Hinzufügen" : "Ersetzen"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -381,6 +461,29 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
   const t = useTranslations("admin.data")
   const [resetYear, setResetYear] = useState<string>(String(new Date().getFullYear()))
   const [resetting, setResetting] = useState(false)
+  const [recomputeYear, setRecomputeYear] = useState<string>(
+    seasons.find((s) => s.status === "ACTIVE") ? String(seasons.find((s) => s.status === "ACTIVE")!.year) : String(new Date().getFullYear())
+  )
+  const [recomputing, setRecomputing] = useState(false)
+
+  async function handleRecompute() {
+    if (!confirm(`Session-Statistiken für Saison ${recomputeYear} neu berechnen und aufaddieren?`)) return
+    setRecomputing(true)
+    try {
+      const res = await fetch("/api/admin/recompute-stats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seasonYear: parseInt(recomputeYear) }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Recompute failed.")
+      toast.success(`${json.sessions} Session(s) neu berechnet und aufaddiert.`)
+    } catch (err) {
+      toast.error((err as Error).message)
+    } finally {
+      setRecomputing(false)
+    }
+  }
 
   async function handleReset(type: "points" | "scores") {
     const label = type === "points" ? "Punkte & Spieltage" : "Tore & Assists"
@@ -447,9 +550,38 @@ export function DataClient({ seasons }: { seasons: Season[] }) {
           </div>
           <div className="border-t pt-4 space-y-2">
             <p className="text-xs text-muted-foreground">Vollständige Wiederherstellung — stellt alle Daten aus einer Excel-Exportdatei wieder her.</p>
-            <ExcelImportDialog />
+            <ExcelImportDialog seasons={seasons} />
           </div>
         </div>
+      </div>
+
+      {/* Recompute from sessions */}
+      <div className="rounded-xl border p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold">Session-Statistiken aufaddieren</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Berechnet Statistiken aus allen abgeschlossenen Sessions der Saison und addiert sie zu den aktuellen Werten hinzu.
+            Verwende dies nach einem CSV-Import, um die live erfassten Session-Daten hinzuzufügen.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Saison</Label>
+          <Select value={recomputeYear} onValueChange={(v) => { if (v) setRecomputeYear(v) }}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {seasons.map((s) => (
+                <SelectItem key={s.year} value={String(s.year)}>
+                  {s.year}{s.status === "ACTIVE" ? " (aktiv)" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" disabled={recomputing} className="gap-2" onClick={handleRecompute}>
+          {recomputing ? "Wird berechnet…" : `Sessions aufaddieren für ${recomputeYear}`}
+        </Button>
       </div>
 
       {/* Reset */}

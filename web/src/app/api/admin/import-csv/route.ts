@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
 
   const seasonYearParam = req.nextUrl.searchParams.get("season")
   const seasonYear = seasonYearParam ? parseInt(seasonYearParam, 10) : new Date().getFullYear()
+  const mode = req.nextUrl.searchParams.get("mode") === "overwrite" ? "overwrite" : "add"
 
   const text = await req.text()
   const rows = parseCsvRows(text)
@@ -124,28 +125,35 @@ export async function POST(req: NextRequest) {
       where: { playerId_seasonId: { playerId, seasonId: season.id } },
     })
 
-    if (existing && existing.goals > 0) {
-      skipped.push(`${label} (already has goals)`)
-      continue
-    }
-
-    const score = row.goals + row.assists
+    const newGoals = mode === "add" ? (existing?.goals ?? 0) + row.goals : row.goals
+    const newAssists = mode === "add" ? (existing?.assists ?? 0) + row.assists : row.assists
+    const score = newGoals + newAssists
 
     if (existing) {
+      // Never overwrite sessionsPlayed on update — that is owned by the points import
       await db.playerStats.update({
         where: { playerId_seasonId: { playerId, seasonId: season.id } },
-        data: { goals: row.goals, assists: row.assists, score },
+        data: { goals: newGoals, assists: newAssists, score },
       })
     } else {
       await db.playerStats.create({
-        data: { playerId, seasonId: season.id, goals: row.goals, assists: row.assists, score, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
+        data: { playerId, seasonId: season.id, goals: newGoals, assists: newAssists, score, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
       })
     }
 
     const existingLt = await db.playerStatsLifetime.findUnique({ where: { playerId } })
+    const ltGoals = mode === "add" ? (existingLt?.goals ?? 0) + row.goals : row.goals
+    const ltAssists = mode === "add" ? (existingLt?.assists ?? 0) + row.assists : row.assists
+    const ltScore = ltGoals + ltAssists
     if (!existingLt) {
       await db.playerStatsLifetime.create({
-        data: { playerId, goals: row.goals, assists: row.assists, score, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
+        data: { playerId, goals: ltGoals, assists: ltAssists, score: ltScore, sessionsPlayed: row.sessions, matchesPlayed: 0, points: 0 },
+      })
+    } else {
+      // Never overwrite sessionsPlayed on update — that is owned by the points import
+      await db.playerStatsLifetime.update({
+        where: { playerId },
+        data: { goals: ltGoals, assists: ltAssists, score: ltScore },
       })
     }
 
