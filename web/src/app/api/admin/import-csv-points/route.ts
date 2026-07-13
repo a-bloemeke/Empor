@@ -60,8 +60,8 @@ async function findOrCreatePlayer(
 
 // Parse the right-side summary table: col 15=Name, 16=Gesamt, 18=kicks
 // Skip check rows (max, 369, check, super) and the row immediately after "max"
-function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: number }[] {
-  const rows: { name: string; gesamt: number; kicks: number }[] = []
+function parseSummaryRows(text: string): { name: string; punkte: number; kicks: number }[] {
+  const rows: { name: string; punkte: number; kicks: number }[] = []
   let skipNext = false
   for (const line of text.split("\n")) {
     const cols = line.split(";")
@@ -69,10 +69,10 @@ function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: 
     if (!rank || !/^\d+$/.test(rank)) { skipNext = false; continue }
     const name = cols[15]?.trim()
     if (!name) continue
-    const gesamt = parseInt(cols[16]?.trim() ?? "", 10)
+    const punkte = parseInt(cols[17]?.trim() ?? "", 10)  // col 17 = Punkte (win points), NOT col 16 (Gesamt = Punkte+kicks)
     const kicks  = parseInt(cols[18]?.trim() ?? "", 10)
-    if (isNaN(gesamt) || isNaN(kicks)) continue
-    if (gesamt === 0 && kicks === 0) continue
+    if (isNaN(punkte) || isNaN(kicks)) continue
+    if (punkte === 0 && kicks === 0) continue
     if (kicks === 0) continue  // no game days played — don't create account or stats
     const isSkipName = CSV_SKIP_NAMES.has(normalize(name))
     if (isSkipName || skipNext) {
@@ -80,7 +80,7 @@ function parseSummaryRows(text: string): { name: string; gesamt: number; kicks: 
       continue
     }
     skipNext = false
-    rows.push({ name, gesamt, kicks })
+    rows.push({ name, punkte, kicks })
   }
   return rows
 }
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     // matchesPlayed from left-side rows; fall back to kicks if name not found there
     const matches = matchCounts.get(row.name) ?? row.kicks
-    const newPoints = mode === "add" ? (existing?.points ?? 0) + row.gesamt : row.gesamt
+    const newPoints = mode === "add" ? (existing?.points ?? 0) + row.punkte : row.punkte
     const newSessions = mode === "add" ? (existing?.sessionsPlayed ?? 0) + row.kicks : row.kicks
     const newMatches = mode === "add" ? (existing?.matchesPlayed ?? 0) + matches : matches
     const data = { points: newPoints, sessionsPlayed: newSessions, matchesPlayed: newMatches }
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existingLt = await db.playerStatsLifetime.findUnique({ where: { playerId } })
-    const ltPoints = mode === "add" ? (existingLt?.points ?? 0) + row.gesamt : row.gesamt
+    const ltPoints = mode === "add" ? (existingLt?.points ?? 0) + row.punkte : row.punkte
     const ltSessions = mode === "add" ? (existingLt?.sessionsPlayed ?? 0) + row.kicks : row.kicks
     const ltMatches = mode === "add" ? (existingLt?.matchesPlayed ?? 0) + matches : matches
     const ltData = { points: ltPoints, sessionsPlayed: ltSessions, matchesPlayed: ltMatches }
