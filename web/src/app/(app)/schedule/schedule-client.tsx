@@ -414,10 +414,12 @@ export function ScheduleClient({
                           )
                         )}
                         {isOrganizer && s.status === "SCHEDULED" && (
-                          <CancelGameDayDialog
-                            sessionId={s.id}
-                            onCancelled={() => setActionId(null)}
-                          />
+                          <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
+                            <CancelGameDayDialog
+                              sessionId={s.id}
+                              onCancelled={() => setActionId(null)}
+                            />
+                          </span>
                         )}
                       </div>
                     </TableCell>
@@ -463,7 +465,9 @@ export function ScheduleClient({
                   {isOrganizer && (
                     <TableCell className="text-right">
                       {s.status !== "SCHEDULED" && s.status !== "COMPLETED" && s.status !== "IN_PROGRESS" && (
-                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}>
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}
+                          className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                        >
                           {busy ? "…" : t("reopenGameDay")}
                         </Button>
                       )}

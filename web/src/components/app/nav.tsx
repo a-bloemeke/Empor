@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -49,20 +50,27 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
 
         {/* Desktop nav links */}
         <nav className="hidden sm:flex items-center gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                pathname.startsWith(link.href)
-                  ? "bg-white/20 text-white"
-                  : "text-white/70 hover:text-white hover:bg-white/10"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const isAdmin = link.href.startsWith("/admin")
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                  isAdmin
+                    ? pathname.startsWith(link.href)
+                      ? "bg-amber-400/30 text-amber-200"
+                      : "text-amber-300/80 hover:text-amber-200 hover:bg-amber-400/20"
+                    : pathname.startsWith(link.href)
+                      ? "bg-white/20 text-white"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
+                )}
+              >
+                {isAdmin && <span className="mr-1 text-xs">⚙</span>}{link.label}
+              </Link>
+            )
+          })}
         </nav>
 
         {/* Right side */}
@@ -128,12 +136,13 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
                 {isOrganizer && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => router.push("/admin/players")}>{t("players")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/admin/membership")}>{t("membershipFees")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/admin/seasons")}>{t("seasons")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/admin/data")}>{t("data")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/admin/quotes")}>Zitate</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push("/admin/settings")}>{t("settings")}</DropdownMenuItem>
+                    <DropdownMenuLabel className="text-xs text-amber-600 dark:text-amber-400 px-2 py-1">⚙ Admin</DropdownMenuLabel>
+                    <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/players")}>{t("players")}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/membership")}>{t("membershipFees")}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/seasons")}>{t("seasons")}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/data")}>{t("data")}</DropdownMenuItem>
+                    <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/quotes")}>Zitate</DropdownMenuItem>
+                    <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/settings")}>{t("settings")}</DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />

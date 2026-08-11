@@ -2122,7 +2122,7 @@ export function SessionClient({
         <div className="space-y-4">
           <RegistrationPanel session={session} isOrganizer={isOrganizer} />
           {isOrganizer && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
               <Button size="sm" variant="outline" disabled={pending} onClick={() => {
                 startTransition(async () => {
@@ -2145,7 +2145,7 @@ export function SessionClient({
           <SectionHeader title="Teams" />
           <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} pins={pins} />
           {isOrganizer && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
               <SendInvitationDialog sessionId={session.id} />
               {pendingMatches.length === 0 && session.teams.length >= 2 && session.teams.length <= 3 && (
@@ -2198,7 +2198,10 @@ export function SessionClient({
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{pendingMatches[0].homeTeamName} vs {pendingMatches[0].awayTeamName}</span>
                     {isOrganizer && (
-                      <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}>
+                      <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}
+                        className="border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                        variant="outline"
+                      >
                         {t("startMatch")}
                       </Button>
                     )}
@@ -2269,7 +2272,7 @@ export function SessionClient({
 
           {/* Tournament controls */}
           {isCurrentlyTournament && !activeMatch && isOrganizer && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            <div className="flex flex-wrap gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               {roundComplete && (currentRound ?? 0) < 5 && (
                 <Button disabled={pending} onClick={handleNextRound}>
                   ▶ Play Round {(currentRound ?? 0) + 1}
@@ -2286,7 +2289,7 @@ export function SessionClient({
 
           {/* Normal play controls (2-team or after switching from tournament) */}
           {!isCurrentlyTournament && !activeMatch && completedMatches.length > 0 && isOrganizer && (
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            <div className="flex flex-wrap gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               {startedAsTournament && (
                 <div className="w-full text-xs text-muted-foreground mb-1 italic">
                   {t("tournamentPaused")}
