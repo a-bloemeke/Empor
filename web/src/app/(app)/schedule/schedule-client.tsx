@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -305,6 +305,18 @@ export function ScheduleClient({
     })
   }
 
+  function handleEndSession(id: string) {
+    setActionId(id)
+    startTransition(async () => {
+      try {
+        await endSession(id)
+        toast.success(t("gameDayCompleted"))
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setActionId(null) }
+    })
+  }
+
   return (
     <div className="space-y-8">
       <section className="overflow-hidden rounded-xl border border-border shadow-sm">
@@ -464,12 +476,29 @@ export function ScheduleClient({
                   <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
                   {isOrganizer && (
                     <TableCell className="text-right">
-                      {s.status !== "SCHEDULED" && s.status !== "COMPLETED" && s.status !== "IN_PROGRESS" && (
+                      {s.status === "CANCELLED" && (
                         <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}
                           className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                         >
                           {busy ? "…" : t("reopenGameDay")}
                         </Button>
+                      )}
+                      {s.status === "SCHEDULED" && (
+                        <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
+                          <CancelGameDayDialog sessionId={s.id} onCancelled={() => setActionId(null)} />
+                        </span>
+                      )}
+                      {s.status === "IN_PROGRESS" && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleEndSession(s.id)}
+                            className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                          >
+                            {busy ? "…" : t("endGameDay")}
+                          </Button>
+                          <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
+                            <CancelGameDayDialog sessionId={s.id} onCancelled={() => setActionId(null)} />
+                          </span>
+                        </div>
                       )}
                     </TableCell>
                   )}

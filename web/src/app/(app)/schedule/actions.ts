@@ -7,6 +7,9 @@ import { notifyOrganizersSessionRegistration, sendGameDayCancellation, notifyOrg
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
+import { endSession } from "@/app/(app)/sessions/[id]/actions"
+
+export { endSession }
 
 export async function createSession(dateIso: string) {
   const session = await auth()
@@ -37,7 +40,7 @@ export async function cancelSession(sessionId: string) {
 
   const s = await db.session.findUnique({ where: { id: sessionId } })
   if (!s) throw new Error("Session not found.")
-  if (s.status !== "SCHEDULED") throw new Error("Only scheduled sessions can be cancelled.")
+  if (s.status !== "SCHEDULED" && s.status !== "IN_PROGRESS") throw new Error("Only scheduled or in-progress sessions can be cancelled.")
 
   await db.session.update({ where: { id: sessionId }, data: { status: "CANCELLED" } })
   // intentionally no revalidatePath here — caller triggers revalidation after the email dialog

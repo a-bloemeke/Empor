@@ -119,6 +119,7 @@
     "cancelEmailSent": "Absage-Mail an {count} Spieler gesendet.",
     "reopenGameDay": "Wieder öffnen",
     "gameDayReopened": "Spieltag wieder geöffnet.",
+    "gameDayCompleted": "Spieltag abgeschlossen.",
     "bringBeer": "Bier mitbringen 🍺",
     "bringingBeer": "Ich bringe Bier 🍺",
     "beerToggled": "Bier-Bringer aktualisiert."

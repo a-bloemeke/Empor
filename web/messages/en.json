@@ -119,6 +119,7 @@
     "cancelEmailSent": "Cancellation email sent to {count} player{count, plural, one {} other {s}}.",
     "reopenGameDay": "Re-open",
     "gameDayReopened": "Game day re-opened.",
+    "gameDayCompleted": "Game day completed.",
     "bringBeer": "Bring beer 🍺",
     "bringingBeer": "Bringing beer 🍺",
     "beerToggled": "Beer bringer updated."
