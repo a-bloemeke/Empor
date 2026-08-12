@@ -287,6 +287,38 @@ export async function notifyOrganizersNewPlayer(player: { firstName: string; las
   await transporter.sendMail({ from, to: organizers.map((o) => o.email), subject, text, html })
 }
 
+export async function sendRsvpConfirmation(
+  session: { id: string; date: Date },
+  player: { email: string; firstName: string },
+) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
+  if (!player.email) return
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+
+  const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
+  const scheduleLink = `${appUrl}/schedule`
+
+  const subject = `✅ Anmeldung bestätigt – ${dateStr}`
+  const text = `Hey ${player.firstName},\n\ndeine Anmeldung für den Spieltag am ${dateStr} um 20:00 Uhr wurde bestätigt.\n\nUm abzusagen, besuche die Spielplan-Seite: ${scheduleLink}\n\nEmpor Lichtenberg`
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <p style="margin:0 0 8px">Hey ${player.firstName},</p>
+  <p style="margin:0 0 16px">deine Anmeldung für den Spieltag am <strong>${dateStr}</strong> um <strong>20:00 Uhr</strong> wurde bestätigt. ✅</p>
+  <a href="${scheduleLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
+  <p style="margin:24px 0 0;color:#555;font-size:13px">Um abzusagen, öffne den Spielplan und klicke auf "Absagen" neben dem Spieltag.</p>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+</body>
+</html>`
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: player.email, subject, text, html })
+}
+
 export async function notifyOrganizersSessionRegistration(
   session: { id: string; date: Date },
   player: { firstName: string; lastName: string; email: string },

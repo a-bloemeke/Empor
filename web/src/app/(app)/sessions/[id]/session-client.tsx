@@ -37,6 +37,7 @@ import {
   addRegistrationBulk,
   addGuestAndRegister,
   removeRegistration,
+  cancelRegistrationAdmin,
   generateTeams,
   generateTeamsWithPins,
   movePlayer,
@@ -194,6 +195,28 @@ function RegistrationPanel({
     })
   }
 
+  function handleAdd(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await addRegistration(session.id, playerId)
+        toast.success("Spieler angemeldet.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleCancelAdmin(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await cancelRegistrationAdmin(session.id, playerId)
+        toast.success("Spieler abgemeldet.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
   function togglePlayer(id: string) {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -322,6 +345,15 @@ function RegistrationPanel({
                   <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
                     <td className="py-1 px-2 text-muted-foreground">{r.playerName}</td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <button
+                          className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                          disabled={pending && actionId === r.playerId}
+                          onClick={() => handleAdd(r.playerId)}
+                        >+ Anmelden</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -341,6 +373,22 @@ function RegistrationPanel({
                   <tr key={p.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
                     <td className="py-1 px-2 text-muted-foreground">{p.name}</td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === p.id}
+                            onClick={() => handleAdd(p.id)}
+                          >+ Anmelden</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === p.id}
+                            onClick={() => handleCancelAdmin(p.id)}
+                          >Absagen</button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

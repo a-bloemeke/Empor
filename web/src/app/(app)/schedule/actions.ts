@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { notifyOrganizersSessionRegistration, sendGameDayCancellation, notifyOrganizersCancellation } from "@/lib/email"
+import { notifyOrganizersSessionRegistration, sendGameDayCancellation, notifyOrganizersCancellation, sendRsvpConfirmation } from "@/lib/email"
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -179,10 +179,13 @@ export async function registerSelf(sessionId: string) {
 
   const player = await db.player.findUnique({
     where: { id: authSession.user.id },
-    select: { firstName: true, lastName: true, email: true },
+    select: { firstName: true, lastName: true, email: true, emailNotifications: true },
   })
   if (player) {
     await notifyOrganizersSessionRegistration(s, player)
+    if (player.emailNotifications && player.email) {
+      await sendRsvpConfirmation(s, player)
+    }
   }
 
   revalidatePath("/schedule")

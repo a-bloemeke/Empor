@@ -714,6 +714,27 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   revalidate(sessionId)
 }
 
+export async function cancelRegistrationAdmin(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (existing) {
+    if (existing.status === "CANCELLED") return
+    await db.sessionRegistration.update({
+      where: { id: existing.id },
+      data: { status: "CANCELLED", cancelledAt: new Date(), beerBringer: false },
+    })
+  } else {
+    await db.sessionRegistration.create({
+      data: { sessionId, playerId, registeredById: authSession.user.id!, status: "CANCELLED", cancelledAt: new Date() },
+    })
+  }
+  revalidate(sessionId)
+}
+
 export async function generateTeams(
   sessionId: string,
   numTeams: 2 | 3,
