@@ -167,14 +167,20 @@ export async function registerSelf(sessionId: string) {
       data: { status: "REGISTERED", registeredAt: new Date(), cancelledAt: null },
     })
   } else {
+    const requireApproval = await db.appConfig.findUnique({ where: { key: "requireApproval" } })
+    const status = requireApproval?.value === "true" ? "PENDING" : "REGISTERED"
     await db.sessionRegistration.create({
       data: {
         sessionId,
         playerId: authSession.user.id,
         registeredById: authSession.user.id,
-        status: "REGISTERED",
+        status,
       },
     })
+    if (status === "PENDING") {
+      revalidatePath("/schedule")
+      return
+    }
   }
 
   const player = await db.player.findUnique({

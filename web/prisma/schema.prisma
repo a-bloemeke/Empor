@@ -30,6 +30,7 @@ enum RegistrationStatus {
   REGISTERED
   CANCELLED
   MAYBE
+  PENDING
 }
 
 enum MatchStatus {

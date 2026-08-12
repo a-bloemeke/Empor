@@ -19,3 +19,16 @@ export async function saveEmailFrom(email: string) {
 
   revalidatePath("/admin/settings")
 }
+
+export async function saveRequireApproval(enabled: boolean) {
+  const session = await auth()
+  if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  await db.appConfig.upsert({
+    where: { key: "requireApproval" },
+    update: { value: enabled ? "true" : "false" },
+    create: { key: "requireApproval", value: enabled ? "true" : "false" },
+  })
+
+  revalidatePath("/admin/settings")
+}

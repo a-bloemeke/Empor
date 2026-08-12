@@ -1464,3 +1464,49 @@ export async function convertGuestToPlayer(playerId: string, email: string, pass
   revalidatePath("/sessions", "layout")
   revalidatePath("/schedule")
 }
+
+export async function approveRegistration(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const reg = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!reg) throw new Error("Anmeldung nicht gefunden.")
+  if (reg.status !== "PENDING") throw new Error("Anmeldung ist nicht ausstehend.")
+
+  await db.sessionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "REGISTERED", registeredAt: new Date() },
+  })
+
+  const player = await db.player.findUnique({
+    where: { id: playerId },
+    select: { email: true, firstName: true, emailNotifications: true },
+  })
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (player?.emailNotifications && player.email && session) {
+    const { sendRsvpConfirmation } = await import("@/lib/email")
+    await sendRsvpConfirmation(session, player)
+  }
+
+  revalidate(sessionId)
+}
+
+export async function rejectRegistration(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const reg = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!reg) throw new Error("Anmeldung nicht gefunden.")
+  if (reg.status !== "PENDING") throw new Error("Anmeldung ist nicht ausstehend.")
+
+  await db.sessionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
+  })
+
+  revalidate(sessionId)
+}

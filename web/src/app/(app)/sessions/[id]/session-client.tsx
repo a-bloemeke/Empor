@@ -62,9 +62,11 @@ import {
   sendSummaryEmail,
   getStatusUpdateDefaults,
   sendStatusUpdate,
+  approveRegistration,
+  rejectRegistration,
+  convertGuestToPlayer,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
-import { convertGuestToPlayer } from "./actions"
 import type { PointsScope } from "@/lib/types"
 import { toast } from "sonner"
 import { SportsTable } from "@/components/app/sports-table"
@@ -267,6 +269,7 @@ function RegistrationPanel({
   }
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
+  const pendingRegs = session.registrations.filter((r) => r.status === "PENDING")
   const maybe = session.registrations.filter((r) => r.status === "MAYBE")
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED")
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
@@ -315,6 +318,28 @@ function RegistrationPanel({
       try {
         await cancelRegistrationAdmin(session.id, playerId)
         toast.success("Spieler abgemeldet.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleApprove(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await approveRegistration(session.id, playerId)
+        toast.success("Anmeldung bestätigt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleReject(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await rejectRegistration(session.id, playerId)
+        toast.success("Anmeldung abgelehnt.")
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
     })
@@ -443,6 +468,46 @@ function RegistrationPanel({
                 <span className="text-xs text-muted-foreground">Absagen nicht mehr möglich</span>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Pending — awaiting organizer approval */}
+        {pendingRegs.length > 0 && (
+          <div className={registered.length > 0 ? "border-t border-border/50 pt-3" : ""}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1.5">
+              Ausstehend ({pendingRegs.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {pendingRegs.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-amber-700 dark:text-amber-300">
+                      {r.playerName}
+                      {r.playerId === currentUserId && (
+                        <span className="ml-1.5 text-xs text-amber-500">(Ausstehend)</span>
+                      )}
+                    </td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleApprove(r.playerId)}
+                          >✓ Bestätigen</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleReject(r.playerId)}
+                          >✗ Ablehnen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
