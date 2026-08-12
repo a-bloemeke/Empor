@@ -7,10 +7,11 @@ import { computeAndSaveStats } from "@/lib/stats"
 import type { PointsScope } from "@/lib/types"
 import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
 import type { TeamRef, MatchRef } from "@/lib/game-logic"
-import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation } from "@/lib/email"
+import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation, sendWelcomeEmail } from "@/lib/email"
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
+import bcrypt from "bcryptjs"
 
 // ─── Season-aware player rating ───────────────────────────────────────────────
 // Returns the two most recent season IDs (current first, previous second).
@@ -1434,4 +1435,32 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
 
   revalidate(sessionId)
   return guest.id
+}
+
+export async function convertGuestToPlayer(playerId: string, email: string, password: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const trimmedEmail = email.trim().toLowerCase()
+  if (!trimmedEmail) throw new Error("E-Mail-Adresse ist erforderlich.")
+  if (password.length < 6) throw new Error("Passwort muss mindestens 6 Zeichen haben.")
+
+  const player = await db.player.findUnique({ where: { id: playerId } })
+  if (!player) throw new Error("Spieler nicht gefunden.")
+  if (player.passwordHash) throw new Error("Dieser Spieler hat bereits ein Konto.")
+
+  const existing = await db.player.findFirst({ where: { email: trimmedEmail, id: { not: playerId } } })
+  if (existing) throw new Error("Diese E-Mail-Adresse wird bereits verwendet.")
+
+  const passwordHash = await bcrypt.hash(password, 10)
+
+  await db.player.update({
+    where: { id: playerId },
+    data: { email: trimmedEmail, passwordHash, active: true },
+  })
+
+  await sendWelcomeEmail({ email: trimmedEmail, firstName: player.firstName })
+
+  revalidatePath("/sessions", "layout")
+  revalidatePath("/schedule")
 }

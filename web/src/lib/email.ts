@@ -371,3 +371,29 @@ export async function notifyOrganizersSessionRegistration(
   await transporter.sendMail({ from, to: organizers.map((o) => o.email), subject, text, html })
 }
 
+export async function sendWelcomeEmail(player: { email: string; firstName: string }) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
+  if (!player.email) return
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+  const loginLink = `${appUrl}/login`
+
+  const subject = `Willkommen bei Empor! 🎉`
+  const text = `Hey ${player.firstName},\n\ndein Konto bei Empor Lichtenberg ist jetzt aktiv. Du kannst dich ab sofort einloggen:\n${loginLink}\n\nEmpor Lichtenberg`
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <p style="margin:0 0 8px">Hey ${player.firstName},</p>
+  <p style="margin:0 0 16px">dein Konto bei <strong>Empor Lichtenberg</strong> ist jetzt aktiv. Du kannst dich ab sofort einloggen und deine Anmeldungen selbst verwalten.</p>
+  <a href="${loginLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Jetzt einloggen →</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+</body>
+</html>`
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: player.email, subject, text, html })
+}
+

@@ -64,6 +64,7 @@ import {
   sendStatusUpdate,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
+import { convertGuestToPlayer } from "./actions"
 import type { PointsScope } from "@/lib/types"
 import { toast } from "sonner"
 import { SportsTable } from "@/components/app/sports-table"
@@ -103,6 +104,7 @@ type Registration = {
   playerName: string
   status: string
   beerBringer: boolean
+  isGuest: boolean
   seasonPoints: number
   seasonSessions: number
   seasonScore: number
@@ -153,6 +155,63 @@ function computeStandings(teams: Team[], matches: Match[]) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+// ─── Convert guest to permanent player dialog ─────────────────────────────────
+
+function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: string; playerName: string; sessionId: string }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+
+  function handleConvert() {
+    if (!email.trim() || !password) { toast.error("E-Mail und Passwort sind erforderlich."); return }
+    startTransition(async () => {
+      try {
+        await convertGuestToPlayer(playerId, email.trim(), password)
+        toast.success(`${playerName} hat jetzt ein Konto.`)
+        setOpen(false)
+        setEmail("")
+        setPassword("")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={
+        <button className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50" />
+      }>
+        → Konto
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Konto erstellen für {playerName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="conv-email">E-Mail-Adresse</Label>
+            <Input id="conv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="conv-pw">Passwort</Label>
+            <Input id="conv-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mindestens 6 Zeichen" />
+          </div>
+          <p className="text-xs text-muted-foreground">Der Spieler erhält eine Willkommens-E-Mail mit dem Login-Link.</p>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleConvert} disabled={pending || !email.trim() || !password}>
+            {pending ? "Wird erstellt…" : "Konto erstellen"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Registration panel ───────────────────────────────────────────────────────
 
 function RegistrationPanel({
   session,
@@ -404,15 +463,21 @@ function RegistrationPanel({
                       <span className="flex items-center gap-1">
                         {r.playerName}
                         {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
+                        {r.isGuest && <span className="text-xs text-muted-foreground italic">(Gast)</span>}
                       </span>
                     </td>
                     {isOrganizer && (
-                      <td className="py-1 px-2 text-right w-7">
-                        <button
-                          className="text-muted-foreground hover:text-destructive"
-                          disabled={pending && actionId === r.playerId}
-                          onClick={() => handleRemove(r.playerId)}
-                        >×</button>
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {r.isGuest && (
+                            <ConvertGuestDialog playerId={r.playerId} playerName={r.playerName} sessionId={session.id} />
+                          )}
+                          <button
+                            className="text-muted-foreground hover:text-destructive"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleRemove(r.playerId)}
+                          >×</button>
+                        </div>
                       </td>
                     )}
                   </tr>

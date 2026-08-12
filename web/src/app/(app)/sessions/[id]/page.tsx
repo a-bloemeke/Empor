@@ -15,7 +15,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
     include: {
       season: { select: { year: true } },
       registrations: {
-        include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
+        include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true, passwordHash: true } } },
         orderBy: { registeredAt: "asc" },
       },
       teams: {
@@ -129,6 +129,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             playerName: pName(r.player),
             status: r.status as string,
             beerBringer: r.beerBringer,
+            isGuest: !r.player.passwordHash,
             seasonPoints: pointsByPlayerId.get(r.playerId) ?? 0,
             seasonSessions: sessionsByPlayerId.get(r.playerId) ?? 0,
             seasonScore: scoreByPlayerId.get(r.playerId) ?? 0,
