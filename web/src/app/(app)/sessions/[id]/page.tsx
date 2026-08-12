@@ -104,6 +104,15 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const displayNames = buildPlayerNames(allPlayers)
   const pName = (p: { id: string }) => displayNames.get(p.id) ?? p.id
 
+  // Absent players: those with an absence covering this session's date
+  const absentPlayers = await db.playerAbsence.findMany({
+    where: {
+      startDate: { lte: session.date },
+      endDate: { gte: session.date },
+    },
+    include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
+  })
+
   return (
     <SessionClient
       session={{
@@ -118,7 +127,6 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             playerName: pName(r.player),
             status: r.status as string,
             beerBringer: r.beerBringer,
-            // Stats for balanced-team preview
             seasonPoints: pointsByPlayerId.get(r.playerId) ?? 0,
             seasonSessions: sessionsByPlayerId.get(r.playerId) ?? 0,
             seasonScore: scoreByPlayerId.get(r.playerId) ?? 0,
@@ -165,6 +173,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
           })),
         })),
         allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, strength: 0, seasonRank: null })),
+        absentPlayers: absentPlayers.map((a) => ({ id: a.playerId, name: pName(a.player) })),
       }}
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}

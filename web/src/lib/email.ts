@@ -106,8 +106,13 @@ export async function sendStatusUpdateEmail(
   recipientEmails: string[],
   lists: {
     registered: string[]
+    maybe: string[]
     cancelled: string[]
     noAnswer: string[]
+  },
+  delta?: {
+    newRegistrations: string[]
+    newCancellations: string[]
   },
 ) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
@@ -149,15 +154,26 @@ export async function sendStatusUpdateEmail(
 
   const tablesHtml = [
     section("✅ Zugesagt", "#166534", lists.registered),
+    section("❓ Vielleicht", "#92400e", lists.maybe),
     section("❌ Abgesagt", "#991b1b", lists.cancelled),
-    section("⏳ Noch keine Antwort", "#92400e", lists.noAnswer),
+    section("⏳ Noch keine Antwort", "#374151", lists.noAnswer),
   ].join("")
+
+  const hasDelta = delta && (delta.newRegistrations.length > 0 || delta.newCancellations.length > 0)
+  const deltaHtml = hasDelta
+    ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px">
+  <p style="margin:0 0 8px;font-weight:600;font-size:13px;color:#166534">Neu seit letztem Update</p>
+  ${delta.newRegistrations.length > 0 ? `<p style="margin:0 0 4px;font-size:13px;color:#166534">✅ +${delta.newRegistrations.length} angemeldet: ${delta.newRegistrations.map(n => n.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join(", ")}</p>` : ""}
+  ${delta.newCancellations.length > 0 ? `<p style="margin:0;font-size:13px;color:#991b1b">❌ −${delta.newCancellations.length} abgesagt: ${delta.newCancellations.map(n => n.replace(/&/g, "&amp;").replace(/</g, "&lt;")).join(", ")}</p>` : ""}
+</div>`
+    : ""
 
   const html = `
 <!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${introHtml}</p>
+  ${deltaHtml}
   ${tablesHtml}
   <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>

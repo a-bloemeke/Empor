@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { updateProfile, updateProfileAdmin, changePassword } from "./actions"
+import { updateProfile, updateProfileAdmin, changePassword, createAbsence, deleteAbsence } from "./actions"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
 
@@ -68,6 +68,7 @@ type LifetimeStat = {
   beers: number
 } | null
 type Fee = { year: number; status: string; paidAt: string | null }
+type Absence = { id: string; startDate: string; endDate: string; reason: string | null }
 
 type SessionHistoryEntry = {
   sessionId: string
@@ -346,6 +347,7 @@ export function PlayerClient({
   seasonStats,
   sessionHistory,
   fees,
+  absences,
   currentYear,
   isCurrentUser,
   isOrganizer,
@@ -356,6 +358,7 @@ export function PlayerClient({
   seasonStats: SeasonStat[]
   sessionHistory: SessionHistoryEntry[]
   fees: Fee[]
+  absences: Absence[]
   currentYear: number
   isCurrentUser: boolean
   isOrganizer: boolean
@@ -567,8 +570,7 @@ export function PlayerClient({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t("membershipFee", { year: currentYear })}</CardTitle>
-          </CardHeader>
-          <CardContent>
+          </CardHeader>          <CardContent>
             {currentFee ? (
               currentFee.status === "PAID" ? (
                 <div className="flex items-center gap-2">
@@ -619,6 +621,90 @@ export function PlayerClient({
           </CardContent>
         </Card>
       )}
+
+      {/* Absences */}
+      {(isCurrentUser || isOrganizer) && (
+        <AbsencesCard playerId={player.id} absences={absences} canEdit={canEdit} />
+      )}
     </div>
+  )
+}
+
+function AbsencesCard({ playerId, absences, canEdit }: { playerId: string; absences: Absence[]; canEdit: boolean }) {
+  const [pending, startTransition] = useTransition()
+  const [start, setStart] = useState("")
+  const [end, setEnd] = useState("")
+  const [reason, setReason] = useState("")
+
+  function handleCreate() {
+    if (!start || !end) { toast.error("Bitte Start- und Enddatum angeben."); return }
+    startTransition(async () => {
+      try {
+        await createAbsence(playerId, start, end, reason || undefined)
+        setStart(""); setEnd(""); setReason("")
+        toast.success("Abwesenheit eingetragen.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleDelete(id: string) {
+    startTransition(async () => {
+      try {
+        await deleteAbsence(id, playerId)
+        toast.success("Abwesenheit gelöscht.")
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Abwesenheiten</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {canEdit && (
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="space-y-1">
+              <Label className="text-xs">Von</Label>
+              <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} className="w-36 h-8 text-sm" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Bis</Label>
+              <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} className="w-36 h-8 text-sm" />
+            </div>
+            <div className="space-y-1 flex-1 min-w-32">
+              <Label className="text-xs">Grund (optional)</Label>
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="z.B. Urlaub" className="h-8 text-sm" />
+            </div>
+            <Button size="sm" onClick={handleCreate} disabled={pending}>Eintragen</Button>
+          </div>
+        )}
+        {absences.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Keine Abwesenheiten eingetragen.</p>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {absences.map((a) => (
+              <div key={a.id} className="flex items-center justify-between py-2 gap-2">
+                <div>
+                  <span className="text-sm font-medium">
+                    {format(new Date(a.startDate), "d.M.yyyy")} – {format(new Date(a.endDate), "d.M.yyyy")}
+                  </span>
+                  {a.reason && <span className="ml-2 text-xs text-muted-foreground">{a.reason}</span>}
+                </div>
+                {canEdit && (
+                  <button
+                    onClick={() => handleDelete(a.id)}
+                    disabled={pending}
+                    className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+                  >
+                    Löschen
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/game-day-status",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/maybe-reminder",
+      "schedule": "0 18 * * *"
     }
   ]
 }

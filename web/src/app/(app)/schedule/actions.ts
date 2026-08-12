@@ -191,6 +191,41 @@ export async function registerSelf(sessionId: string) {
   revalidatePath("/schedule")
 }
 
+export async function maybeSelf(sessionId: string) {
+  const authSession = await auth()
+  if (!authSession?.user?.id) throw new Error("Unauthorized")
+
+  const s = await db.session.findUnique({ where: { id: sessionId } })
+  if (!s) throw new Error("Session not found.")
+  if (s.status !== "SCHEDULED") throw new Error("Registration is closed for this session.")
+
+  const self = await db.player.findUnique({ where: { id: authSession.user.id }, select: { active: true } })
+  if (!self?.active) throw new Error("Dein Konto ist derzeit inaktiv.")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },
+  })
+
+  if (existing) {
+    if (existing.status === "MAYBE") throw new Error("Du hast bereits mit 'Vielleicht' geantwortet.")
+    await db.sessionRegistration.update({
+      where: { id: existing.id },
+      data: { status: "MAYBE", cancelledAt: null, beerBringer: false },
+    })
+  } else {
+    await db.sessionRegistration.create({
+      data: {
+        sessionId,
+        playerId: authSession.user.id,
+        registeredById: authSession.user.id,
+        status: "MAYBE",
+      },
+    })
+  }
+
+  revalidatePath("/schedule")
+}
+
 export async function cancelSelf(sessionId: string) {
   const authSession = await auth()
   if (!authSession?.user?.id) throw new Error("Unauthorized")

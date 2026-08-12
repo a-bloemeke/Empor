@@ -29,6 +29,7 @@ enum SessionStatus {
 enum RegistrationStatus {
   REGISTERED
   CANCELLED
+  MAYBE
 }
 
 enum MatchStatus {
@@ -117,6 +118,7 @@ model Player {
   feeRecordings     MembershipFee[] @relation("recordedBy")
   statsPerSeason    PlayerStats[]
   statsLifetime     PlayerStatsLifetime?
+  absences          PlayerAbsence[]
 }
 
 model Season {
@@ -128,11 +130,12 @@ model Season {
 }
 
 model Session {
-  id          String        @id @default(cuid())
-  seasonId    String
-  date        DateTime
-  status      SessionStatus @default(SCHEDULED)
-  organizerId String
+  id                    String        @id @default(cuid())
+  seasonId              String
+  date                  DateTime
+  status                SessionStatus @default(SCHEDULED)
+  organizerId           String
+  lastStatusEmailSentAt DateTime?
 
   season        Season                @relation(fields: [seasonId], references: [id])
   organizer     Player                @relation(fields: [organizerId], references: [id])
@@ -258,6 +261,17 @@ model PlayerStatsLifetime {
 model AppConfig {
   key   String @id
   value String
+}
+
+model PlayerAbsence {
+  id        String   @id @default(cuid())
+  playerId  String
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 }
 
 model InvitationQuote {

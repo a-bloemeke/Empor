@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, maybeSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -52,6 +52,7 @@ function MyStatusBadge({ status }: { status: string | null }) {
   const t = useTranslations("schedule")
   if (status === "REGISTERED") return <Badge variant="secondary">{t("statusRegistered")}</Badge>
   if (status === "CANCELLED") return <span className="text-muted-foreground text-sm">{t("statusCancelled")}</span>
+  if (status === "MAYBE") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">Vielleicht</Badge>
   return <span className="text-muted-foreground text-sm">—</span>
 }
 
@@ -281,6 +282,18 @@ export function ScheduleClient({
     })
   }
 
+  function handleMaybe(id: string) {
+    setActionId(id)
+    startTransition(async () => {
+      try {
+        await maybeSelf(id)
+        toast.success("Als 'Vielleicht' eingetragen.")
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setActionId(null) }
+    })
+  }
+
   function handleToggleBeer(id: string) {
     setActionId(id)
     startTransition(async () => {
@@ -399,6 +412,12 @@ export function ScheduleClient({
                         {s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
                             {busy ? "…" : t("register")}
+                          </Button>
+                        )}
+                        {s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMaybe(s.id)}
+                            className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40">
+                            Vielleicht
                           </Button>
                         )}
                         {s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (

@@ -377,6 +377,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   })
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.player)
+  const maybe = session.registrations.filter((r) => r.status === "MAYBE").map((r) => r.player)
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const noAnswer = players.filter((p) => !respondedIds.has(p.id))
@@ -396,6 +397,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const displayNames = buildPlayerNames(players)
 
   const registeredList = registered.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ") || "– noch niemand –"
+  const maybeList = maybe.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
 
@@ -419,18 +421,34 @@ ${statusText}
 
 ✅ Zugesagt (${count}):
 ${registeredList}
-${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
+${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
 ${link}
 
 Empor Lichtenberg`
+
+  // Compute delta since last status email
+  const since = session.lastStatusEmailSentAt
+  const newRegistrations = since
+    ? session.registrations
+        .filter((r) => r.status === "REGISTERED" && r.registeredAt > since)
+        .map((r) => displayNames.get(r.player.id) ?? r.player.firstName)
+    : []
+  const newCancellations = since
+    ? session.registrations
+        .filter((r) => r.status === "CANCELLED" && r.cancelledAt && r.cancelledAt > since)
+        .map((r) => displayNames.get(r.player.id) ?? r.player.firstName)
+    : []
 
   return {
     subject,
     body,
     registeredCount: count,
     minPlayers: MIN_PLAYERS,
+    lastSentAt: session.lastStatusEmailSentAt?.toISOString() ?? null,
+    delta: { newRegistrations, newCancellations },
     lists: {
       registered: registered.map((p) => displayNames.get(p.id) ?? p.firstName),
+      maybe: maybe.map((p) => displayNames.get(p.id) ?? p.firstName),
       cancelled: cancelled.map((p) => displayNames.get(p.id) ?? p.firstName),
       noAnswer: noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName),
     },
@@ -475,8 +493,23 @@ export async function sendStatusUpdate(
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const lists = {
     registered: session.registrations.filter((r) => r.status === "REGISTERED").map((r) => abbrev(r.player)),
+    maybe: session.registrations.filter((r) => r.status === "MAYBE").map((r) => abbrev(r.player)),
     cancelled: session.registrations.filter((r) => r.status === "CANCELLED").map((r) => abbrev(r.player)),
     noAnswer: allNonGuests.filter((p) => !respondedIds.has(p.id)).map(abbrev),
+  }
+
+  const since = session.lastStatusEmailSentAt
+  const delta = {
+    newRegistrations: since
+      ? session.registrations
+          .filter((r) => r.status === "REGISTERED" && r.registeredAt > since)
+          .map((r) => abbrev(r.player))
+      : [],
+    newCancellations: since
+      ? session.registrations
+          .filter((r) => r.status === "CANCELLED" && r.cancelledAt && r.cancelledAt > since)
+          .map((r) => abbrev(r.player))
+      : [],
   }
 
   const recipients = await db.player.findMany({
@@ -485,7 +518,11 @@ export async function sendStatusUpdate(
   })
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
 
-  return sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists)
+  await sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists, delta)
+
+  await db.session.update({ where: { id: sessionId }, data: { lastStatusEmailSentAt: new Date() } })
+
+  return emails.length
 }
 
 function revalidate(sessionId: string) {

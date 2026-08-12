@@ -119,6 +119,7 @@ type SessionData = {
   teams: Team[]
   matches: Match[]
   allPlayers: Player[]
+  absentPlayers: { id: string; name: string }[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -166,9 +167,11 @@ function RegistrationPanel({
   const [guestName, setGuestName] = useState("")
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
+  const maybe = session.registrations.filter((r) => r.status === "MAYBE")
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED")
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
-  const noAnswer = session.allPlayers.filter((p) => !respondedIds.has(p.id))
+  const absentIds = new Set(session.absentPlayers.map((p) => p.id))
+  const noAnswer = session.allPlayers.filter((p) => !respondedIds.has(p.id) && !absentIds.has(p.id))
   const registeredIds = new Set(registered.map((r) => r.playerId))
   const available = session.allPlayers.filter((p) => !registeredIds.has(p.id))
   const isScheduled = session.status === "SCHEDULED"
@@ -334,6 +337,41 @@ function RegistrationPanel({
         </div>
 
         {/* Cancelled */}
+        {/* Maybe */}
+        {maybe.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1.5">
+              Vielleicht ({maybe.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {maybe.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-amber-700 dark:text-amber-300">{r.playerName}</td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleAdd(r.playerId)}
+                          >+ Anmelden</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleCancelAdmin(r.playerId)}
+                          >Absagen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {cancelled.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1.5">
@@ -389,6 +427,25 @@ function RegistrationPanel({
                         </div>
                       </td>
                     )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Absent players */}
+        {session.absentPlayers.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1.5">
+              Abwesend ({session.absentPlayers.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {session.absentPlayers.map((p, i) => (
+                  <tr key={p.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-slate-400 dark:text-slate-500 italic">{p.name}</td>
                   </tr>
                 ))}
               </tbody>
@@ -813,10 +870,12 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
   const [pending, startTransition] = useTransition()
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
-  const [lists, setLists] = useState<{ registered: string[]; cancelled: string[]; noAnswer: string[] }>({ registered: [], cancelled: [], noAnswer: [] })
+  const [lists, setLists] = useState<{ registered: string[]; maybe: string[]; cancelled: string[]; noAnswer: string[] }>({ registered: [], maybe: [], cancelled: [], noAnswer: [] })
   const [players, setPlayers] = useState<{ id: string; name: string; email: string; emailNotifications: boolean }[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loaded, setLoaded] = useState(false)
+  const [lastSentAt, setLastSentAt] = useState<string | null>(null)
+  const [delta, setDelta] = useState<{ newRegistrations: string[]; newCancellations: string[] } | null>(null)
 
   function handleOpen(isOpen: boolean) {
     setOpen(isOpen)
@@ -829,6 +888,8 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
           setLists(data.lists)
           setPlayers(data.players)
           setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
+          setLastSentAt(data.lastSentAt)
+          setDelta(data.delta)
           setLoaded(true)
         } catch (e) { toast.error((e as Error).message) }
       })
@@ -894,6 +955,22 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
 
             <TrafficLight count={registeredCount} sessionDate={sessionDate} />
 
+            {/* Delta since last status email */}
+            {lastSentAt && delta && (delta.newRegistrations.length > 0 || delta.newCancellations.length > 0) && (
+              <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 px-3 py-2 text-sm space-y-0.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1">Neu seit letztem Update</p>
+                {delta.newRegistrations.length > 0 && (
+                  <p className="text-green-700 dark:text-green-300">✅ +{delta.newRegistrations.length} angemeldet: {delta.newRegistrations.join(", ")}</p>
+                )}
+                {delta.newCancellations.length > 0 && (
+                  <p className="text-red-600 dark:text-red-400">❌ −{delta.newCancellations.length} abgesagt: {delta.newCancellations.join(", ")}</p>
+                )}
+              </div>
+            )}
+            {lastSentAt && delta && delta.newRegistrations.length === 0 && delta.newCancellations.length === 0 && (
+              <p className="text-xs text-muted-foreground">Keine Änderungen seit letztem Update ({new Date(lastSentAt).toLocaleDateString("de-DE")}).</p>
+            )}
+
             {/* Registration tables */}
             <div className="space-y-3">
               <div>
@@ -905,6 +982,14 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
                   : <NameTable names={lists.registered} colorClass="" />
                 }
               </div>
+              {lists.maybe && lists.maybe.length > 0 && (
+                <div className="border-t border-border/50 pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1">
+                    Vielleicht ({lists.maybe.length})
+                  </p>
+                  <NameTable names={lists.maybe} colorClass="text-amber-700 dark:text-amber-300" />
+                </div>
+              )}
               {lists.cancelled.length > 0 && (
                 <div className="border-t border-border/50 pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1">
