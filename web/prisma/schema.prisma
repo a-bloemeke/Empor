@@ -31,6 +31,7 @@ enum RegistrationStatus {
   CANCELLED
   MAYBE
   PENDING
+  WAITLISTED
 }
 
 enum MatchStatus {
@@ -137,6 +138,7 @@ model Session {
   status                SessionStatus @default(SCHEDULED)
   organizerId           String
   lastStatusEmailSentAt DateTime?
+  maxPlayers            Int?
 
   season        Season                @relation(fields: [seasonId], references: [id])
   organizer     Player                @relation(fields: [organizerId], references: [id])

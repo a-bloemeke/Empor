@@ -178,6 +178,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
         allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, strength: 0, seasonRank: null })),
         absentPlayers: absentPlayers.map((a) => ({ id: a.playerId, name: pName(a.player) })),
         myStatus,
+        maxPlayers: session.maxPlayers ?? null,
       }}
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}

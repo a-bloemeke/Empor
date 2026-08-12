@@ -7,7 +7,7 @@ import { computeAndSaveStats } from "@/lib/stats"
 import type { PointsScope } from "@/lib/types"
 import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
 import type { TeamRef, MatchRef } from "@/lib/game-logic"
-import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation, sendWelcomeEmail } from "@/lib/email"
+import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation, sendWelcomeEmail, sendWaitlistPromotion } from "@/lib/email"
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -741,6 +741,9 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
   const reg = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId } },
   })
@@ -748,6 +751,62 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   await db.sessionRegistration.update({
     where: { id: reg.id },
     data: { status: "CANCELLED", cancelledAt: new Date(), beerBringer: false },
+  })
+
+  // Auto-promote first waitlisted player if session has a cap
+  if (session.maxPlayers) {
+    const firstWaitlisted = await db.sessionRegistration.findFirst({
+      where: { sessionId, status: "WAITLISTED" },
+      orderBy: { registeredAt: "asc" },
+      include: { player: { select: { id: true, email: true, firstName: true, emailNotifications: true } } },
+    })
+    if (firstWaitlisted) {
+      await db.sessionRegistration.update({
+        where: { id: firstWaitlisted.id },
+        data: { status: "REGISTERED", registeredAt: new Date() },
+      })
+      const p = firstWaitlisted.player
+      if (p.emailNotifications && p.email) {
+        await sendWaitlistPromotion(session, p)
+      }
+    }
+  }
+
+  revalidate(sessionId)
+}
+
+export async function addToWaitingList(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (existing) {
+    if (existing.status === "WAITLISTED") throw new Error("Player is already on the waitlist.")
+    await db.sessionRegistration.update({
+      where: { id: existing.id },
+      data: { status: "WAITLISTED", cancelledAt: null, beerBringer: false },
+    })
+  } else {
+    await db.sessionRegistration.create({
+      data: { sessionId, playerId, registeredById: authSession.user.id!, status: "WAITLISTED" },
+    })
+  }
+  revalidate(sessionId)
+}
+
+export async function removeFromWaitingList(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!existing || existing.status !== "WAITLISTED") throw new Error("Player is not on the waitlist.")
+  await db.sessionRegistration.update({
+    where: { id: existing.id },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
   })
   revalidate(sessionId)
 }

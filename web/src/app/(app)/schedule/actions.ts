@@ -3,15 +3,16 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { notifyOrganizersSessionRegistration, sendGameDayCancellation, notifyOrganizersCancellation, sendRsvpConfirmation } from "@/lib/email"
+import { notifyOrganizersSessionRegistration, sendGameDayCancellation, notifyOrganizersCancellation, sendRsvpConfirmation, sendWaitlistConfirmation, sendWaitlistPromotion } from "@/lib/email"
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { endSession } from "@/app/(app)/sessions/[id]/actions"
+import type { RegistrationStatus } from "@/generated/prisma/enums"
 
 export { endSession }
 
-export async function createSession(dateIso: string) {
+export async function createSession(dateIso: string, maxPlayers?: number) {
   const session = await auth()
   if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
@@ -28,6 +29,7 @@ export async function createSession(dateIso: string) {
       date,
       seasonId: season.id,
       organizerId: session.user.id,
+      ...(maxPlayers && maxPlayers > 0 ? { maxPlayers } : {}),
     },
   })
 
@@ -168,7 +170,18 @@ export async function registerSelf(sessionId: string) {
     })
   } else {
     const requireApproval = await db.appConfig.findUnique({ where: { key: "requireApproval" } })
-    const status = requireApproval?.value === "true" ? "PENDING" : "REGISTERED"
+    let status: RegistrationStatus = requireApproval?.value === "true" ? "PENDING" : "REGISTERED"
+
+    // Check capacity if not already going to PENDING
+    if (status === "REGISTERED" && s.maxPlayers) {
+      const registeredCount = await db.sessionRegistration.count({
+        where: { sessionId, status: "REGISTERED" },
+      })
+      if (registeredCount >= s.maxPlayers) {
+        status = "WAITLISTED"
+      }
+    }
+
     await db.sessionRegistration.create({
       data: {
         sessionId,
@@ -178,6 +191,17 @@ export async function registerSelf(sessionId: string) {
       },
     })
     if (status === "PENDING") {
+      revalidatePath("/schedule")
+      return
+    }
+    if (status === "WAITLISTED") {
+      const player = await db.player.findUnique({
+        where: { id: authSession.user.id },
+        select: { firstName: true, lastName: true, email: true, emailNotifications: true },
+      })
+      if (player?.emailNotifications && player.email) {
+        await sendWaitlistConfirmation(s, player)
+      }
       revalidatePath("/schedule")
       return
     }
@@ -275,6 +299,25 @@ export async function cancelSelf(sessionId: string) {
   })
   if (player) {
     await notifyOrganizersCancellation(s, player, wasRegistered)
+  }
+
+  // Auto-promote first waitlisted player if session has a cap and a REGISTERED slot freed up
+  if (wasRegistered && s.maxPlayers) {
+    const firstWaitlisted = await db.sessionRegistration.findFirst({
+      where: { sessionId, status: "WAITLISTED" },
+      orderBy: { registeredAt: "asc" },
+      include: { player: { select: { id: true, email: true, firstName: true, emailNotifications: true } } },
+    })
+    if (firstWaitlisted) {
+      await db.sessionRegistration.update({
+        where: { id: firstWaitlisted.id },
+        data: { status: "REGISTERED", registeredAt: new Date() },
+      })
+      const p = firstWaitlisted.player
+      if (p.emailNotifications && p.email) {
+        await sendWaitlistPromotion(s, p)
+      }
+    }
   }
 
   revalidatePath("/schedule")

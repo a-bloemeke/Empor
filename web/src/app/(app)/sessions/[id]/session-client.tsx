@@ -65,6 +65,8 @@ import {
   approveRegistration,
   rejectRegistration,
   convertGuestToPlayer,
+  addToWaitingList,
+  removeFromWaitingList,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
@@ -120,6 +122,7 @@ type SessionData = {
   date: string
   status: string
   seasonYear: number
+  maxPlayers: number | null
   registrations: Registration[]
   teams: Team[]
   matches: Match[]
@@ -270,6 +273,7 @@ function RegistrationPanel({
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
   const pendingRegs = session.registrations.filter((r) => r.status === "PENDING")
+  const waitlisted = session.registrations.filter((r) => r.status === "WAITLISTED")
   const maybe = session.registrations.filter((r) => r.status === "MAYBE")
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED")
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
@@ -340,6 +344,28 @@ function RegistrationPanel({
       try {
         await rejectRegistration(session.id, playerId)
         toast.success("Anmeldung abgelehnt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleAddToWaitlist(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await addToWaitingList(session.id, playerId)
+        toast.success("Auf Warteliste gesetzt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleRemoveFromWaitlist(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await removeFromWaitingList(session.id, playerId)
+        toast.success("Von Warteliste entfernt.")
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
     })
@@ -514,7 +540,7 @@ function RegistrationPanel({
         {/* Registered */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1.5">
-            Zugesagt ({registered.length})
+            Zugesagt ({registered.length}{session.maxPlayers ? `/${session.maxPlayers}` : ""})
           </p>
           {registered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
@@ -551,6 +577,46 @@ function RegistrationPanel({
             </table>
           )}
         </div>
+
+        {/* Waitlisted */}
+        {waitlisted.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1.5">
+              Warteliste ({waitlisted.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {waitlisted.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-blue-700 dark:text-blue-300">
+                      {r.playerName}
+                      {r.playerId === currentUserId && (
+                        <span className="ml-1.5 text-xs text-blue-500">(Position {i + 1})</span>
+                      )}
+                    </td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleAdd(r.playerId)}
+                          >+ Anmelden</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleRemoveFromWaitlist(r.playerId)}
+                          >Entfernen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* Cancelled */}
         {/* Maybe */}

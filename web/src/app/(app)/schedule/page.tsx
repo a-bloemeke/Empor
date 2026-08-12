@@ -47,6 +47,7 @@ export default async function SchedulePage() {
       status: s.status as string,
       seasonYear: s.season.year,
       registrationCount: s._count.registrations,
+      maxPlayers: s.maxPlayers ?? null,
       myStatus: (myRegMap.get(s.id) ?? null) as string | null,
       beerBringerId: beerReg?.playerId ?? null,
       beerBringerName: beerReg ? (beerReg.player.nickname ?? beerReg.player.firstName) : null,
