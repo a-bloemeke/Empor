@@ -43,12 +43,22 @@ type ActiveMatch = {
   goals: GoalEntry[]
 }
 
+type PendingMatch = {
+  id: string
+  roundNumber: number | null
+  homeTeamName: string
+  awayTeamName: string
+  homeTeamPlayers: string[]
+  awayTeamPlayers: string[]
+}
+
 type Props = {
   sessionId: string
   currentUserId: string
   initialSwapped?: boolean
   activeMatch: ActiveMatch | null
   teams: Team[]
+  pendingMatches: PendingMatch[]
 }
 
 // ─── Audio & Speech ───────────────────────────────────────────────────────────
@@ -498,7 +508,7 @@ function EditGoalDrawer({
 
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
-export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = false, activeMatch, teams }: Props) {
+export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = false, activeMatch, teams, pendingMatches }: Props) {
   const t = useTranslations("scoreboard")
   const router = useRouter()
   const [drawerSide, setDrawerSide] = useState<"home" | "away" | null>(null)
@@ -517,8 +527,32 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
 
   if (!activeMatch) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
         <p className="text-muted-foreground text-lg">{t("noActiveMatch")}</p>
+        {pendingMatches.length > 0 && (
+          <div className="w-full max-w-md space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground text-center mb-3">Nächste Spiele</p>
+            {pendingMatches.map((m, i) => (
+              <div key={m.id} className={`rounded-xl border px-4 py-3 ${i === 0 ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"}`}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  {m.roundNumber != null && (
+                    <span className="text-xs text-muted-foreground">Runde {m.roundNumber}</span>
+                  )}
+                  {i === 0 && <span className="text-xs font-bold text-primary ml-auto">Nächstes Spiel</span>}
+                </div>
+                <div className="flex items-center gap-3 text-sm font-semibold">
+                  <span className="flex-1 truncate">{m.homeTeamName}</span>
+                  <span className="text-muted-foreground font-light text-lg">vs</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamName}</span>
+                </div>
+                <div className="flex gap-4 mt-1.5 text-xs text-muted-foreground">
+                  <span className="flex-1 truncate">{m.homeTeamPlayers.join(", ")}</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamPlayers.join(", ")}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -777,6 +811,43 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
                 </button>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Pending matches queue */}
+      {pendingMatches.length > 0 && (
+        <div className={cn("border-t px-6 py-4", isExpired ? "border-white/20" : "border-border")}>
+          <div className="mx-auto max-w-lg space-y-2">
+            <p className={cn("text-xs font-bold uppercase tracking-wide mb-2", inv ? "text-white/60" : "text-muted-foreground")}>
+              Nächste Spiele
+            </p>
+            {pendingMatches.map((m, i) => (
+              <div key={m.id} className={cn(
+                "rounded-lg border px-3 py-2",
+                i === 0
+                  ? inv ? "border-white/40 bg-white/10" : "border-primary/40 bg-primary/5"
+                  : inv ? "border-white/20 bg-white/5" : "border-border/50 bg-muted/20"
+              )}>
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  {m.roundNumber != null && (
+                    <span className={cn("text-xs", inv ? "text-white/50" : "text-muted-foreground")}>Runde {m.roundNumber}</span>
+                  )}
+                  {i === 0 && (
+                    <span className={cn("text-xs font-bold ml-auto", inv ? "text-white/80" : "text-primary")}>Nächstes Spiel</span>
+                  )}
+                </div>
+                <div className={cn("flex items-center gap-2 text-sm font-semibold", inv ? "text-white" : "text-foreground")}>
+                  <span className="flex-1 truncate">{m.homeTeamName}</span>
+                  <span className={cn("font-light", inv ? "text-white/40" : "text-muted-foreground")}>vs</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamName}</span>
+                </div>
+                <div className={cn("flex gap-4 mt-0.5 text-xs", inv ? "text-white/50" : "text-muted-foreground")}>
+                  <span className="flex-1 truncate">{m.homeTeamPlayers.join(", ")}</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamPlayers.join(", ")}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
