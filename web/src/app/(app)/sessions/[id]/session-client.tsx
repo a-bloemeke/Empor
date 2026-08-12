@@ -63,6 +63,7 @@ import {
   getStatusUpdateDefaults,
   sendStatusUpdate,
 } from "./actions"
+import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
 import { toast } from "sonner"
 import { SportsTable } from "@/components/app/sports-table"
@@ -120,6 +121,7 @@ type SessionData = {
   matches: Match[]
   allPlayers: Player[]
   absentPlayers: { id: string; name: string }[]
+  myStatus: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -155,16 +157,55 @@ function computeStandings(teams: Team[], matches: Match[]) {
 function RegistrationPanel({
   session,
   isOrganizer,
+  currentUserId,
 }: {
   session: SessionData
   isOrganizer: boolean
+  currentUserId: string
 }) {
   const t = useTranslations("session")
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [guestName, setGuestName] = useState("")
+
+  const myStatus = session.myStatus
+  const isPlayer = !!currentUserId && !isOrganizer
+  const sessionDate = new Date(session.date)
+  const isPast = sessionDate < new Date()
+  const cutoffPassed = new Date() >= new Date(sessionDate.getTime() - 60 * 60 * 1000)
+
+  function handleSelfRegister() {
+    startTransition(async () => {
+      try {
+        await registerSelf(session.id)
+        toast.success("Du bist angemeldet!")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleSelfMaybe() {
+    startTransition(async () => {
+      try {
+        await maybeSelf(session.id)
+        toast.success("Als 'Vielleicht' eingetragen.")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleSelfCancel() {
+    startTransition(async () => {
+      try {
+        await cancelSelf(session.id)
+        toast.success("Abgemeldet.")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
   const maybe = session.registrations.filter((r) => r.status === "MAYBE")
@@ -301,6 +342,51 @@ function RegistrationPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Self-RSVP row — visible for players when session is open and not in the past */}
+        {isPlayer && !isPast && (
+          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+            <span className="text-sm font-medium shrink-0">Meine Anmeldung:</span>
+            {myStatus === "REGISTERED" && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-700">✅ Zugesagt</span>
+            )}
+            {myStatus === "MAYBE" && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700">❓ Vielleicht</span>
+            )}
+            {myStatus === "CANCELLED" && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-700">❌ Abgesagt</span>
+            )}
+            {!myStatus && (
+              <span className="text-xs text-muted-foreground">Keine Antwort</span>
+            )}
+            <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+              {myStatus !== "REGISTERED" && (
+                <button
+                  className="text-xs px-2.5 py-1 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50 font-medium"
+                  disabled={pending}
+                  onClick={handleSelfRegister}
+                >Anmelden</button>
+              )}
+              {myStatus !== "MAYBE" && (
+                <button
+                  className="text-xs px-2.5 py-1 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50 font-medium"
+                  disabled={pending}
+                  onClick={handleSelfMaybe}
+                >Vielleicht</button>
+              )}
+              {myStatus !== "CANCELLED" && !cutoffPassed && (
+                <button
+                  className="text-xs px-2.5 py-1 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50 font-medium"
+                  disabled={pending}
+                  onClick={handleSelfCancel}
+                >Absagen</button>
+              )}
+              {myStatus !== "CANCELLED" && cutoffPassed && (
+                <span className="text-xs text-muted-foreground">Absagen nicht mehr möglich</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Registered */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1.5">
@@ -2253,7 +2339,7 @@ export function SessionClient({
       {/* SCHEDULED — no teams yet */}
       {session.status === "SCHEDULED" && session.teams.length === 0 && (
         <div className="space-y-4">
-          <RegistrationPanel session={session} isOrganizer={isOrganizer} />
+          <RegistrationPanel session={session} isOrganizer={isOrganizer} currentUserId={currentUserId} />
           {isOrganizer && (
             <div className="flex flex-wrap gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
@@ -2274,7 +2360,7 @@ export function SessionClient({
       {/* SCHEDULED — teams exist */}
       {session.status === "SCHEDULED" && session.teams.length > 0 && (
         <div className="space-y-4">
-          <RegistrationPanel session={session} isOrganizer={isOrganizer} />
+          <RegistrationPanel session={session} isOrganizer={isOrganizer} currentUserId={currentUserId} />
           <SectionHeader title="Teams" />
           <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} pins={pins} />
           {isOrganizer && (

@@ -104,6 +104,8 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const displayNames = buildPlayerNames(allPlayers)
   const pName = (p: { id: string }) => displayNames.get(p.id) ?? p.id
 
+  const myStatus = session.registrations.find((r) => r.playerId === currentUserId)?.status ?? null
+
   // Absent players: those with an absence covering this session's date
   const absentPlayers = await db.playerAbsence.findMany({
     where: {
@@ -174,6 +176,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
         })),
         allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, strength: 0, seasonRank: null })),
         absentPlayers: absentPlayers.map((a) => ({ id: a.playerId, name: pName(a.player) })),
+        myStatus,
       }}
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}
