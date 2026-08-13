@@ -121,7 +121,8 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 
 ### Session actions (`sessions/[id]/actions.ts`) — organizer only
 - Registration: `addRegistration`, `addRegistrationBulk`, `removeRegistration`, `cancelRegistrationAdmin`
-- Waitlist: `addToWaitingList`, `removeFromWaitingList`, `setMaxPlayers`
+- Waitlist: `addToWaitingList`, `removeFromWaitingList`, `setMaxPlayers` (inline editor in RegistrationPanel header)
+- **Cap enforced in all organizer registration paths** — `addRegistration`, `addRegistrationBulk`, `addGuestAndRegister` all throw when full; organizer must call `setMaxPlayers` first
 - Approval: `approveRegistration`, `rejectRegistration`
 - Guests: `addGuestAndRegister`, `convertGuestToPlayer`
 - Teams: `generateTeams`, `generateTeamsWithPins`, `addPlayerToTeam`, `movePlayer`, `createEmptyTeam`, `deleteTeam`
