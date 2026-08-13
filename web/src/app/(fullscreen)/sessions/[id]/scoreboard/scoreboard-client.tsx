@@ -542,6 +542,7 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
         <p className="text-muted-foreground text-lg">{t("noActiveMatch")}</p>
+        <a href={`/sessions/${sessionId}`} className="text-sm text-muted-foreground underline-offset-4 hover:underline">{t("sessionLink")}</a>
         {pendingMatches.length > 0 && (
           <div className="w-full max-w-md space-y-2">
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground text-center mb-3">{t("nextMatches")}</p>
