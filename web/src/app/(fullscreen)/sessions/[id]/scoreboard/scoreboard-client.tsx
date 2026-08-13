@@ -531,14 +531,14 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
         <p className="text-muted-foreground text-lg">{t("noActiveMatch")}</p>
         {pendingMatches.length > 0 && (
           <div className="w-full max-w-md space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground text-center mb-3">Nächste Spiele</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground text-center mb-3">{t("nextMatches")}</p>
             {pendingMatches.map((m, i) => (
               <div key={m.id} className={`rounded-xl border px-4 py-3 ${i === 0 ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   {m.roundNumber != null && (
                     <span className="text-xs text-muted-foreground">Runde {m.roundNumber}</span>
                   )}
-                  {i === 0 && <span className="text-xs font-bold text-primary ml-auto">Nächstes Spiel</span>}
+                  {i === 0 && <span className="text-xs font-bold text-primary ml-auto">{t("nextMatch")}</span>}
                 </div>
                 <div className="flex items-center gap-3 text-sm font-semibold">
                   <span className="flex-1 truncate">{m.homeTeamName}</span>
@@ -820,7 +820,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
         <div className={cn("border-t px-6 py-4", isExpired ? "border-white/20" : "border-border")}>
           <div className="mx-auto max-w-lg space-y-2">
             <p className={cn("text-xs font-bold uppercase tracking-wide mb-2", inv ? "text-white/60" : "text-muted-foreground")}>
-              Nächste Spiele
+              {t("nextMatches")}
             </p>
             {pendingMatches.map((m, i) => (
               <div key={m.id} className={cn(
@@ -834,7 +834,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
                     <span className={cn("text-xs", inv ? "text-white/50" : "text-muted-foreground")}>Runde {m.roundNumber}</span>
                   )}
                   {i === 0 && (
-                    <span className={cn("text-xs font-bold ml-auto", inv ? "text-white/80" : "text-primary")}>Nächstes Spiel</span>
+                    <span className={cn("text-xs font-bold ml-auto", inv ? "text-white/80" : "text-primary")}>{t("nextMatch")}</span>
                   )}
                 </div>
                 <div className={cn("flex items-center gap-2 text-sm font-semibold", inv ? "text-white" : "text-foreground")}>
