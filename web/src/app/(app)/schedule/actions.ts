@@ -164,10 +164,35 @@ export async function registerSelf(sessionId: string) {
 
   if (existing) {
     if (existing.status === "REGISTERED") throw new Error("Already registered.")
+    if (existing.status === "WAITLISTED") throw new Error("Du stehst bereits auf der Warteliste.")
+
+    // Check capacity before re-registering
+    let newStatus: RegistrationStatus = "REGISTERED"
+    if (s.maxPlayers) {
+      const registeredCount = await db.sessionRegistration.count({
+        where: { sessionId, status: "REGISTERED" },
+      })
+      if (registeredCount >= s.maxPlayers) {
+        newStatus = "WAITLISTED"
+      }
+    }
+
     await db.sessionRegistration.update({
       where: { id: existing.id },
-      data: { status: "REGISTERED", registeredAt: new Date(), cancelledAt: null },
+      data: { status: newStatus, registeredAt: new Date(), cancelledAt: null },
     })
+
+    if (newStatus === "WAITLISTED") {
+      const player = await db.player.findUnique({
+        where: { id: authSession.user.id },
+        select: { firstName: true, lastName: true, email: true, emailNotifications: true },
+      })
+      if (player?.emailNotifications && player.email) {
+        await sendWaitlistConfirmation(s, player)
+      }
+      revalidatePath("/schedule")
+      return
+    }
   } else {
     const requireApproval = await db.appConfig.findUnique({ where: { key: "requireApproval" } })
     let status: RegistrationStatus = requireApproval?.value === "true" ? "PENDING" : "REGISTERED"

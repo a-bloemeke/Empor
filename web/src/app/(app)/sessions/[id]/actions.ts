@@ -380,6 +380,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const registered = session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.player)
   const maybe = session.registrations.filter((r) => r.status === "MAYBE").map((r) => r.player)
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
+  const waitlisted = session.registrations.filter((r) => r.status === "WAITLISTED").map((r) => r.player)
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const noAnswer = players.filter((p) => !respondedIds.has(p.id))
 
@@ -400,6 +401,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const registeredList = registered.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ") || "– noch niemand –"
   const maybeList = maybe.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
+  const waitlistedList = waitlisted.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
 
   const beerBringerReg = session.registrations.find((r) => r.status === "REGISTERED" && r.beerBringer)
@@ -422,7 +424,7 @@ ${statusText}
 
 ✅ Zugesagt (${count}):
 ${registeredList}
-${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
+${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${waitlistedList ? `\n⏳ Warteliste (${waitlisted.length}):\n${waitlistedList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
 ${link}
 
 Empor Lichtenberg`
