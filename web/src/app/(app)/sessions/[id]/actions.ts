@@ -693,9 +693,28 @@ export async function reopenSession(sessionId: string) {
   revalidatePath("/leaderboard")
 }
 
+export async function setMaxPlayers(sessionId: string, maxPlayers: number) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (maxPlayers < 1) throw new Error("Ungültiger Wert.")
+  await db.session.update({ where: { id: sessionId }, data: { maxPlayers } })
+  revalidate(sessionId)
+}
+
 export async function addRegistration(sessionId: string, playerId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const cap = session.maxPlayers ?? 12
+  const registeredCount = await db.sessionRegistration.count({
+    where: { sessionId, status: "REGISTERED" },
+  })
+  if (registeredCount >= cap) {
+    throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
+  }
 
   const existing = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId } },
@@ -718,6 +737,21 @@ export async function addRegistrationBulk(sessionId: string, playerIds: string[]
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
   if (playerIds.length === 0) return
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const cap = session.maxPlayers ?? 12
+  const registeredCount = await db.sessionRegistration.count({
+    where: { sessionId, status: "REGISTERED" },
+  })
+  const available = cap - registeredCount
+  if (available <= 0) {
+    throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
+  }
+  if (playerIds.length > available) {
+    throw new Error(`Nur noch ${available} Platz${available === 1 ? "" : "plätze"} frei (max. ${cap}).`)
+  }
 
   for (const playerId of playerIds) {
     const existing = await db.sessionRegistration.findUnique({
@@ -1473,6 +1507,17 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
 
   const name = guestName.trim()
   if (!name) throw new Error("Guest name is required.")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const cap = session.maxPlayers ?? 12
+  const registeredCount = await db.sessionRegistration.count({
+    where: { sessionId, status: "REGISTERED" },
+  })
+  if (registeredCount >= cap) {
+    throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
+  }
 
   // Create a guest player with a non-login email (no passwordHash → cannot log in)
   const uniqueTag = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`

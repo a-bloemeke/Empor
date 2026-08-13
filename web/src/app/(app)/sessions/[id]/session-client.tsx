@@ -67,6 +67,7 @@ import {
   convertGuestToPlayer,
   addToWaitingList,
   removeFromWaitingList,
+  setMaxPlayers,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
@@ -234,6 +235,8 @@ function RegistrationPanel({
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [guestName, setGuestName] = useState("")
+  const [editingCap, setEditingCap] = useState(false)
+  const [capValue, setCapValue] = useState(String(session.maxPlayers ?? 12))
 
   const myStatus = session.myStatus
   const isPlayer = !!currentUserId && !isOrganizer
@@ -368,6 +371,18 @@ function RegistrationPanel({
         toast.success("Von Warteliste entfernt.")
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
+    })
+  }
+
+  function handleSaveCap() {
+    const val = parseInt(capValue, 10)
+    if (!val || val < 1) { toast.error("Ungültiger Wert."); return }
+    startTransition(async () => {
+      try {
+        await setMaxPlayers(session.id, val)
+        setEditingCap(false)
+        toast.success(`Max. Spieler auf ${val} gesetzt.`)
+      } catch (e) { toast.error((e as Error).message) }
     })
   }
 
@@ -539,9 +554,33 @@ function RegistrationPanel({
 
         {/* Registered */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1.5">
-            Zugesagt ({registered.length}{session.maxPlayers ? `/${session.maxPlayers}` : ""})
-          </p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
+              Zugesagt ({registered.length}/{session.maxPlayers ?? 12})
+            </p>
+            {isOrganizer && isScheduled && (
+              editingCap ? (
+                <div className="flex items-center gap-1 ml-auto">
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-14 h-6 text-xs border border-border rounded px-1 bg-background"
+                    value={capValue}
+                    onChange={(e) => setCapValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveCap(); if (e.key === "Escape") setEditingCap(false) }}
+                    autoFocus
+                  />
+                  <button className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50" disabled={pending} onClick={handleSaveCap}>✓</button>
+                  <button className="text-xs px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted" onClick={() => setEditingCap(false)}>✕</button>
+                </div>
+              ) : (
+                <button
+                  className="ml-auto text-xs text-amber-600 dark:text-amber-400 hover:underline"
+                  onClick={() => { setCapValue(String(session.maxPlayers ?? 12)); setEditingCap(true) }}
+                >max. ändern</button>
+              )
+            )}
+          </div>
           {registered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
           ) : (
