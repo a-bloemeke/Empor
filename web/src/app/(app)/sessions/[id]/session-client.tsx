@@ -311,21 +311,22 @@ function RegistrationPanel({
   }
 
   function handleAdd(playerId: string) {
+    // Check cap client-side before hitting the server — avoids unhandled server errors in production
+    const cap = session.maxPlayers ?? 12
+    if (registered.length >= cap) {
+      const playerName = session.allPlayers.find(p => p.id === playerId)?.name
+        ?? session.registrations.find(r => r.playerId === playerId)?.playerName
+        ?? playerId
+      setCapConflict({ playerId, playerName })
+      return
+    }
     setActionId(playerId)
     startTransition(async () => {
       try {
         await addRegistration(session.id, playerId)
         toast.success("Spieler angemeldet.")
-      } catch (e) {
-        const msg = (e as Error).message
-        if (msg.includes("Maximale Spielerzahl") || msg.includes("erreicht")) {
-          const reg = [...session.registrations, ...session.allPlayers.map(p => ({ playerId: p.id, playerName: p.name }))].find(r => "playerId" in r && r.playerId === playerId)
-          const playerName = session.allPlayers.find(p => p.id === playerId)?.name ?? playerId
-          setCapConflict({ playerId, playerName })
-        } else {
-          toast.error(msg)
-        }
-      }
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
     })
   }
