@@ -756,7 +756,7 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   })
 
   // Auto-promote first waitlisted player if session has a cap
-  if (session.maxPlayers) {
+  if (session.maxPlayers ?? true) {
     const firstWaitlisted = await db.sessionRegistration.findFirst({
       where: { sessionId, status: "WAITLISTED" },
       orderBy: { registeredAt: "asc" },

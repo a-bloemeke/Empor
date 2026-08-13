@@ -373,7 +373,7 @@ export function ScheduleClient({
                     id="session-max-players"
                     type="number"
                     min="1"
-                    placeholder="Unbegrenzt"
+                    placeholder="12 (Standard)"
                     value={maxPlayersValue}
                     onChange={(e) => setMaxPlayersValue(e.target.value)}
                   />

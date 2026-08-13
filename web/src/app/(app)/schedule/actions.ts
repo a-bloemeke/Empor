@@ -24,12 +24,12 @@ export async function createSession(dateIso: string, maxPlayers?: number) {
   if (!season) throw new Error(`No season exists for ${year}. Create one under Admin → Seasons first.`)
   if (season.status === "COMPLETED") throw new Error(`Season ${year} is already closed.`)
 
-  const newSession = await db.session.create({
+  await db.session.create({
     data: {
       date,
       seasonId: season.id,
       organizerId: session.user.id,
-      ...(maxPlayers && maxPlayers > 0 ? { maxPlayers } : {}),
+      maxPlayers: maxPlayers && maxPlayers > 0 ? maxPlayers : 12,
     },
   })
 
@@ -167,12 +167,13 @@ export async function registerSelf(sessionId: string) {
     if (existing.status === "WAITLISTED") throw new Error("Du stehst bereits auf der Warteliste.")
 
     // Check capacity before re-registering
+    const cap1 = s.maxPlayers ?? 12
     let newStatus: RegistrationStatus = "REGISTERED"
-    if (s.maxPlayers) {
+    {
       const registeredCount = await db.sessionRegistration.count({
         where: { sessionId, status: "REGISTERED" },
       })
-      if (registeredCount >= s.maxPlayers) {
+      if (registeredCount >= cap1) {
         newStatus = "WAITLISTED"
       }
     }
@@ -198,11 +199,12 @@ export async function registerSelf(sessionId: string) {
     let status: RegistrationStatus = requireApproval?.value === "true" ? "PENDING" : "REGISTERED"
 
     // Check capacity if not already going to PENDING
-    if (status === "REGISTERED" && s.maxPlayers) {
+    const cap2 = s.maxPlayers ?? 12
+    if (status === "REGISTERED") {
       const registeredCount = await db.sessionRegistration.count({
         where: { sessionId, status: "REGISTERED" },
       })
-      if (registeredCount >= s.maxPlayers) {
+      if (registeredCount >= cap2) {
         status = "WAITLISTED"
       }
     }
@@ -326,8 +328,8 @@ export async function cancelSelf(sessionId: string) {
     await notifyOrganizersCancellation(s, player, wasRegistered)
   }
 
-  // Auto-promote first waitlisted player if session has a cap and a REGISTERED slot freed up
-  if (wasRegistered && s.maxPlayers) {
+  // Auto-promote first waitlisted player if a REGISTERED slot freed up
+  if (wasRegistered) {
     const firstWaitlisted = await db.sessionRegistration.findFirst({
       where: { sessionId, status: "WAITLISTED" },
       orderBy: { registeredAt: "asc" },
