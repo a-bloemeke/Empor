@@ -497,6 +497,7 @@
     "resume": "▶ Weiter",
     "reset": "Zurücksetzen",
     "timeUp": "Zeit!",
+    "endMatch": "Spiel beenden",
     "recordGoalFor": "Tor eintragen für {team}",
     "selectScorer2": "Torschützen auswählen.",
     "goalRecorded": "Tor gespeichert.",

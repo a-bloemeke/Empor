@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { recordGoal, deleteGoal, updateGoal, startMatch } from "@/app/(app)/sessions/[id]/actions"
+import { recordGoal, deleteGoal, updateGoal, startMatch, endMatch } from "@/app/(app)/sessions/[id]/actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { disambiguateNames } from "@/lib/game-logic"
@@ -538,6 +538,17 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
     })
   }
 
+  function handleEndMatch() {
+    startTransition(async () => {
+      try {
+        await endMatch(activeMatch!.id, "TIME")
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
   if (!activeMatch) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
@@ -721,6 +732,20 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
           <span className="font-bold text-white text-sm uppercase tracking-widest animate-pulse">
             {t("timeUp")}
           </span>
+        )}
+
+        {/* End match button — organizer only, shown when expired or match running */}
+        {isOrganizer && (isExpired || isRunning || isPaused) && (
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={handleEndMatch}
+            className={inv
+              ? "bg-white text-red-700 hover:bg-white/90 font-bold"
+              : "bg-red-600 text-white hover:bg-red-700 font-bold"}
+          >
+            {t("endMatch")}
+          </Button>
         )}
       </div>
       )}

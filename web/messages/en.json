@@ -497,6 +497,7 @@
     "resume": "▶ Resume",
     "reset": "Reset",
     "timeUp": "Time!",
+    "endMatch": "End match",
     "recordGoalFor": "Record goal for {team}",
     "selectScorer2": "Select the scorer.",
     "goalRecorded": "Goal recorded.",
