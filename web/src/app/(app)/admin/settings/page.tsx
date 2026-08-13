@@ -7,7 +7,15 @@ export default async function SettingsPage() {
   const session = await auth()
   if (session?.user?.role !== "ORGANIZER") redirect("/schedule")
 
-  const emailFrom = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const [emailFrom, requireApproval] = await Promise.all([
+    db.appConfig.findUnique({ where: { key: "emailFrom" } }),
+    db.appConfig.findUnique({ where: { key: "requireApproval" } }),
+  ])
 
-  return <SettingsClient emailFrom={emailFrom?.value ?? ""} />
+  return (
+    <SettingsClient
+      emailFrom={emailFrom?.value ?? ""}
+      requireApproval={requireApproval?.value === "true"}
+    />
+  )
 }

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DownloadIcon } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -86,6 +87,25 @@ export function MembershipClient({
 
   const paidCount = players.filter((p) => getStatus(p) === "PAID").length
 
+  function handleExport() {
+    const rows = players.map((p) => {
+      const status = getStatus(p)
+      const paidAt = getPaidAt(p)
+      return [
+        `"${p.name.replace(/"/g, '""')}"`,
+        status === "PAID" ? t("paid") : t("notPaid"),
+        paidAt ? format(new Date(paidAt), "dd.MM.yyyy") : "",
+      ].join(",")
+    })
+    const csv = [["Name", t("status"), t("datePaid")].join(","), ...rows].join("\n")
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }))
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `mitgliedsbeitraege-${year}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -95,7 +115,7 @@ export function MembershipClient({
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Select value={String(year)} onValueChange={(v) => { if (v) setYear(parseInt(v)) }}>
           <SelectTrigger className="w-28">
             <SelectValue />
@@ -117,6 +137,11 @@ export function MembershipClient({
             <SelectItem value="NOT_PAID">{t("filterNotPaid")}</SelectItem>
           </SelectContent>
         </Select>
+
+        <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+          <DownloadIcon className="size-3.5" />
+          CSV
+        </Button>
       </div>
 
       {filtered.length === 0 ? (

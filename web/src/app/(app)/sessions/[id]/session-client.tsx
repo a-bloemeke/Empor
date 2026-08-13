@@ -37,6 +37,7 @@ import {
   addRegistrationBulk,
   addGuestAndRegister,
   removeRegistration,
+  cancelRegistrationAdmin,
   generateTeams,
   generateTeamsWithPins,
   movePlayer,
@@ -61,7 +62,13 @@ import {
   sendSummaryEmail,
   getStatusUpdateDefaults,
   sendStatusUpdate,
+  approveRegistration,
+  rejectRegistration,
+  convertGuestToPlayer,
+  addToWaitingList,
+  removeFromWaitingList,
 } from "./actions"
+import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
 import { toast } from "sonner"
 import { SportsTable } from "@/components/app/sports-table"
@@ -101,6 +108,7 @@ type Registration = {
   playerName: string
   status: string
   beerBringer: boolean
+  isGuest: boolean
   seasonPoints: number
   seasonSessions: number
   seasonScore: number
@@ -114,10 +122,13 @@ type SessionData = {
   date: string
   status: string
   seasonYear: number
+  maxPlayers: number | null
   registrations: Registration[]
   teams: Team[]
   matches: Match[]
   allPlayers: Player[]
+  absentPlayers: { id: string; name: string }[]
+  myStatus: string | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,24 +161,124 @@ function computeStandings(teams: Team[], matches: Match[]) {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// ─── Convert guest to permanent player dialog ─────────────────────────────────
+
+function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: string; playerName: string; sessionId: string }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+
+  function handleConvert() {
+    if (!email.trim() || !password) { toast.error("E-Mail und Passwort sind erforderlich."); return }
+    startTransition(async () => {
+      try {
+        await convertGuestToPlayer(playerId, email.trim(), password)
+        toast.success(`${playerName} hat jetzt ein Konto.`)
+        setOpen(false)
+        setEmail("")
+        setPassword("")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={
+        <button className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50" />
+      }>
+        → Konto
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Konto erstellen für {playerName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="conv-email">E-Mail-Adresse</Label>
+            <Input id="conv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="conv-pw">Passwort</Label>
+            <Input id="conv-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mindestens 6 Zeichen" />
+          </div>
+          <p className="text-xs text-muted-foreground">Der Spieler erhält eine Willkommens-E-Mail mit dem Login-Link.</p>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleConvert} disabled={pending || !email.trim() || !password}>
+            {pending ? "Wird erstellt…" : "Konto erstellen"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Registration panel ───────────────────────────────────────────────────────
+
 function RegistrationPanel({
   session,
   isOrganizer,
+  currentUserId,
 }: {
   session: SessionData
   isOrganizer: boolean
+  currentUserId: string
 }) {
   const t = useTranslations("session")
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [guestName, setGuestName] = useState("")
 
+  const myStatus = session.myStatus
+  const isPlayer = !!currentUserId && !isOrganizer
+  const sessionDate = new Date(session.date)
+  const isPast = sessionDate < new Date()
+  const cutoffPassed = new Date() >= new Date(sessionDate.getTime() - 60 * 60 * 1000)
+
+  function handleSelfRegister() {
+    startTransition(async () => {
+      try {
+        await registerSelf(session.id)
+        toast.success("Du bist angemeldet!")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleSelfMaybe() {
+    startTransition(async () => {
+      try {
+        await maybeSelf(session.id)
+        toast.success("Als 'Vielleicht' eingetragen.")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleSelfCancel() {
+    startTransition(async () => {
+      try {
+        await cancelSelf(session.id)
+        toast.success("Abgemeldet.")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
   const registered = session.registrations.filter((r) => r.status === "REGISTERED")
+  const pendingRegs = session.registrations.filter((r) => r.status === "PENDING")
+  const waitlisted = session.registrations.filter((r) => r.status === "WAITLISTED")
+  const maybe = session.registrations.filter((r) => r.status === "MAYBE")
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED")
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
-  const noAnswer = session.allPlayers.filter((p) => !respondedIds.has(p.id))
+  const absentIds = new Set(session.absentPlayers.map((p) => p.id))
+  const noAnswer = session.allPlayers.filter((p) => !respondedIds.has(p.id) && !absentIds.has(p.id))
   const registeredIds = new Set(registered.map((r) => r.playerId))
   const available = session.allPlayers.filter((p) => !registeredIds.has(p.id))
   const isScheduled = session.status === "SCHEDULED"
@@ -189,6 +300,72 @@ function RegistrationPanel({
       try {
         await removeRegistration(session.id, playerId)
         toast.success("Player removed.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleAdd(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await addRegistration(session.id, playerId)
+        toast.success("Spieler angemeldet.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleCancelAdmin(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await cancelRegistrationAdmin(session.id, playerId)
+        toast.success("Spieler abgemeldet.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleApprove(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await approveRegistration(session.id, playerId)
+        toast.success("Anmeldung bestätigt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleReject(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await rejectRegistration(session.id, playerId)
+        toast.success("Anmeldung abgelehnt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleAddToWaitlist(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await addToWaitingList(session.id, playerId)
+        toast.success("Auf Warteliste gesetzt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleRemoveFromWaitlist(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await removeFromWaitingList(session.id, playerId)
+        toast.success("Von Warteliste entfernt.")
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
     })
@@ -275,10 +452,95 @@ function RegistrationPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Self-RSVP row — visible for players when session is open and not in the past */}
+        {isPlayer && !isPast && (
+          <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+            <span className="text-sm font-medium shrink-0">Meine Anmeldung:</span>
+            {myStatus === "REGISTERED" && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-700">✅ Zugesagt</span>
+            )}
+            {myStatus === "MAYBE" && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700">❓ Vielleicht</span>
+            )}
+            {myStatus === "CANCELLED" && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-700">❌ Abgesagt</span>
+            )}
+            {!myStatus && (
+              <span className="text-xs text-muted-foreground">Keine Antwort</span>
+            )}
+            <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+              {myStatus !== "REGISTERED" && (
+                <button
+                  className="text-xs px-2.5 py-1 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50 font-medium"
+                  disabled={pending}
+                  onClick={handleSelfRegister}
+                >Anmelden</button>
+              )}
+              {myStatus !== "MAYBE" && (
+                <button
+                  className="text-xs px-2.5 py-1 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50 font-medium"
+                  disabled={pending}
+                  onClick={handleSelfMaybe}
+                >Vielleicht</button>
+              )}
+              {myStatus !== "CANCELLED" && !cutoffPassed && (
+                <button
+                  className="text-xs px-2.5 py-1 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50 font-medium"
+                  disabled={pending}
+                  onClick={handleSelfCancel}
+                >Absagen</button>
+              )}
+              {myStatus !== "CANCELLED" && cutoffPassed && (
+                <span className="text-xs text-muted-foreground">Absagen nicht mehr möglich</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Pending — awaiting organizer approval */}
+        {pendingRegs.length > 0 && (
+          <div className={registered.length > 0 ? "border-t border-border/50 pt-3" : ""}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1.5">
+              Ausstehend ({pendingRegs.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {pendingRegs.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-amber-700 dark:text-amber-300">
+                      {r.playerName}
+                      {r.playerId === currentUserId && (
+                        <span className="ml-1.5 text-xs text-amber-500">(Ausstehend)</span>
+                      )}
+                    </td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleApprove(r.playerId)}
+                          >✓ Bestätigen</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleReject(r.playerId)}
+                          >✗ Ablehnen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Registered */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1.5">
-            Zugesagt ({registered.length})
+            Zugesagt ({registered.length}{session.maxPlayers ? `/${session.maxPlayers}` : ""})
           </p>
           {registered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
@@ -292,15 +554,21 @@ function RegistrationPanel({
                       <span className="flex items-center gap-1">
                         {r.playerName}
                         {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
+                        {r.isGuest && <span className="text-xs text-muted-foreground italic">(Gast)</span>}
                       </span>
                     </td>
                     {isOrganizer && (
-                      <td className="py-1 px-2 text-right w-7">
-                        <button
-                          className="text-muted-foreground hover:text-destructive"
-                          disabled={pending && actionId === r.playerId}
-                          onClick={() => handleRemove(r.playerId)}
-                        >×</button>
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {r.isGuest && (
+                            <ConvertGuestDialog playerId={r.playerId} playerName={r.playerName} sessionId={session.id} />
+                          )}
+                          <button
+                            className="text-muted-foreground hover:text-destructive"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleRemove(r.playerId)}
+                          >×</button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -310,7 +578,82 @@ function RegistrationPanel({
           )}
         </div>
 
+        {/* Waitlisted */}
+        {waitlisted.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1.5">
+              Warteliste ({waitlisted.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {waitlisted.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-blue-700 dark:text-blue-300">
+                      {r.playerName}
+                      {r.playerId === currentUserId && (
+                        <span className="ml-1.5 text-xs text-blue-500">(Position {i + 1})</span>
+                      )}
+                    </td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleAdd(r.playerId)}
+                          >+ Anmelden</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleRemoveFromWaitlist(r.playerId)}
+                          >Entfernen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Cancelled */}
+        {/* Maybe */}
+        {maybe.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1.5">
+              Vielleicht ({maybe.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {maybe.map((r, i) => (
+                  <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-amber-700 dark:text-amber-300">{r.playerName}</td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleAdd(r.playerId)}
+                          >+ Anmelden</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleCancelAdmin(r.playerId)}
+                          >Absagen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {cancelled.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1.5">
@@ -322,6 +665,15 @@ function RegistrationPanel({
                   <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
                     <td className="py-1 px-2 text-muted-foreground">{r.playerName}</td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <button
+                          className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                          disabled={pending && actionId === r.playerId}
+                          onClick={() => handleAdd(r.playerId)}
+                        >+ Anmelden</button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -341,6 +693,41 @@ function RegistrationPanel({
                   <tr key={p.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
                     <td className="py-1 px-2 text-muted-foreground">{p.name}</td>
+                    {isOrganizer && isScheduled && (
+                      <td className="py-1 px-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === p.id}
+                            onClick={() => handleAdd(p.id)}
+                          >+ Anmelden</button>
+                          <button
+                            className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
+                            disabled={pending && actionId === p.id}
+                            onClick={() => handleCancelAdmin(p.id)}
+                          >Absagen</button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Absent players */}
+        {session.absentPlayers.length > 0 && (
+          <div className="border-t border-border/50 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1.5">
+              Abwesend ({session.absentPlayers.length})
+            </p>
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                {session.absentPlayers.map((p, i) => (
+                  <tr key={p.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
+                    <td className="py-1 px-2 text-slate-400 dark:text-slate-500 italic">{p.name}</td>
                   </tr>
                 ))}
               </tbody>
@@ -765,10 +1152,12 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
   const [pending, startTransition] = useTransition()
   const [subject, setSubject] = useState("")
   const [body, setBody] = useState("")
-  const [lists, setLists] = useState<{ registered: string[]; cancelled: string[]; noAnswer: string[] }>({ registered: [], cancelled: [], noAnswer: [] })
+  const [lists, setLists] = useState<{ registered: string[]; maybe: string[]; cancelled: string[]; noAnswer: string[] }>({ registered: [], maybe: [], cancelled: [], noAnswer: [] })
   const [players, setPlayers] = useState<{ id: string; name: string; email: string; emailNotifications: boolean }[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [loaded, setLoaded] = useState(false)
+  const [lastSentAt, setLastSentAt] = useState<string | null>(null)
+  const [delta, setDelta] = useState<{ newRegistrations: string[]; newCancellations: string[] } | null>(null)
 
   function handleOpen(isOpen: boolean) {
     setOpen(isOpen)
@@ -781,6 +1170,8 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
           setLists(data.lists)
           setPlayers(data.players)
           setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
+          setLastSentAt(data.lastSentAt)
+          setDelta(data.delta)
           setLoaded(true)
         } catch (e) { toast.error((e as Error).message) }
       })
@@ -846,6 +1237,22 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
 
             <TrafficLight count={registeredCount} sessionDate={sessionDate} />
 
+            {/* Delta since last status email */}
+            {lastSentAt && delta && (delta.newRegistrations.length > 0 || delta.newCancellations.length > 0) && (
+              <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 px-3 py-2 text-sm space-y-0.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1">Neu seit letztem Update</p>
+                {delta.newRegistrations.length > 0 && (
+                  <p className="text-green-700 dark:text-green-300">✅ +{delta.newRegistrations.length} angemeldet: {delta.newRegistrations.join(", ")}</p>
+                )}
+                {delta.newCancellations.length > 0 && (
+                  <p className="text-red-600 dark:text-red-400">❌ −{delta.newCancellations.length} abgesagt: {delta.newCancellations.join(", ")}</p>
+                )}
+              </div>
+            )}
+            {lastSentAt && delta && delta.newRegistrations.length === 0 && delta.newCancellations.length === 0 && (
+              <p className="text-xs text-muted-foreground">Keine Änderungen seit letztem Update ({new Date(lastSentAt).toLocaleDateString("de-DE")}).</p>
+            )}
+
             {/* Registration tables */}
             <div className="space-y-3">
               <div>
@@ -857,6 +1264,14 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
                   : <NameTable names={lists.registered} colorClass="" />
                 }
               </div>
+              {lists.maybe && lists.maybe.length > 0 && (
+                <div className="border-t border-border/50 pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1">
+                    Vielleicht ({lists.maybe.length})
+                  </p>
+                  <NameTable names={lists.maybe} colorClass="text-amber-700 dark:text-amber-300" />
+                </div>
+              )}
               {lists.cancelled.length > 0 && (
                 <div className="border-t border-border/50 pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1">
@@ -2120,7 +2535,7 @@ export function SessionClient({
       {/* SCHEDULED — no teams yet */}
       {session.status === "SCHEDULED" && session.teams.length === 0 && (
         <div className="space-y-4">
-          <RegistrationPanel session={session} isOrganizer={isOrganizer} />
+          <RegistrationPanel session={session} isOrganizer={isOrganizer} currentUserId={currentUserId} />
           {isOrganizer && (
             <div className="flex flex-wrap gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
               <FormTeamsDialog session={session} pins={pins} setPins={setPins} />
@@ -2141,7 +2556,7 @@ export function SessionClient({
       {/* SCHEDULED — teams exist */}
       {session.status === "SCHEDULED" && session.teams.length > 0 && (
         <div className="space-y-4">
-          <RegistrationPanel session={session} isOrganizer={isOrganizer} />
+          <RegistrationPanel session={session} isOrganizer={isOrganizer} currentUserId={currentUserId} />
           <SectionHeader title="Teams" />
           <TeamsView session={session} isOrganizer={isOrganizer} canRegenerate={true} onDeleteTeam={isOrganizer ? handleDeleteTeam : undefined} pins={pins} />
           {isOrganizer && (

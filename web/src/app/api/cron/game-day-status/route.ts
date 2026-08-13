@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
   })
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.player)
+  const maybe = session.registrations.filter((r) => r.status === "MAYBE").map((r) => r.player)
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const noAnswer = allActivePlayers.filter((p) => !respondedIds.has(p.id))
@@ -100,6 +101,7 @@ Empor Lichtenberg`
     recipients,
     {
       registered: registered.map(dname),
+      maybe: maybe.map(dname),
       cancelled: cancelled.map(dname),
       noAnswer: noAnswer.map(dname),
     },

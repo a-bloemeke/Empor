@@ -7,10 +7,11 @@ import { computeAndSaveStats } from "@/lib/stats"
 import type { PointsScope } from "@/lib/types"
 import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
 import type { TeamRef, MatchRef } from "@/lib/game-logic"
-import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation } from "@/lib/email"
+import { sendGameDayInvitation, sendStatusUpdateEmail, buildDefaultInvitation, sendWelcomeEmail, sendWaitlistPromotion } from "@/lib/email"
 import { buildPlayerNames } from "@/lib/player-names"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
+import bcrypt from "bcryptjs"
 
 // ─── Season-aware player rating ───────────────────────────────────────────────
 // Returns the two most recent season IDs (current first, previous second).
@@ -377,6 +378,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   })
 
   const registered = session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.player)
+  const maybe = session.registrations.filter((r) => r.status === "MAYBE").map((r) => r.player)
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const noAnswer = players.filter((p) => !respondedIds.has(p.id))
@@ -396,6 +398,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const displayNames = buildPlayerNames(players)
 
   const registeredList = registered.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ") || "– noch niemand –"
+  const maybeList = maybe.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
 
@@ -419,18 +422,34 @@ ${statusText}
 
 ✅ Zugesagt (${count}):
 ${registeredList}
-${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
+${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
 ${link}
 
 Empor Lichtenberg`
+
+  // Compute delta since last status email
+  const since = session.lastStatusEmailSentAt
+  const newRegistrations = since
+    ? session.registrations
+        .filter((r) => r.status === "REGISTERED" && r.registeredAt > since)
+        .map((r) => displayNames.get(r.player.id) ?? r.player.firstName)
+    : []
+  const newCancellations = since
+    ? session.registrations
+        .filter((r) => r.status === "CANCELLED" && r.cancelledAt && r.cancelledAt > since)
+        .map((r) => displayNames.get(r.player.id) ?? r.player.firstName)
+    : []
 
   return {
     subject,
     body,
     registeredCount: count,
     minPlayers: MIN_PLAYERS,
+    lastSentAt: session.lastStatusEmailSentAt?.toISOString() ?? null,
+    delta: { newRegistrations, newCancellations },
     lists: {
       registered: registered.map((p) => displayNames.get(p.id) ?? p.firstName),
+      maybe: maybe.map((p) => displayNames.get(p.id) ?? p.firstName),
       cancelled: cancelled.map((p) => displayNames.get(p.id) ?? p.firstName),
       noAnswer: noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName),
     },
@@ -475,8 +494,23 @@ export async function sendStatusUpdate(
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const lists = {
     registered: session.registrations.filter((r) => r.status === "REGISTERED").map((r) => abbrev(r.player)),
+    maybe: session.registrations.filter((r) => r.status === "MAYBE").map((r) => abbrev(r.player)),
     cancelled: session.registrations.filter((r) => r.status === "CANCELLED").map((r) => abbrev(r.player)),
     noAnswer: allNonGuests.filter((p) => !respondedIds.has(p.id)).map(abbrev),
+  }
+
+  const since = session.lastStatusEmailSentAt
+  const delta = {
+    newRegistrations: since
+      ? session.registrations
+          .filter((r) => r.status === "REGISTERED" && r.registeredAt > since)
+          .map((r) => abbrev(r.player))
+      : [],
+    newCancellations: since
+      ? session.registrations
+          .filter((r) => r.status === "CANCELLED" && r.cancelledAt && r.cancelledAt > since)
+          .map((r) => abbrev(r.player))
+      : [],
   }
 
   const recipients = await db.player.findMany({
@@ -485,7 +519,11 @@ export async function sendStatusUpdate(
   })
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
 
-  return sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists)
+  await sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists, delta)
+
+  await db.session.update({ where: { id: sessionId }, data: { lastStatusEmailSentAt: new Date() } })
+
+  return emails.length
 }
 
 function revalidate(sessionId: string) {
@@ -703,6 +741,9 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
   const reg = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId } },
   })
@@ -711,6 +752,83 @@ export async function removeRegistration(sessionId: string, playerId: string) {
     where: { id: reg.id },
     data: { status: "CANCELLED", cancelledAt: new Date(), beerBringer: false },
   })
+
+  // Auto-promote first waitlisted player if session has a cap
+  if (session.maxPlayers) {
+    const firstWaitlisted = await db.sessionRegistration.findFirst({
+      where: { sessionId, status: "WAITLISTED" },
+      orderBy: { registeredAt: "asc" },
+      include: { player: { select: { id: true, email: true, firstName: true, emailNotifications: true } } },
+    })
+    if (firstWaitlisted) {
+      await db.sessionRegistration.update({
+        where: { id: firstWaitlisted.id },
+        data: { status: "REGISTERED", registeredAt: new Date() },
+      })
+      const p = firstWaitlisted.player
+      if (p.emailNotifications && p.email) {
+        await sendWaitlistPromotion(session, p)
+      }
+    }
+  }
+
+  revalidate(sessionId)
+}
+
+export async function addToWaitingList(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (existing) {
+    if (existing.status === "WAITLISTED") throw new Error("Player is already on the waitlist.")
+    await db.sessionRegistration.update({
+      where: { id: existing.id },
+      data: { status: "WAITLISTED", cancelledAt: null, beerBringer: false },
+    })
+  } else {
+    await db.sessionRegistration.create({
+      data: { sessionId, playerId, registeredById: authSession.user.id!, status: "WAITLISTED" },
+    })
+  }
+  revalidate(sessionId)
+}
+
+export async function removeFromWaitingList(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!existing || existing.status !== "WAITLISTED") throw new Error("Player is not on the waitlist.")
+  await db.sessionRegistration.update({
+    where: { id: existing.id },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
+  })
+  revalidate(sessionId)
+}
+
+export async function cancelRegistrationAdmin(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const existing = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (existing) {
+    if (existing.status === "CANCELLED") return
+    await db.sessionRegistration.update({
+      where: { id: existing.id },
+      data: { status: "CANCELLED", cancelledAt: new Date(), beerBringer: false },
+    })
+  } else {
+    await db.sessionRegistration.create({
+      data: { sessionId, playerId, registeredById: authSession.user.id!, status: "CANCELLED", cancelledAt: new Date() },
+    })
+  }
   revalidate(sessionId)
 }
 
@@ -1376,4 +1494,78 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
 
   revalidate(sessionId)
   return guest.id
+}
+
+export async function convertGuestToPlayer(playerId: string, email: string, password: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const trimmedEmail = email.trim().toLowerCase()
+  if (!trimmedEmail) throw new Error("E-Mail-Adresse ist erforderlich.")
+  if (password.length < 6) throw new Error("Passwort muss mindestens 6 Zeichen haben.")
+
+  const player = await db.player.findUnique({ where: { id: playerId } })
+  if (!player) throw new Error("Spieler nicht gefunden.")
+  if (player.passwordHash) throw new Error("Dieser Spieler hat bereits ein Konto.")
+
+  const existing = await db.player.findFirst({ where: { email: trimmedEmail, id: { not: playerId } } })
+  if (existing) throw new Error("Diese E-Mail-Adresse wird bereits verwendet.")
+
+  const passwordHash = await bcrypt.hash(password, 10)
+
+  await db.player.update({
+    where: { id: playerId },
+    data: { email: trimmedEmail, passwordHash, active: true },
+  })
+
+  await sendWelcomeEmail({ email: trimmedEmail, firstName: player.firstName })
+
+  revalidatePath("/sessions", "layout")
+  revalidatePath("/schedule")
+}
+
+export async function approveRegistration(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const reg = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!reg) throw new Error("Anmeldung nicht gefunden.")
+  if (reg.status !== "PENDING") throw new Error("Anmeldung ist nicht ausstehend.")
+
+  await db.sessionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "REGISTERED", registeredAt: new Date() },
+  })
+
+  const player = await db.player.findUnique({
+    where: { id: playerId },
+    select: { email: true, firstName: true, emailNotifications: true },
+  })
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (player?.emailNotifications && player.email && session) {
+    const { sendRsvpConfirmation } = await import("@/lib/email")
+    await sendRsvpConfirmation(session, player)
+  }
+
+  revalidate(sessionId)
+}
+
+export async function rejectRegistration(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const reg = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!reg) throw new Error("Anmeldung nicht gefunden.")
+  if (reg.status !== "PENDING") throw new Error("Anmeldung ist nicht ausstehend.")
+
+  await db.sessionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "CANCELLED", cancelledAt: new Date() },
+  })
+
+  revalidate(sessionId)
 }

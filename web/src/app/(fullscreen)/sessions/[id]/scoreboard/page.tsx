@@ -85,6 +85,7 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
   }
 
   const activeMatch = s.matches.find((m) => m.status === "IN_PROGRESS") ?? null
+  const pendingMatchesRaw = s.matches.filter((m) => m.status === "PENDING")
 
   // For normal matches (no roundNumber): count completed matches between same two teams.
   // Odd count → auto-swap display so teams alternate sides on each rematch.
@@ -137,6 +138,18 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
             }
           : null
       }
+      pendingMatches={pendingMatchesRaw.map((m) => {
+        const homeTeam = s.teams.find((t) => t.id === m.homeTeamId)
+        const awayTeam = s.teams.find((t) => t.id === m.awayTeamId)
+        return {
+          id: m.id,
+          roundNumber: m.roundNumber,
+          homeTeamName: m.homeTeam.name,
+          awayTeamName: m.awayTeam.name,
+          homeTeamPlayers: (homeTeam?.players ?? []).map((tp) => displayName(tp.player)),
+          awayTeamPlayers: (awayTeam?.players ?? []).map((tp) => displayName(tp.player)),
+        }
+      })}
       teams={s.teams.map((t) => ({
         id: t.id,
         name: t.name,

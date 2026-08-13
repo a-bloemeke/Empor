@@ -11,6 +11,7 @@ export default async function MembershipPage() {
   const currentYear = new Date().getFullYear()
 
   const players = await db.player.findMany({
+    where: { active: true, passwordHash: { not: null } },
     select: { id: true, firstName: true, lastName: true, nickname: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })

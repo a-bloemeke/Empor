@@ -77,3 +77,39 @@ export async function changePassword(
 
   revalidatePath(`/players/${playerId}`)
 }
+
+export async function createAbsence(
+  playerId: string,
+  startIso: string,
+  endIso: string,
+  reason?: string,
+) {
+  const authSession = await auth()
+  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (authSession.user.id !== playerId && authSession.user.role !== "ORGANIZER") {
+    throw new Error("Unauthorized")
+  }
+
+  const startDate = new Date(startIso)
+  const endDate = new Date(endIso)
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) throw new Error("Invalid dates.")
+  if (endDate < startDate) throw new Error("End date must be on or after start date.")
+
+  await db.playerAbsence.create({
+    data: { playerId, startDate, endDate, reason: reason || null },
+  })
+
+  revalidatePath(`/players/${playerId}`)
+}
+
+export async function deleteAbsence(absenceId: string, playerId: string) {
+  const authSession = await auth()
+  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (authSession.user.id !== playerId && authSession.user.role !== "ORGANIZER") {
+    throw new Error("Unauthorized")
+  }
+
+  await db.playerAbsence.delete({ where: { id: absenceId } })
+
+  revalidatePath(`/players/${playerId}`)
+}

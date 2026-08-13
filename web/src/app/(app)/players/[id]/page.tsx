@@ -132,6 +132,13 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
       })
     : []
 
+  const absences = (isCurrentUser || isOrganizer)
+    ? await db.playerAbsence.findMany({
+        where: { playerId: id },
+        orderBy: { startDate: "desc" },
+      })
+    : []
+
   return (
     <PlayerClient
       player={{
@@ -163,6 +170,12 @@ export default async function PlayerProfilePage({ params }: { params: Promise<{ 
         year: f.year,
         status: f.status as string,
         paidAt: f.paidAt?.toISOString() ?? null,
+      }))}
+      absences={absences.map((a) => ({
+        id: a.id,
+        startDate: a.startDate.toISOString(),
+        endDate: a.endDate.toISOString(),
+        reason: a.reason ?? null,
       }))}
       currentYear={currentYear}
       isCurrentUser={isCurrentUser}

@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
+import { createSession, cancelSession, registerSelf, cancelSelf, maybeSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -34,6 +34,7 @@ type GameSession = {
   status: string
   seasonYear: number
   registrationCount: number
+  maxPlayers: number | null
   myStatus: string | null
   beerBringerId: string | null
   beerBringerName: string | null
@@ -52,6 +53,9 @@ function MyStatusBadge({ status }: { status: string | null }) {
   const t = useTranslations("schedule")
   if (status === "REGISTERED") return <Badge variant="secondary">{t("statusRegistered")}</Badge>
   if (status === "CANCELLED") return <span className="text-muted-foreground text-sm">{t("statusCancelled")}</span>
+  if (status === "MAYBE") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">Vielleicht</Badge>
+  if (status === "WAITLISTED") return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-300">Warteliste</Badge>
+  if (status === "PENDING") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">Ausstehend</Badge>
   return <span className="text-muted-foreground text-sm">—</span>
 }
 
@@ -240,17 +244,20 @@ export function ScheduleClient({
   const t = useTranslations("schedule")
   const [open, setOpen] = useState(false)
   const [dateValue, setDateValue] = useState("")
+  const [maxPlayersValue, setMaxPlayersValue] = useState("")
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
 
   function handleCreate() {
     if (!dateValue) { toast.error(t("pickDateTime")); return }
+    const maxPlayers = maxPlayersValue ? parseInt(maxPlayersValue, 10) : undefined
     startTransition(async () => {
       try {
-        await createSession(new Date(dateValue).toISOString())
+        await createSession(new Date(dateValue).toISOString(), maxPlayers)
         toast.success(t("gameDayScheduled"))
         setOpen(false)
         setDateValue("")
+        setMaxPlayersValue("")
       } catch (e) {
         toast.error((e as Error).message)
       }
@@ -275,6 +282,18 @@ export function ScheduleClient({
       try {
         await cancelSelf(id)
         toast.success(t("registrationCancelled"))
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setActionId(null) }
+    })
+  }
+
+  function handleMaybe(id: string) {
+    setActionId(id)
+    startTransition(async () => {
+      try {
+        await maybeSelf(id)
+        toast.success("Als 'Vielleicht' eingetragen.")
       } catch (e) {
         toast.error((e as Error).message)
       } finally { setActionId(null) }
@@ -331,6 +350,7 @@ export function ScheduleClient({
                 const d = new Date()
                 const pad = (n: number) => String(n).padStart(2, "0")
                 setDateValue(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T20:00`)
+                setMaxPlayersValue("")
               }
             }}>
               <DialogTrigger render={<Button size="sm" className="bg-white/20 text-white hover:bg-white/30 border-0" />}>{t("newGameDay")}</DialogTrigger>
@@ -345,6 +365,17 @@ export function ScheduleClient({
                     type="datetime-local"
                     value={dateValue}
                     onChange={(e) => setDateValue(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="session-max-players">Max. Spieler (optional)</Label>
+                  <Input
+                    id="session-max-players"
+                    type="number"
+                    min="1"
+                    placeholder="Unbegrenzt"
+                    value={maxPlayersValue}
+                    onChange={(e) => setMaxPlayersValue(e.target.value)}
                   />
                 </div>
                 <DialogFooter>
@@ -391,7 +422,7 @@ export function ScheduleClient({
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
-                    <TableCell className="text-right">{s.registrationCount}</TableCell>
+                    <TableCell className="text-right">{s.registrationCount}{s.maxPlayers ? `/${s.maxPlayers}` : ""}</TableCell>
                     <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
                     <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>
                     <TableCell className="text-right">
@@ -399,6 +430,12 @@ export function ScheduleClient({
                         {s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
                             {busy ? "…" : t("register")}
+                          </Button>
+                        )}
+                        {s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMaybe(s.id)}
+                            className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40">
+                            Vielleicht
                           </Button>
                         )}
                         {s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (
@@ -472,7 +509,7 @@ export function ScheduleClient({
                     </Link>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
-                  <TableCell className="text-right">{s.registrationCount}</TableCell>
+                  <TableCell className="text-right">{s.registrationCount}{s.maxPlayers ? `/${s.maxPlayers}` : ""}</TableCell>
                   <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
                   {isOrganizer && (
                     <TableCell className="text-right">
