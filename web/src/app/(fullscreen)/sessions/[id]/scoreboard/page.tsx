@@ -7,6 +7,7 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
   const { id } = await params
   const authSession = await auth()
   const currentUserId = authSession?.user?.id ?? ""
+  const isOrganizer = authSession?.user?.role === "ORGANIZER"
 
   const session = await db.session.findUnique({
     where: { id },
@@ -116,6 +117,7 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
     <ScoreboardClient
       sessionId={id}
       currentUserId={currentUserId}
+      isOrganizer={isOrganizer}
       initialSwapped={initialSwapped}
       activeMatch={
         activeMatch

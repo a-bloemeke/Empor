@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { recordGoal, deleteGoal, updateGoal } from "@/app/(app)/sessions/[id]/actions"
+import { recordGoal, deleteGoal, updateGoal, startMatch } from "@/app/(app)/sessions/[id]/actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { disambiguateNames } from "@/lib/game-logic"
@@ -55,6 +55,7 @@ type PendingMatch = {
 type Props = {
   sessionId: string
   currentUserId: string
+  isOrganizer: boolean
   initialSwapped?: boolean
   activeMatch: ActiveMatch | null
   teams: Team[]
@@ -508,9 +509,10 @@ function EditGoalDrawer({
 
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
-export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = false, activeMatch, teams, pendingMatches }: Props) {
+export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initialSwapped = false, activeMatch, teams, pendingMatches }: Props) {
   const t = useTranslations("scoreboard")
   const router = useRouter()
+  const [pending, startTransition] = useTransition()
   const [drawerSide, setDrawerSide] = useState<"home" | "away" | null>(null)
   const [editGoal, setEditGoal] = useState<GoalEntry | null>(null)
   const [swapped, setSwapped] = useState(initialSwapped)
@@ -524,6 +526,17 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
     const id = setInterval(refresh, 5000)
     return () => clearInterval(id)
   }, [refresh, drawerSide])
+
+  function handleStartMatch(matchId: string) {
+    startTransition(async () => {
+      try {
+        await startMatch(matchId)
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
 
   if (!activeMatch) {
     return (
@@ -549,6 +562,18 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
                   <span className="flex-1 truncate">{m.homeTeamPlayers.join(", ")}</span>
                   <span className="flex-1 text-right truncate">{m.awayTeamPlayers.join(", ")}</span>
                 </div>
+                {isOrganizer && i === 0 && (
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      disabled={pending}
+                      onClick={() => handleStartMatch(m.id)}
+                    >
+                      {t("startMatch")}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

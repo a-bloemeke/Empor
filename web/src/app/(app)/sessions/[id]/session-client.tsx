@@ -2710,7 +2710,7 @@ export function SessionClient({
           )}
 
           {/* Next pending match */}
-          {!activeMatch && pendingMatches.length > 0 && (isCurrentlyTournament ? !roundComplete : true) && (
+          {!activeMatch && pendingMatches.length > 0 && (
             <div>
               <SectionHeader title="Next Match" />
               <Card className="border-primary/20 bg-primary/5">
