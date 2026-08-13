@@ -238,6 +238,7 @@ function RegistrationPanel({
   const [guestName, setGuestName] = useState("")
   const [editingCap, setEditingCap] = useState(false)
   const [capValue, setCapValue] = useState(String(session.maxPlayers ?? 12))
+  const [capConflict, setCapConflict] = useState<{ playerId: string; playerName: string } | null>(null)
 
   const myStatus = session.myStatus
   const isPlayer = !!currentUserId && !isOrganizer
@@ -315,8 +316,45 @@ function RegistrationPanel({
       try {
         await addRegistration(session.id, playerId)
         toast.success("Spieler angemeldet.")
-      } catch (e) { toast.error((e as Error).message) }
+      } catch (e) {
+        const msg = (e as Error).message
+        if (msg.includes("Maximale Spielerzahl") || msg.includes("erreicht")) {
+          const reg = [...session.registrations, ...session.allPlayers.map(p => ({ playerId: p.id, playerName: p.name }))].find(r => "playerId" in r && r.playerId === playerId)
+          const playerName = session.allPlayers.find(p => p.id === playerId)?.name ?? playerId
+          setCapConflict({ playerId, playerName })
+        } else {
+          toast.error(msg)
+        }
+      }
       finally { setActionId(null) }
+    })
+  }
+
+  function handleCapConflictWaitlist() {
+    if (!capConflict) return
+    const { playerId } = capConflict
+    setCapConflict(null)
+    startTransition(async () => {
+      try {
+        await addToWaitingList(session.id, playerId)
+        toast.success("Auf Warteliste gesetzt.")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleCapConflictExtend() {
+    if (!capConflict) return
+    const { playerId } = capConflict
+    const newCap = (session.maxPlayers ?? 12) + 1
+    setCapConflict(null)
+    startTransition(async () => {
+      try {
+        await setMaxPlayers(session.id, newCap)
+        await addRegistration(session.id, playerId)
+        toast.success(`Max. Spieler auf ${newCap} erhöht. Spieler angemeldet.`)
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
     })
   }
 
@@ -468,6 +506,31 @@ function RegistrationPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Cap conflict dialog — shown when organizer tries to add to a full list */}
+        {capConflict && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 space-y-3">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Die Liste ist voll ({session.maxPlayers ?? 12} Spieler). Was soll mit <span className="font-semibold">{capConflict.playerName}</span> passieren?
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                className="text-xs px-3 py-1.5 rounded border border-blue-300 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 disabled:opacity-50 font-medium"
+                disabled={pending}
+                onClick={handleCapConflictWaitlist}
+              >Auf Warteliste setzen</button>
+              <button
+                className="text-xs px-3 py-1.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50 font-medium"
+                disabled={pending}
+                onClick={handleCapConflictExtend}
+              >Max. auf {(session.maxPlayers ?? 12) + 1} erhöhen & anmelden</button>
+              <button
+                className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:bg-muted"
+                onClick={() => setCapConflict(null)}
+              >Abbrechen</button>
+            </div>
+          </div>
+        )}
+
         {/* Self-RSVP row — visible for players when session is open and not in the past */}
         {isPlayer && !isPast && (
           <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
