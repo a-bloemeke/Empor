@@ -503,6 +503,9 @@
     "goalRecorded": "Goal recorded.",
     "minOption": "{min} min",
     "nextMatches": "Next Matches",
-    "nextMatch": "Next Match"
+    "nextMatch": "Next Match",
+    "roundComplete": "Round {round} complete",
+    "nextRound": "Round {round}",
+    "startNextRound": "Start round {round}"
   }
 }

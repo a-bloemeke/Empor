@@ -503,6 +503,9 @@
     "goalRecorded": "Tor gespeichert.",
     "minOption": "{min} min",
     "nextMatches": "Nächste Spiele",
-    "nextMatch": "Nächstes Spiel"
+    "nextMatch": "Nächstes Spiel",
+    "roundComplete": "Runde {round} abgeschlossen",
+    "nextRound": "Runde {round}",
+    "startNextRound": "Runde {round} starten"
   }
 }

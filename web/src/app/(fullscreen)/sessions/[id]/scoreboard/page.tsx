@@ -88,6 +88,34 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
   const activeMatch = s.matches.find((m) => m.status === "IN_PROGRESS") ?? null
   const pendingMatchesRaw = s.matches.filter((m) => m.status === "PENDING")
 
+  // Current round = highest roundNumber among started or completed tournament matches
+  const currentRound = s.matches
+    .filter((m) => m.roundNumber != null && m.status !== "PENDING")
+    .reduce((max, m) => Math.max(max, m.roundNumber!), 0) || null
+
+  // Between-rounds: no pending matches, tournament was playing, next round ≤ 5
+  // Compute what the next round would look like (same logic as startNextRound)
+  const isTournament = s.teams.length === 3 && s.matches.some((m) => m.roundNumber != null)
+  type PreviewMatch = { id: string; roundNumber: number; homeTeamId: string; awayTeamId: string; homeTeamName: string; awayTeamName: string; homeTeamPlayers: string[]; awayTeamPlayers: string[] }
+  let nextRoundPreview: PreviewMatch[] | null = null
+  if (isTournament && pendingMatchesRaw.length === 0 && !activeMatch && currentRound != null && currentRound < 5) {
+    const nextRound = currentRound + 1
+    const [ta, tb, tc] = s.teams
+    const nextPairs = nextRound % 2 === 1
+      ? [[ta, tb], [ta, tc], [tb, tc]]
+      : [[tb, ta], [tc, ta], [tc, tb]]
+    nextRoundPreview = nextPairs.map(([home, away], i) => ({
+      id: `preview-${i}`,
+      roundNumber: nextRound,
+      homeTeamId: home.id,
+      awayTeamId: away.id,
+      homeTeamName: home.name,
+      awayTeamName: away.name,
+      homeTeamPlayers: (home.players ?? []).map((tp) => displayName(tp.player)),
+      awayTeamPlayers: (away.players ?? []).map((tp) => displayName(tp.player)),
+    }))
+  }
+
   // For normal matches (no roundNumber): alternate sides on rematches between same two teams.
   let initialSwapped = false
   if (activeMatch && activeMatch.roundNumber === null) {
@@ -139,6 +167,8 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
       currentUserId={currentUserId}
       isOrganizer={isOrganizer}
       initialSwapped={initialSwapped}
+      currentRound={currentRound}
+      nextRoundPreview={nextRoundPreview}
       activeMatch={
         activeMatch
           ? {

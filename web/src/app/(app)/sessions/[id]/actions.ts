@@ -1068,7 +1068,8 @@ export async function createMatchesFromTeams(sessionId: string) {
   if (session.teams.length === 2) {
     await db.match.create({ data: { sessionId, homeTeamId: t0.id, awayTeamId: t1.id, roundNumber: null } })
   } else {
-    const pairs = [[t0.id, t1.id], [t1.id, t2.id], [t0.id, t2.id]]
+    // Round 1: A-B, A-C, B-C  (A plays first two as home, then B vs C)
+    const pairs = [[t0.id, t1.id], [t0.id, t2.id], [t1.id, t2.id]]
     for (const [h, a] of pairs) {
       await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
     }
@@ -1163,7 +1164,8 @@ export async function generateTeamsWithPins(
       data: { sessionId, homeTeamId: createdTeams[0].id, awayTeamId: createdTeams[1].id, roundNumber: null },
     })
   } else {
-    const pairs = [[createdTeams[0].id, createdTeams[1].id], [createdTeams[1].id, createdTeams[2].id], [createdTeams[0].id, createdTeams[2].id]]
+    // Round 1: A-B, A-C, B-C
+    const pairs = [[createdTeams[0].id, createdTeams[1].id], [createdTeams[0].id, createdTeams[2].id], [createdTeams[1].id, createdTeams[2].id]]
     for (const [h, a] of pairs) {
       await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
     }
@@ -1335,15 +1337,18 @@ export async function startNextRound(sessionId: string) {
   const lastRound = session.matches[0]?.roundNumber ?? 0
   if (lastRound >= 5) throw new Error("Maximum of 5 rounds reached.")
 
+  const nextRound = lastRound + 1
   const [a, b, c] = session.teams
-  const pairs = [
-    [a.id, b.id],
-    [b.id, c.id],
-    [a.id, c.id],
-  ]
+
+  // Odd rounds (1,3,5...): A-B, A-C, B-C  (A plays home first two matches)
+  // Even rounds (2,4,...): B-A, C-A, C-B  (all home/away flipped from odd)
+  const pairs = nextRound % 2 === 1
+    ? [[a.id, b.id], [a.id, c.id], [b.id, c.id]]
+    : [[b.id, a.id], [c.id, a.id], [c.id, b.id]]
+
   for (const [h, aw] of pairs) {
     await db.match.create({
-      data: { sessionId, homeTeamId: h, awayTeamId: aw, roundNumber: lastRound + 1 },
+      data: { sessionId, homeTeamId: h, awayTeamId: aw, roundNumber: nextRound },
     })
   }
 

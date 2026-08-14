@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { recordGoal, deleteGoal, updateGoal, startMatch, endMatch } from "@/app/(app)/sessions/[id]/actions"
+import { recordGoal, deleteGoal, updateGoal, startMatch, endMatch, startNextRound } from "@/app/(app)/sessions/[id]/actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { disambiguateNames } from "@/lib/game-logic"
@@ -62,6 +62,8 @@ type Props = {
   activeMatch: ActiveMatch | null
   teams: Team[]
   pendingMatches: PendingMatch[]
+  currentRound: number | null
+  nextRoundPreview: { id: string; roundNumber: number; homeTeamId: string; awayTeamId: string; homeTeamName: string; awayTeamName: string; homeTeamPlayers: string[]; awayTeamPlayers: string[] }[] | null
 }
 
 // ─── Audio & Speech ───────────────────────────────────────────────────────────
@@ -511,7 +513,7 @@ function EditGoalDrawer({
 
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
-export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initialSwapped = false, activeMatch, teams, pendingMatches }: Props) {
+export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initialSwapped = false, activeMatch, teams, pendingMatches, currentRound, nextRoundPreview }: Props) {
   const t = useTranslations("scoreboard")
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -564,7 +566,52 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
     })
   }
 
+  function handleStartNextRound() {
+    startTransition(async () => {
+      try {
+        await startNextRound(sessionId)
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
   if (!activeMatch) {
+    // Between tournament rounds: no pending matches but next round can be started
+    if (pendingMatches.length === 0 && nextRoundPreview && nextRoundPreview.length > 0) {
+      const nextRound = (currentRound ?? 0) + 1
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6">
+          <div className="text-center space-y-1">
+            <p className="text-muted-foreground text-sm uppercase tracking-widest font-bold">{t("roundComplete", { round: currentRound ?? 0 })}</p>
+            <p className="text-2xl font-bold">{t("nextRound", { round: nextRound })}</p>
+          </div>
+          <div className="w-full max-w-md space-y-2">
+            {nextRoundPreview.map((m) => (
+              <div key={m.id} className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="flex items-center gap-3 text-sm font-semibold">
+                  <span className="flex-1 truncate">{m.homeTeamName}</span>
+                  <span className="text-muted-foreground font-light text-lg">vs</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamName}</span>
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                  <span className="flex-1 truncate">{m.homeTeamPlayers.join(", ")}</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamPlayers.join(", ")}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {isOrganizer && (
+            <Button size="lg" disabled={pending} onClick={handleStartNextRound} className="w-full max-w-md">
+              {t("startNextRound", { round: nextRound })}
+            </Button>
+          )}
+          <a href={`/sessions/${sessionId}`} className="text-sm text-muted-foreground underline-offset-4 hover:underline">{t("sessionLink")}</a>
+        </div>
+      )
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
         <p className="text-muted-foreground text-lg">{t("noActiveMatch")}</p>
@@ -591,12 +638,7 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
                 </div>
                 {isOrganizer && i === 0 && (
                   <div className="mt-3">
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      disabled={pending}
-                      onClick={() => handleStartMatch(m.id)}
-                    >
+                    <Button size="sm" className="w-full" disabled={pending} onClick={() => handleStartMatch(m.id)}>
                       {t("startMatch")}
                     </Button>
                   </div>
