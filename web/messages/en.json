@@ -422,7 +422,16 @@
       "notPaid": "Not paid",
       "markedAs": "{name} marked as {status}.",
       "markNotPaid": "Mark not paid",
-      "markPaid": "Mark paid"
+      "markPaid": "Mark paid",
+      "addPlayers": "Add players",
+      "addPlayersCount": "Add players ({count})",
+      "adding": "Adding…",
+      "selectAll": "All ({count})",
+      "removeFromYear": "Remove from list",
+      "removed": "Removed from {year}.",
+      "addedCount": "{count} player(s) added to {year}.",
+      "noPlayersInYear": "No players on the {year} membership list yet.",
+      "addPlayersHint": "Use \"Add players\" to build the list for this year."
     },
     "seasons": {
       "createSeason": "Create season",

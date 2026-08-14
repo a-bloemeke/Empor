@@ -422,7 +422,16 @@
       "notPaid": "Nicht bezahlt",
       "markedAs": "{name} als {status} markiert.",
       "markNotPaid": "Als nicht bezahlt markieren",
-      "markPaid": "Als bezahlt markieren"
+      "markPaid": "Als bezahlt markieren",
+      "addPlayers": "Spieler hinzufügen",
+      "addPlayersCount": "Spieler hinzufügen ({count})",
+      "adding": "Hinzufügen…",
+      "selectAll": "Alle ({count})",
+      "removeFromYear": "Aus Liste entfernen",
+      "removed": "Aus {year} entfernt.",
+      "addedCount": "{count} Spieler zu {year} hinzugefügt.",
+      "noPlayersInYear": "Noch keine Spieler in der Mitgliederliste {year}.",
+      "addPlayersHint": "Klicke auf \"Spieler hinzufügen\", um die Liste aufzubauen."
     },
     "seasons": {
       "createSeason": "Saison erstellen",
