@@ -7,7 +7,7 @@ import Link from "next/link"
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   const isOrganizer = session?.user?.role === "ORGANIZER"
-  const env = process.env.NEXT_PUBLIC_ENV
+  const env = process.env.APP_ENV ?? process.env.NEXT_PUBLIC_ENV
 
   return (
     <SessionProvider session={session}>
