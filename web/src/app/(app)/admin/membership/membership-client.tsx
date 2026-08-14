@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -35,13 +36,15 @@ type PlayerRow = {
 
 export function MembershipClient({
   players,
+  year,
   defaultYear,
 }: {
   players: PlayerRow[]
+  year: number
   defaultYear: number
 }) {
   const t = useTranslations("admin.membership")
-  const [year, setYear] = useState(defaultYear)
+  const router = useRouter()
   const [filter, setFilter] = useState<"ALL" | "PAID" | "NOT_PAID">("ALL")
   const [localStatus, setLocalStatus] = useState<Record<string, string>>({})
   const [localPaidAt, setLocalPaidAt] = useState<Record<string, string | null>>({})
@@ -49,6 +52,14 @@ export function MembershipClient({
   const [actionId, setActionId] = useState<string | null>(null)
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => defaultYear - 2 + i)
+
+  function handleYearChange(v: string | null) {
+    if (!v) return
+    const y = parseInt(v)
+    const params = new URLSearchParams(window.location.search)
+    params.set("year", String(y))
+    router.push(`?${params.toString()}`)
+  }
 
   function getStatus(p: PlayerRow) {
     return localStatus[`${p.id}:${year}`] ?? p.status
@@ -116,7 +127,7 @@ export function MembershipClient({
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <Select value={String(year)} onValueChange={(v) => { if (v) setYear(parseInt(v)) }}>
+        <Select value={String(year)} onValueChange={handleYearChange}>
           <SelectTrigger className="w-28">
             <SelectValue />
           </SelectTrigger>
