@@ -964,11 +964,11 @@ export async function generateTeams(
       },
     })
   } else {
-    // 3-team: A vs B, B vs C, A vs C
+    // 3-team round 1: A-B, A-C, B-C
     const pairs = [
       [createdTeams[0].id, createdTeams[1].id],
-      [createdTeams[1].id, createdTeams[2].id],
       [createdTeams[0].id, createdTeams[2].id],
+      [createdTeams[1].id, createdTeams[2].id],
     ]
     for (const [h, a] of pairs) {
       await db.match.create({
