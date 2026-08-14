@@ -46,6 +46,8 @@ type ActiveMatch = {
 type PendingMatch = {
   id: string
   roundNumber: number | null
+  homeTeamId: string
+  awayTeamId: string
   homeTeamName: string
   awayTeamName: string
   homeTeamPlayers: string[]
@@ -527,6 +529,19 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
     return () => clearInterval(id)
   }, [refresh, drawerSide])
 
+  // Auto-end match when timer turns green (5s after expiry blink finishes) — tournament only
+  useEffect(() => {
+    if (timer.isGreen && activeMatch && isOrganizer && !pending) {
+      startTransition(async () => {
+        try {
+          await endMatch(activeMatch.id, "TIME")
+          router.refresh()
+        } catch { /* already ended or race condition — ignore */ }
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer.isGreen])
+
   function handleStartMatch(matchId: string) {
     startTransition(async () => {
       try {
@@ -758,7 +773,7 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
           className={cn(
             "group flex flex-1 flex-col items-stretch transition-colors",
             isExpired
-              ? "hover:bg-red-500 active:bg-red-500"
+              ? "hover:bg-white/10 active:bg-white/10"
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
@@ -803,7 +818,7 @@ export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initia
           className={cn(
             "group flex flex-1 flex-col items-stretch transition-colors",
             isExpired
-              ? "hover:bg-red-500 active:bg-red-500"
+              ? "hover:bg-white/10 active:bg-white/10"
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
