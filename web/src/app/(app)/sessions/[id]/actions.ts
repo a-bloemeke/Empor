@@ -1514,7 +1514,7 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
     where: {
       sessionId,
       status: { in: ["REGISTERED", "WAITLISTED", "PENDING"] },
-      player: { firstName: "Gast", lastName: `– ${name}` },
+      player: { firstName: name, passwordHash: null },
     },
   })
   if (duplicate) throw new Error(`Ein Gast mit dem Namen "${name}" ist bereits angemeldet.`)
@@ -1524,8 +1524,8 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
   const guest = await db.player.create({
     data: {
       email: `guest-${uniqueTag}@empor.guest`,
-      firstName: "Gast",
-      lastName: `– ${name}`,
+      firstName: name,
+      lastName: "(Gast)",
       role: "PLAYER",
     },
   })
@@ -1575,13 +1575,13 @@ export async function renameGuest(sessionId: string, playerId: string, newName: 
     where: {
       sessionId,
       status: { in: ["REGISTERED", "WAITLISTED", "PENDING"] },
-      player: { firstName: "Gast", lastName: `– ${name}` },
+      player: { firstName: name, passwordHash: null },
       NOT: { playerId },
     },
   })
   if (duplicate) throw new Error(`Ein Gast mit dem Namen "${name}" ist bereits angemeldet.`)
 
-  await db.player.update({ where: { id: playerId }, data: { lastName: `– ${name}` } })
+  await db.player.update({ where: { id: playerId }, data: { firstName: name } })
 
   revalidate(sessionId)
 }

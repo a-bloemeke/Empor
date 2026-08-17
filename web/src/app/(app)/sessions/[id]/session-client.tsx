@@ -179,7 +179,7 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
   function handleOpen(isOpen: boolean) {
     setOpen(isOpen)
     if (isOpen) {
-      const raw = playerName.startsWith("Gast – ") ? playerName.slice(7) : playerName
+      const raw = playerName.endsWith(" (Gast)") ? playerName.slice(0, -7) : playerName
       const parts = raw.trim().split(/\s+/)
       setFirstName(parts[0] ?? "")
       setLastName(parts.slice(1).join(" "))
@@ -745,7 +745,7 @@ function RegistrationPanel({
                             <button
                               className="text-xs text-muted-foreground hover:text-foreground ml-0.5"
                               title="Umbenennen"
-                              onClick={() => { setEditingGuestId(r.playerId); setEditingGuestName(r.playerName) }}
+                              onClick={() => { setEditingGuestId(r.playerId); setEditingGuestName(r.playerName.endsWith(" (Gast)") ? r.playerName.slice(0, -7) : r.playerName) }}
                             >✎</button>
                           )}
                         </span>
