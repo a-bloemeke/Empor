@@ -122,7 +122,12 @@
     "gameDayCompleted": "Spieltag abgeschlossen.",
     "bringBeer": "Bier mitbringen 🍺",
     "bringingBeer": "Ich bringe Bier 🍺",
-    "beerToggled": "Bier-Bringer aktualisiert."
+    "beerToggled": "Bier-Bringer aktualisiert.",
+    "statusMaybe": "Vielleicht",
+    "statusPending": "Ausstehend",
+    "statusWaitlisted": "Warteliste",
+    "maxPlayersLabel": "Max. Spieler (optional)",
+    "maxPlayersPlaceholder": "12 (Standard)"
   },
   "session": {
     "noPlayersYet": "Noch keine Spieler angemeldet.",
@@ -230,7 +235,36 @@
     "summaryPoints": "Punkte",
     "mvpOutcome": "{goals}T · {assists}V · Score {score} · Siegpunkte +{outcome} · Teilnahme +1 · {points} Pkt",
     "beerBringerLabel": "Bringt Bier",
-    "beerBroughtBy": "🍺 Bier mitgebracht von: {name}"
+    "beerBroughtBy": "🍺 Bier mitgebracht von: {name}",
+    "statusMaybe": "Vielleicht",
+    "statusPending": "Ausstehend",
+    "statusWaitlisted": "Warteliste",
+    "registeredSection": "Zugesagt",
+    "waitlistedSection": "Warteliste",
+    "pendingSection": "Ausstehend",
+    "waitlistPosition": "Position {pos}",
+    "confirmBtn": "✓ Bestätigen",
+    "rejectBtn": "✗ Ablehnen",
+    "promoteBtn": "+ Anmelden",
+    "removeFromWaitlistBtn": "Entfernen",
+    "cancelNotPossible": "Absagen nicht mehr möglich",
+    "maxPlayersEdit": "max. ändern",
+    "maxPlayersLabel": "Max. Spieler (optional)",
+    "maxPlayersDefault": "12 (Standard)",
+    "createAccountTitle": "Konto erstellen für {name}",
+    "createAccountBtn": "Konto erstellen",
+    "creatingAccountBtn": "Wird erstellt…",
+    "guestLabel": "(Gast)",
+    "myRegistration": "Meine Anmeldung:",
+    "noAnswer": "Keine Antwort",
+    "registerBtn": "Anmelden",
+    "cancelBtn": "Absagen",
+    "noAnswerSection": "Noch keine Antwort",
+    "absentSection": "Abwesend",
+    "pendingBadge": "(Ausstehend)",
+    "toastMaybe": "Als 'Vielleicht' eingetragen.",
+    "toastWaitlisted": "Auf Warteliste gesetzt.",
+    "toastRemovedFromWaitlist": "Von Warteliste entfernt."
   },
   "leaderboard": {
     "title": "Rangliste",
@@ -388,7 +422,16 @@
       "notPaid": "Nicht bezahlt",
       "markedAs": "{name} als {status} markiert.",
       "markNotPaid": "Als nicht bezahlt markieren",
-      "markPaid": "Als bezahlt markieren"
+      "markPaid": "Als bezahlt markieren",
+      "addPlayers": "Spieler hinzufügen",
+      "addPlayersCount": "Spieler hinzufügen ({count})",
+      "adding": "Hinzufügen…",
+      "selectAll": "Alle ({count})",
+      "removeFromYear": "Aus Liste entfernen",
+      "removed": "Aus {year} entfernt.",
+      "addedCount": "{count} Spieler zu {year} hinzugefügt.",
+      "noPlayersInYear": "Noch keine Spieler in der Mitgliederliste {year}.",
+      "addPlayersHint": "Klicke auf \"Spieler hinzufügen\", um die Liste aufzubauen."
     },
     "seasons": {
       "createSeason": "Saison erstellen",
@@ -435,7 +478,12 @@
       "emailFromHint": "Die Adresse, von der E-Mails versendet werden (muss mit SMTP_USER übereinstimmen oder ein Alias auf demselben Server sein).",
       "save": "Speichern",
       "saving": "Wird gespeichert…",
-      "saved": "Einstellungen gespeichert."
+      "saved": "Einstellungen gespeichert.",
+      "approvalsSection": "Anmeldungen",
+      "approvalTitle": "Genehmigungspflicht",
+      "approvalDesc": "Neue Anmeldungen erhalten zuerst den Status \"Ausstehend\" und müssen vom Organisator bestätigt werden.",
+      "approvalEnabled": "Genehmigungspflicht aktiviert.",
+      "approvalDisabled": "Genehmigungspflicht deaktiviert."
     }
   },
   "scoreboard": {
@@ -458,9 +506,15 @@
     "resume": "▶ Weiter",
     "reset": "Zurücksetzen",
     "timeUp": "Zeit!",
+    "endMatch": "Spiel beenden",
     "recordGoalFor": "Tor eintragen für {team}",
     "selectScorer2": "Torschützen auswählen.",
     "goalRecorded": "Tor gespeichert.",
-    "minOption": "{min} min"
+    "minOption": "{min} min",
+    "nextMatches": "Nächste Spiele",
+    "nextMatch": "Nächstes Spiel",
+    "roundComplete": "Runde {round} abgeschlossen",
+    "nextRound": "Runde {round}",
+    "startNextRound": "Runde {round} starten"
   }
 }

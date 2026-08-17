@@ -67,6 +67,7 @@ import {
   convertGuestToPlayer,
   addToWaitingList,
   removeFromWaitingList,
+  setMaxPlayers,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
@@ -184,6 +185,7 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
     })
   }
 
+  const tc = useTranslations("session")
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={
@@ -193,7 +195,7 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Konto erstellen für {playerName}</DialogTitle>
+          <DialogTitle>{tc("createAccountTitle", { name: playerName })}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1.5">
@@ -208,7 +210,7 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
         </div>
         <DialogFooter>
           <Button onClick={handleConvert} disabled={pending || !email.trim() || !password}>
-            {pending ? "Wird erstellt…" : "Konto erstellen"}
+            {pending ? tc("creatingAccountBtn") : tc("createAccountBtn")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -234,6 +236,9 @@ function RegistrationPanel({
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [guestName, setGuestName] = useState("")
+  const [editingCap, setEditingCap] = useState(false)
+  const [capValue, setCapValue] = useState(String(session.maxPlayers ?? 12))
+  const [capConflict, setCapConflict] = useState<{ playerId: string; playerName: string } | null>(null)
 
   const myStatus = session.myStatus
   const isPlayer = !!currentUserId && !isOrganizer
@@ -255,7 +260,7 @@ function RegistrationPanel({
     startTransition(async () => {
       try {
         await maybeSelf(session.id)
-        toast.success("Als 'Vielleicht' eingetragen.")
+        toast.success(t("toastMaybe"))
         router.refresh()
       } catch (e) { toast.error((e as Error).message) }
     })
@@ -306,13 +311,51 @@ function RegistrationPanel({
   }
 
   function handleAdd(playerId: string) {
+    // Check cap client-side before hitting the server — avoids unhandled server errors in production
+    const cap = session.maxPlayers ?? 12
+    if (registered.length >= cap) {
+      const playerName = session.allPlayers.find(p => p.id === playerId)?.name
+        ?? session.registrations.find(r => r.playerId === playerId)?.playerName
+        ?? playerId
+      setCapConflict({ playerId, playerName })
+      return
+    }
     setActionId(playerId)
     startTransition(async () => {
       try {
         await addRegistration(session.id, playerId)
         toast.success("Spieler angemeldet.")
+        router.refresh()
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
+    })
+  }
+
+  function handleCapConflictWaitlist() {
+    if (!capConflict) return
+    const { playerId } = capConflict
+    setCapConflict(null)
+    startTransition(async () => {
+      try {
+        await addToWaitingList(session.id, playerId)
+        toast.success("Auf Warteliste gesetzt.")
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleCapConflictExtend() {
+    if (!capConflict) return
+    const { playerId } = capConflict
+    const newCap = (session.maxPlayers ?? 12) + 1
+    setCapConflict(null)
+    startTransition(async () => {
+      try {
+        await setMaxPlayers(session.id, newCap)
+        await addRegistration(session.id, playerId)
+        toast.success(`Max. Spieler auf ${newCap} erhöht. Spieler angemeldet.`)
+        router.refresh()
+      } catch (e) { toast.error((e as Error).message) }
     })
   }
 
@@ -354,7 +397,7 @@ function RegistrationPanel({
     startTransition(async () => {
       try {
         await addToWaitingList(session.id, playerId)
-        toast.success("Auf Warteliste gesetzt.")
+        toast.success(t("toastWaitlisted"))
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
     })
@@ -365,9 +408,21 @@ function RegistrationPanel({
     startTransition(async () => {
       try {
         await removeFromWaitingList(session.id, playerId)
-        toast.success("Von Warteliste entfernt.")
+        toast.success(t("toastRemovedFromWaitlist"))
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
+    })
+  }
+
+  function handleSaveCap() {
+    const val = parseInt(capValue, 10)
+    if (!val || val < 1) { toast.error("Ungültiger Wert."); return }
+    startTransition(async () => {
+      try {
+        await setMaxPlayers(session.id, val)
+        setEditingCap(false)
+        toast.success(`Max. Spieler auf ${val} gesetzt.`)
+      } catch (e) { toast.error((e as Error).message) }
     })
   }
 
@@ -452,21 +507,46 @@ function RegistrationPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Cap conflict dialog — shown when organizer tries to add to a full list */}
+        {capConflict && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 space-y-3">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Die Liste ist voll ({session.maxPlayers ?? 12} Spieler). Was soll mit <span className="font-semibold">{capConflict.playerName}</span> passieren?
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                className="text-xs px-3 py-1.5 rounded border border-blue-300 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 disabled:opacity-50 font-medium"
+                disabled={pending}
+                onClick={handleCapConflictWaitlist}
+              >Auf Warteliste setzen</button>
+              <button
+                className="text-xs px-3 py-1.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50 font-medium"
+                disabled={pending}
+                onClick={handleCapConflictExtend}
+              >Max. auf {(session.maxPlayers ?? 12) + 1} erhöhen & anmelden</button>
+              <button
+                className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:bg-muted"
+                onClick={() => setCapConflict(null)}
+              >Abbrechen</button>
+            </div>
+          </div>
+        )}
+
         {/* Self-RSVP row — visible for players when session is open and not in the past */}
         {isPlayer && !isPast && (
           <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-            <span className="text-sm font-medium shrink-0">Meine Anmeldung:</span>
+            <span className="text-sm font-medium shrink-0">{t("myRegistration")}</span>
             {myStatus === "REGISTERED" && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-700">✅ Zugesagt</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-700">✅ {t("registeredSection")}</span>
             )}
             {myStatus === "MAYBE" && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700">❓ Vielleicht</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-700">❓ {t("statusMaybe")}</span>
             )}
             {myStatus === "CANCELLED" && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-700">❌ Abgesagt</span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-700">❌ {t("statusCancelled")}</span>
             )}
             {!myStatus && (
-              <span className="text-xs text-muted-foreground">Keine Antwort</span>
+              <span className="text-xs text-muted-foreground">{t("noAnswer")}</span>
             )}
             <div className="flex items-center gap-1.5 ml-auto flex-wrap">
               {myStatus !== "REGISTERED" && (
@@ -474,24 +554,24 @@ function RegistrationPanel({
                   className="text-xs px-2.5 py-1 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50 font-medium"
                   disabled={pending}
                   onClick={handleSelfRegister}
-                >Anmelden</button>
+                >{t("registerBtn")}</button>
               )}
               {myStatus !== "MAYBE" && (
                 <button
                   className="text-xs px-2.5 py-1 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50 font-medium"
                   disabled={pending}
                   onClick={handleSelfMaybe}
-                >Vielleicht</button>
+                >{t("statusMaybe")}</button>
               )}
               {myStatus !== "CANCELLED" && !cutoffPassed && (
                 <button
                   className="text-xs px-2.5 py-1 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50 font-medium"
                   disabled={pending}
                   onClick={handleSelfCancel}
-                >Absagen</button>
+                >{t("cancelBtn")}</button>
               )}
               {myStatus !== "CANCELLED" && cutoffPassed && (
-                <span className="text-xs text-muted-foreground">Absagen nicht mehr möglich</span>
+                <span className="text-xs text-muted-foreground">{t("cancelNotPossible")}</span>
               )}
             </div>
           </div>
@@ -501,7 +581,7 @@ function RegistrationPanel({
         {pendingRegs.length > 0 && (
           <div className={registered.length > 0 ? "border-t border-border/50 pt-3" : ""}>
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1.5">
-              Ausstehend ({pendingRegs.length})
+              {t("pendingSection")} ({pendingRegs.length})
             </p>
             <table className="w-full text-sm border-collapse">
               <tbody>
@@ -511,7 +591,7 @@ function RegistrationPanel({
                     <td className="py-1 px-2 text-amber-700 dark:text-amber-300">
                       {r.playerName}
                       {r.playerId === currentUserId && (
-                        <span className="ml-1.5 text-xs text-amber-500">(Ausstehend)</span>
+                        <span className="ml-1.5 text-xs text-amber-500">{t("pendingBadge")}</span>
                       )}
                     </td>
                     {isOrganizer && isScheduled && (
@@ -521,12 +601,12 @@ function RegistrationPanel({
                             className="text-xs px-2 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
                             disabled={pending && actionId === r.playerId}
                             onClick={() => handleApprove(r.playerId)}
-                          >✓ Bestätigen</button>
+                          >{t("confirmBtn")}</button>
                           <button
                             className="text-xs px-2 py-0.5 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50"
                             disabled={pending && actionId === r.playerId}
                             onClick={() => handleReject(r.playerId)}
-                          >✗ Ablehnen</button>
+                          >{t("rejectBtn")}</button>
                         </div>
                       </td>
                     )}
@@ -539,9 +619,33 @@ function RegistrationPanel({
 
         {/* Registered */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1.5">
-            Zugesagt ({registered.length}{session.maxPlayers ? `/${session.maxPlayers}` : ""})
-          </p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400">
+              {t("registeredSection")} ({registered.length}/{session.maxPlayers ?? 12})
+            </p>
+            {isOrganizer && isScheduled && (
+              editingCap ? (
+                <div className="flex items-center gap-1 ml-auto">
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-14 h-6 text-xs border border-border rounded px-1 bg-background"
+                    value={capValue}
+                    onChange={(e) => setCapValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveCap(); if (e.key === "Escape") setEditingCap(false) }}
+                    autoFocus
+                  />
+                  <button className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50" disabled={pending} onClick={handleSaveCap}>✓</button>
+                  <button className="text-xs px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted" onClick={() => setEditingCap(false)}>✕</button>
+                </div>
+              ) : (
+                <button
+                  className="ml-auto text-xs text-amber-600 dark:text-amber-400 hover:underline"
+                  onClick={() => { setCapValue(String(session.maxPlayers ?? 12)); setEditingCap(true) }}
+                >{t("maxPlayersEdit")}</button>
+              )
+            )}
+          </div>
           {registered.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("noPlayersYet")}</p>
           ) : (
@@ -554,7 +658,7 @@ function RegistrationPanel({
                       <span className="flex items-center gap-1">
                         {r.playerName}
                         {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
-                        {r.isGuest && <span className="text-xs text-muted-foreground italic">(Gast)</span>}
+                        {r.isGuest && <span className="text-xs text-muted-foreground italic">{t("guestLabel")}</span>}
                       </span>
                     </td>
                     {isOrganizer && (
@@ -582,7 +686,7 @@ function RegistrationPanel({
         {waitlisted.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1.5">
-              Warteliste ({waitlisted.length})
+              {t("waitlistedSection")} ({waitlisted.length})
             </p>
             <table className="w-full text-sm border-collapse">
               <tbody>
@@ -592,7 +696,7 @@ function RegistrationPanel({
                     <td className="py-1 px-2 text-blue-700 dark:text-blue-300">
                       {r.playerName}
                       {r.playerId === currentUserId && (
-                        <span className="ml-1.5 text-xs text-blue-500">(Position {i + 1})</span>
+                        <span className="ml-1.5 text-xs text-blue-500">{t("waitlistPosition", { pos: i + 1 })}</span>
                       )}
                     </td>
                     {isOrganizer && isScheduled && (
@@ -602,12 +706,12 @@ function RegistrationPanel({
                             className="text-xs px-2 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
                             disabled={pending && actionId === r.playerId}
                             onClick={() => handleAdd(r.playerId)}
-                          >+ Anmelden</button>
+                          >{t("promoteBtn")}</button>
                           <button
                             className="text-xs px-2 py-0.5 rounded border border-red-300 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 hover:bg-red-100 disabled:opacity-50"
                             disabled={pending && actionId === r.playerId}
                             onClick={() => handleRemoveFromWaitlist(r.playerId)}
-                          >Entfernen</button>
+                          >{t("removeFromWaitlistBtn")}</button>
                         </div>
                       </td>
                     )}
@@ -623,7 +727,7 @@ function RegistrationPanel({
         {maybe.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1.5">
-              Vielleicht ({maybe.length})
+              {t("statusMaybe")} ({maybe.length})
             </p>
             <table className="w-full text-sm border-collapse">
               <tbody>
@@ -638,12 +742,12 @@ function RegistrationPanel({
                             className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                             disabled={pending && actionId === r.playerId}
                             onClick={() => handleAdd(r.playerId)}
-                          >+ Anmelden</button>
+                          >{t("promoteBtn")}</button>
                           <button
                             className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                             disabled={pending && actionId === r.playerId}
                             onClick={() => handleCancelAdmin(r.playerId)}
-                          >Absagen</button>
+                          >{t("cancelBtn")}</button>
                         </div>
                       </td>
                     )}
@@ -657,7 +761,7 @@ function RegistrationPanel({
         {cancelled.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1.5">
-              Abgesagt ({cancelled.length})
+              {t("statusCancelled")} ({cancelled.length})
             </p>
             <table className="w-full text-sm border-collapse">
               <tbody>
@@ -671,7 +775,7 @@ function RegistrationPanel({
                           className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                           disabled={pending && actionId === r.playerId}
                           onClick={() => handleAdd(r.playerId)}
-                        >+ Anmelden</button>
+                        >{t("promoteBtn")}</button>
                       </td>
                     )}
                   </tr>
@@ -685,7 +789,7 @@ function RegistrationPanel({
         {noAnswer.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
-              Noch keine Antwort ({noAnswer.length})
+              {t("noAnswerSection")} ({noAnswer.length})
             </p>
             <table className="w-full text-sm border-collapse">
               <tbody>
@@ -700,12 +804,12 @@ function RegistrationPanel({
                             className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                             disabled={pending && actionId === p.id}
                             onClick={() => handleAdd(p.id)}
-                          >+ Anmelden</button>
+                          >{t("promoteBtn")}</button>
                           <button
                             className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50"
                             disabled={pending && actionId === p.id}
                             onClick={() => handleCancelAdmin(p.id)}
-                          >Absagen</button>
+                          >{t("cancelBtn")}</button>
                         </div>
                       </td>
                     )}
@@ -720,7 +824,7 @@ function RegistrationPanel({
         {session.absentPlayers.length > 0 && (
           <div className="border-t border-border/50 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1.5">
-              Abwesend ({session.absentPlayers.length})
+              {t("absentSection")} ({session.absentPlayers.length})
             </p>
             <table className="w-full text-sm border-collapse">
               <tbody>
@@ -1148,6 +1252,7 @@ function TrafficLight({ count, sessionDate }: { count: number; sessionDate: stri
 }
 
 function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { sessionId: string; registeredCount: number; sessionDate: string }) {
+  const t = useTranslations("session")
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [subject, setSubject] = useState("")
@@ -1257,7 +1362,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
             <div className="space-y-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-400 mb-1">
-                  Zugesagt ({lists.registered.length})
+                  {t("registeredSection")} ({lists.registered.length})
                 </p>
                 {lists.registered.length === 0
                   ? <p className="text-sm text-muted-foreground">– noch niemand –</p>
@@ -1267,7 +1372,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
               {lists.maybe && lists.maybe.length > 0 && (
                 <div className="border-t border-border/50 pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-1">
-                    Vielleicht ({lists.maybe.length})
+                    {t("statusMaybe")} ({lists.maybe.length})
                   </p>
                   <NameTable names={lists.maybe} colorClass="text-amber-700 dark:text-amber-300" />
                 </div>
@@ -1275,7 +1380,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
               {lists.cancelled.length > 0 && (
                 <div className="border-t border-border/50 pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400 mb-1">
-                    Abgesagt ({lists.cancelled.length})
+                    {t("statusCancelled")} ({lists.cancelled.length})
                   </p>
                   <NameTable names={lists.cancelled} colorClass="text-muted-foreground" />
                 </div>
@@ -1283,7 +1388,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
               {lists.noAnswer.length > 0 && (
                 <div className="border-t border-border/50 pt-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-                    Noch keine Antwort ({lists.noAnswer.length})
+                    {t("noAnswerSection")} ({lists.noAnswer.length})
                   </p>
                   <NameTable names={lists.noAnswer} colorClass="text-muted-foreground" />
                 </div>
@@ -2605,7 +2710,7 @@ export function SessionClient({
           )}
 
           {/* Next pending match */}
-          {!activeMatch && pendingMatches.length > 0 && (isCurrentlyTournament ? !roundComplete : true) && (
+          {!activeMatch && pendingMatches.length > 0 && (
             <div>
               <SectionHeader title="Next Match" />
               <Card className="border-primary/20 bg-primary/5">

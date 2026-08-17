@@ -26,3 +26,32 @@ export async function setFeeStatus(playerId: string, year: number, status: "PAID
 
   revalidatePath("/admin/membership")
 }
+
+export async function addPlayersToYear(playerIds: string[], year: number) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (playerIds.length === 0) return
+
+  await db.membershipFee.createMany({
+    data: playerIds.map((playerId) => ({
+      playerId,
+      year,
+      status: "NOT_PAID" as const,
+      recordedById: authSession.user.id,
+    })),
+    skipDuplicates: true,
+  })
+
+  revalidatePath("/admin/membership")
+}
+
+export async function removePlayerFromYear(playerId: string, year: number) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  await db.membershipFee.delete({
+    where: { playerId_year: { playerId, year } },
+  })
+
+  revalidatePath("/admin/membership")
+}

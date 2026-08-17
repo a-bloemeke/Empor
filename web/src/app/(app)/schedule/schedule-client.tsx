@@ -53,9 +53,9 @@ function MyStatusBadge({ status }: { status: string | null }) {
   const t = useTranslations("schedule")
   if (status === "REGISTERED") return <Badge variant="secondary">{t("statusRegistered")}</Badge>
   if (status === "CANCELLED") return <span className="text-muted-foreground text-sm">{t("statusCancelled")}</span>
-  if (status === "MAYBE") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">Vielleicht</Badge>
-  if (status === "WAITLISTED") return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-300">Warteliste</Badge>
-  if (status === "PENDING") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">Ausstehend</Badge>
+  if (status === "MAYBE") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">{t("statusMaybe")}</Badge>
+  if (status === "WAITLISTED") return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-300">{t("statusWaitlisted")}</Badge>
+  if (status === "PENDING") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-300">{t("statusPending")}</Badge>
   return <span className="text-muted-foreground text-sm">—</span>
 }
 
@@ -293,7 +293,7 @@ export function ScheduleClient({
     startTransition(async () => {
       try {
         await maybeSelf(id)
-        toast.success("Als 'Vielleicht' eingetragen.")
+        toast.success(t("statusMaybe"))
       } catch (e) {
         toast.error((e as Error).message)
       } finally { setActionId(null) }
@@ -368,12 +368,12 @@ export function ScheduleClient({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="session-max-players">Max. Spieler (optional)</Label>
+                  <Label htmlFor="session-max-players">{t("maxPlayersLabel")}</Label>
                   <Input
                     id="session-max-players"
                     type="number"
                     min="1"
-                    placeholder="Unbegrenzt"
+                    placeholder={t("maxPlayersPlaceholder")}
                     value={maxPlayersValue}
                     onChange={(e) => setMaxPlayersValue(e.target.value)}
                   />
@@ -435,7 +435,7 @@ export function ScheduleClient({
                         {s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMaybe(s.id)}
                             className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40">
-                            Vielleicht
+                            {t("statusMaybe")}
                           </Button>
                         )}
                         {s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (

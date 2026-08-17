@@ -31,7 +31,7 @@ export function SettingsClient({ emailFrom, requireApproval }: { emailFrom: stri
     startTransition(async () => {
       try {
         await saveRequireApproval(enabled)
-        toast.success(enabled ? "Genehmigungspflicht aktiviert." : "Genehmigungspflicht deaktiviert.")
+        toast.success(enabled ? t("approvalEnabled") : t("approvalDisabled"))
       } catch (e) {
         toast.error((e as Error).message)
       }
@@ -71,15 +71,13 @@ export function SettingsClient({ emailFrom, requireApproval }: { emailFrom: stri
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Anmeldungen</CardTitle>
+          <CardTitle className="text-base">{t("approvalsSection")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-medium">Genehmigungspflicht</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Neue Anmeldungen erhalten zuerst den Status "Ausstehend" und müssen vom Organisator bestätigt werden.
-              </p>
+              <p className="text-sm font-medium">{t("approvalTitle")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("approvalDesc")}</p>
             </div>
             <button
               onClick={() => handleToggleApproval(!approvalEnabled)}

@@ -122,7 +122,12 @@
     "gameDayCompleted": "Game day completed.",
     "bringBeer": "Bring beer 🍺",
     "bringingBeer": "Bringing beer 🍺",
-    "beerToggled": "Beer bringer updated."
+    "beerToggled": "Beer bringer updated.",
+    "statusMaybe": "Maybe",
+    "statusPending": "Pending",
+    "statusWaitlisted": "Waitlisted",
+    "maxPlayersLabel": "Max. players (optional)",
+    "maxPlayersPlaceholder": "12 (default)"
   },
   "session": {
     "noPlayersYet": "No players registered yet.",
@@ -230,7 +235,36 @@
     "summaryPoints": "Points",
     "mvpOutcome": "{goals}G · {assists}A · Score {score} · Win pts +{outcome} · Attend +1 · {points} pts",
     "beerBringerLabel": "Bringing beer",
-    "beerBroughtBy": "🍺 Beer brought by: {name}"
+    "beerBroughtBy": "🍺 Beer brought by: {name}",
+    "statusMaybe": "Maybe",
+    "statusPending": "Pending",
+    "statusWaitlisted": "Waitlisted",
+    "registeredSection": "Registered",
+    "waitlistedSection": "Waiting list",
+    "pendingSection": "Pending",
+    "waitlistPosition": "Position {pos}",
+    "confirmBtn": "✓ Confirm",
+    "rejectBtn": "✗ Reject",
+    "promoteBtn": "+ Register",
+    "removeFromWaitlistBtn": "Remove",
+    "cancelNotPossible": "Cannot cancel anymore",
+    "maxPlayersEdit": "edit max",
+    "maxPlayersLabel": "Max. players (optional)",
+    "maxPlayersDefault": "12 (default)",
+    "createAccountTitle": "Create account for {name}",
+    "createAccountBtn": "Create account",
+    "creatingAccountBtn": "Creating…",
+    "guestLabel": "(Guest)",
+    "myRegistration": "My registration:",
+    "noAnswer": "No response",
+    "registerBtn": "Register",
+    "cancelBtn": "Cancel",
+    "noAnswerSection": "No response",
+    "absentSection": "Absent",
+    "pendingBadge": "(Pending)",
+    "toastMaybe": "Marked as 'Maybe'.",
+    "toastWaitlisted": "Added to waiting list.",
+    "toastRemovedFromWaitlist": "Removed from waiting list."
   },
   "leaderboard": {
     "title": "Leaderboard",
@@ -388,7 +422,16 @@
       "notPaid": "Not paid",
       "markedAs": "{name} marked as {status}.",
       "markNotPaid": "Mark not paid",
-      "markPaid": "Mark paid"
+      "markPaid": "Mark paid",
+      "addPlayers": "Add players",
+      "addPlayersCount": "Add players ({count})",
+      "adding": "Adding…",
+      "selectAll": "All ({count})",
+      "removeFromYear": "Remove from list",
+      "removed": "Removed from {year}.",
+      "addedCount": "{count} player(s) added to {year}.",
+      "noPlayersInYear": "No players on the {year} membership list yet.",
+      "addPlayersHint": "Use \"Add players\" to build the list for this year."
     },
     "seasons": {
       "createSeason": "Create season",
@@ -435,7 +478,12 @@
       "emailFromHint": "The address emails are sent from (must match your SMTP_USER or be an alias on the same server).",
       "save": "Save",
       "saving": "Saving…",
-      "saved": "Settings saved."
+      "saved": "Settings saved.",
+      "approvalsSection": "Registrations",
+      "approvalTitle": "Require approval",
+      "approvalDesc": "New registrations receive \"Pending\" status first and must be confirmed by the organizer.",
+      "approvalEnabled": "Approval required enabled.",
+      "approvalDisabled": "Approval required disabled."
     }
   },
   "scoreboard": {
@@ -458,9 +506,15 @@
     "resume": "▶ Resume",
     "reset": "Reset",
     "timeUp": "Time!",
+    "endMatch": "End match",
     "recordGoalFor": "Record goal for {team}",
     "selectScorer2": "Select the scorer.",
     "goalRecorded": "Goal recorded.",
-    "minOption": "{min} min"
+    "minOption": "{min} min",
+    "nextMatches": "Next Matches",
+    "nextMatch": "Next Match",
+    "roundComplete": "Round {round} complete",
+    "nextRound": "Round {round}",
+    "startNextRound": "Start round {round}"
   }
 }

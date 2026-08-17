@@ -380,6 +380,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const registered = session.registrations.filter((r) => r.status === "REGISTERED").map((r) => r.player)
   const maybe = session.registrations.filter((r) => r.status === "MAYBE").map((r) => r.player)
   const cancelled = session.registrations.filter((r) => r.status === "CANCELLED").map((r) => r.player)
+  const waitlisted = session.registrations.filter((r) => r.status === "WAITLISTED").map((r) => r.player)
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const noAnswer = players.filter((p) => !respondedIds.has(p.id))
 
@@ -400,6 +401,7 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const registeredList = registered.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ") || "– noch niemand –"
   const maybeList = maybe.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
+  const waitlistedList = waitlisted.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
   const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
 
   const beerBringerReg = session.registrations.find((r) => r.status === "REGISTERED" && r.beerBringer)
@@ -422,7 +424,7 @@ ${statusText}
 
 ✅ Zugesagt (${count}):
 ${registeredList}
-${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
+${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${waitlistedList ? `\n⏳ Warteliste (${waitlisted.length}):\n${waitlistedList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
 ${link}
 
 Empor Lichtenberg`
@@ -691,9 +693,28 @@ export async function reopenSession(sessionId: string) {
   revalidatePath("/leaderboard")
 }
 
+export async function setMaxPlayers(sessionId: string, maxPlayers: number) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (maxPlayers < 1) throw new Error("Ungültiger Wert.")
+  await db.session.update({ where: { id: sessionId }, data: { maxPlayers } })
+  revalidate(sessionId)
+}
+
 export async function addRegistration(sessionId: string, playerId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const cap = session.maxPlayers ?? 12
+  const registeredCount = await db.sessionRegistration.count({
+    where: { sessionId, status: "REGISTERED" },
+  })
+  if (registeredCount >= cap) {
+    throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
+  }
 
   const existing = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId } },
@@ -716,6 +737,21 @@ export async function addRegistrationBulk(sessionId: string, playerIds: string[]
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
   if (playerIds.length === 0) return
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const cap = session.maxPlayers ?? 12
+  const registeredCount = await db.sessionRegistration.count({
+    where: { sessionId, status: "REGISTERED" },
+  })
+  const available = cap - registeredCount
+  if (available <= 0) {
+    throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
+  }
+  if (playerIds.length > available) {
+    throw new Error(`Nur noch ${available} Platz${available === 1 ? "" : "plätze"} frei (max. ${cap}).`)
+  }
 
   for (const playerId of playerIds) {
     const existing = await db.sessionRegistration.findUnique({
@@ -754,7 +790,7 @@ export async function removeRegistration(sessionId: string, playerId: string) {
   })
 
   // Auto-promote first waitlisted player if session has a cap
-  if (session.maxPlayers) {
+  if (session.maxPlayers ?? true) {
     const firstWaitlisted = await db.sessionRegistration.findFirst({
       where: { sessionId, status: "WAITLISTED" },
       orderBy: { registeredAt: "asc" },
@@ -928,11 +964,11 @@ export async function generateTeams(
       },
     })
   } else {
-    // 3-team: A vs B, B vs C, A vs C
+    // 3-team round 1: A-B, A-C, B-C
     const pairs = [
       [createdTeams[0].id, createdTeams[1].id],
-      [createdTeams[1].id, createdTeams[2].id],
       [createdTeams[0].id, createdTeams[2].id],
+      [createdTeams[1].id, createdTeams[2].id],
     ]
     for (const [h, a] of pairs) {
       await db.match.create({
@@ -1032,7 +1068,8 @@ export async function createMatchesFromTeams(sessionId: string) {
   if (session.teams.length === 2) {
     await db.match.create({ data: { sessionId, homeTeamId: t0.id, awayTeamId: t1.id, roundNumber: null } })
   } else {
-    const pairs = [[t0.id, t1.id], [t1.id, t2.id], [t0.id, t2.id]]
+    // Round 1: A-B, A-C, B-C  (A plays first two as home, then B vs C)
+    const pairs = [[t0.id, t1.id], [t0.id, t2.id], [t1.id, t2.id]]
     for (const [h, a] of pairs) {
       await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
     }
@@ -1127,7 +1164,8 @@ export async function generateTeamsWithPins(
       data: { sessionId, homeTeamId: createdTeams[0].id, awayTeamId: createdTeams[1].id, roundNumber: null },
     })
   } else {
-    const pairs = [[createdTeams[0].id, createdTeams[1].id], [createdTeams[1].id, createdTeams[2].id], [createdTeams[0].id, createdTeams[2].id]]
+    // Round 1: A-B, A-C, B-C
+    const pairs = [[createdTeams[0].id, createdTeams[1].id], [createdTeams[0].id, createdTeams[2].id], [createdTeams[1].id, createdTeams[2].id]]
     for (const [h, a] of pairs) {
       await db.match.create({ data: { sessionId, homeTeamId: h, awayTeamId: a, roundNumber: 1 } })
     }
@@ -1299,15 +1337,18 @@ export async function startNextRound(sessionId: string) {
   const lastRound = session.matches[0]?.roundNumber ?? 0
   if (lastRound >= 5) throw new Error("Maximum of 5 rounds reached.")
 
+  const nextRound = lastRound + 1
   const [a, b, c] = session.teams
-  const pairs = [
-    [a.id, b.id],
-    [b.id, c.id],
-    [a.id, c.id],
-  ]
+
+  // Odd rounds (1,3,5...): A-B, A-C, B-C  (A plays home first two matches)
+  // Even rounds (2,4,...): B-A, C-A, C-B  (all home/away flipped from odd)
+  const pairs = nextRound % 2 === 1
+    ? [[a.id, b.id], [a.id, c.id], [b.id, c.id]]
+    : [[b.id, a.id], [c.id, a.id], [c.id, b.id]]
+
   for (const [h, aw] of pairs) {
     await db.match.create({
-      data: { sessionId, homeTeamId: h, awayTeamId: aw, roundNumber: lastRound + 1 },
+      data: { sessionId, homeTeamId: h, awayTeamId: aw, roundNumber: nextRound },
     })
   }
 
@@ -1471,6 +1512,26 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
 
   const name = guestName.trim()
   if (!name) throw new Error("Guest name is required.")
+
+  const session = await db.session.findUnique({ where: { id: sessionId } })
+  if (!session) throw new Error("Session not found.")
+
+  const cap = session.maxPlayers ?? 12
+  const registeredCount = await db.sessionRegistration.count({
+    where: { sessionId, status: "REGISTERED" },
+  })
+  if (registeredCount >= cap) {
+    throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
+  }
+
+  const duplicate = await db.sessionRegistration.findFirst({
+    where: {
+      sessionId,
+      status: { in: ["REGISTERED", "WAITLISTED", "PENDING"] },
+      player: { firstName: "Gast", lastName: `– ${name}` },
+    },
+  })
+  if (duplicate) throw new Error(`Ein Gast mit dem Namen "${name}" ist bereits angemeldet.`)
 
   // Create a guest player with a non-login email (no passwordHash → cannot log in)
   const uniqueTag = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`

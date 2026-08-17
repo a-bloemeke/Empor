@@ -7,6 +7,7 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
   const { id } = await params
   const authSession = await auth()
   const currentUserId = authSession?.user?.id ?? ""
+  const isOrganizer = authSession?.user?.role === "ORGANIZER"
 
   const session = await db.session.findUnique({
     where: { id },
@@ -87,8 +88,35 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
   const activeMatch = s.matches.find((m) => m.status === "IN_PROGRESS") ?? null
   const pendingMatchesRaw = s.matches.filter((m) => m.status === "PENDING")
 
-  // For normal matches (no roundNumber): count completed matches between same two teams.
-  // Odd count → auto-swap display so teams alternate sides on each rematch.
+  // Current round = highest roundNumber among started or completed tournament matches
+  const currentRound = s.matches
+    .filter((m) => m.roundNumber != null && m.status !== "PENDING")
+    .reduce((max, m) => Math.max(max, m.roundNumber!), 0) || null
+
+  // Between-rounds: no pending matches, tournament was playing, next round ≤ 5
+  // Compute what the next round would look like (same logic as startNextRound)
+  const isTournament = s.teams.length === 3 && s.matches.some((m) => m.roundNumber != null)
+  type PreviewMatch = { id: string; roundNumber: number; homeTeamId: string; awayTeamId: string; homeTeamName: string; awayTeamName: string; homeTeamPlayers: string[]; awayTeamPlayers: string[] }
+  let nextRoundPreview: PreviewMatch[] | null = null
+  if (isTournament && pendingMatchesRaw.length === 0 && !activeMatch && currentRound != null && currentRound < 5) {
+    const nextRound = currentRound + 1
+    const [ta, tb, tc] = s.teams
+    const nextPairs = nextRound % 2 === 1
+      ? [[ta, tb], [ta, tc], [tb, tc]]
+      : [[tb, ta], [tc, ta], [tc, tb]]
+    nextRoundPreview = nextPairs.map(([home, away], i) => ({
+      id: `preview-${i}`,
+      roundNumber: nextRound,
+      homeTeamId: home.id,
+      awayTeamId: away.id,
+      homeTeamName: home.name,
+      awayTeamName: away.name,
+      homeTeamPlayers: (home.players ?? []).map((tp) => displayName(tp.player)),
+      awayTeamPlayers: (away.players ?? []).map((tp) => displayName(tp.player)),
+    }))
+  }
+
+  // For normal matches (no roundNumber): alternate sides on rematches between same two teams.
   let initialSwapped = false
   if (activeMatch && activeMatch.roundNumber === null) {
     const { homeTeamId, awayTeamId } = activeMatch
@@ -101,22 +129,46 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
     ).length
     initialSwapped = priorCount % 2 === 1
   } else if (activeMatch && activeMatch.roundNumber !== null) {
-    // Tournament: desired display pattern alternates per round.
-    // Odd rounds:  pos1=normal, pos2=swap, pos3=swap  (A-B, C-B, C-A)
-    // Even rounds: pos1=swap,   pos2=normal, pos3=normal  (B-A, B-C, A-C)
-    const roundMatches = s.matches
-      .filter((m) => m.roundNumber === activeMatch.roundNumber)
-      .sort((a, b) => (a.id < b.id ? -1 : 1))
-    const posInRound = roundMatches.findIndex((m) => m.id === activeMatch.id) + 1
-    const isOddRound = activeMatch.roundNumber % 2 === 1
-    initialSwapped = isOddRound ? posInRound >= 2 : posInRound === 1
+    // Tournament: keep the shared team on the same side as they'll appear in the next match.
+    // Find the first pending match in this round and check which current team is in it.
+    const nextPending = pendingMatchesRaw.find((m) => m.roundNumber === activeMatch.roundNumber)
+    if (nextPending) {
+      // The shared team is the one that appears in both the active and the next match.
+      // Determine which side of the next match they're on (home=left, away=right).
+      // Then swap the active match display so that shared team is already on that same side.
+      const activeHomeIsNext = nextPending.homeTeamId === activeMatch.homeTeamId || nextPending.awayTeamId === activeMatch.homeTeamId
+      const activeAwayIsNext = nextPending.homeTeamId === activeMatch.awayTeamId || nextPending.awayTeamId === activeMatch.awayTeamId
+      if (activeHomeIsNext) {
+        // active homeTeam is shared → it should appear on the same side in the current match
+        // as it will in the next match. In the next match, is it home (left)?
+        const sharedIsHomeInNext = nextPending.homeTeamId === activeMatch.homeTeamId
+        // no swap: active home stays left (=home in next). swap: active home moves right.
+        initialSwapped = !sharedIsHomeInNext
+      } else if (activeAwayIsNext) {
+        // active awayTeam is shared
+        const sharedIsHomeInNext = nextPending.homeTeamId === activeMatch.awayTeamId
+        // active away is currently right. sharedIsHomeInNext means it should be left → swap.
+        initialSwapped = sharedIsHomeInNext
+      }
+    } else {
+      // Last match in round — use position-based alternation as fallback
+      const roundMatches = s.matches
+        .filter((m) => m.roundNumber === activeMatch.roundNumber)
+        .sort((a, b) => (a.id < b.id ? -1 : 1))
+      const posInRound = roundMatches.findIndex((m) => m.id === activeMatch.id) + 1
+      const isOddRound = activeMatch.roundNumber % 2 === 1
+      initialSwapped = isOddRound ? posInRound >= 2 : posInRound === 1
+    }
   }
 
   return (
     <ScoreboardClient
       sessionId={id}
       currentUserId={currentUserId}
+      isOrganizer={isOrganizer}
       initialSwapped={initialSwapped}
+      currentRound={currentRound}
+      nextRoundPreview={nextRoundPreview}
       activeMatch={
         activeMatch
           ? {
@@ -144,6 +196,8 @@ export default async function ScoreboardPage({ params }: { params: Promise<{ id:
         return {
           id: m.id,
           roundNumber: m.roundNumber,
+          homeTeamId: m.homeTeamId,
+          awayTeamId: m.awayTeamId,
           homeTeamName: m.homeTeam.name,
           awayTeamName: m.awayTeam.name,
           homeTeamPlayers: (homeTeam?.players ?? []).map((tp) => displayName(tp.player)),

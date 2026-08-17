@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { recordGoal, deleteGoal, updateGoal } from "@/app/(app)/sessions/[id]/actions"
+import { recordGoal, deleteGoal, updateGoal, startMatch, endMatch, startNextRound } from "@/app/(app)/sessions/[id]/actions"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { disambiguateNames } from "@/lib/game-logic"
@@ -46,6 +46,8 @@ type ActiveMatch = {
 type PendingMatch = {
   id: string
   roundNumber: number | null
+  homeTeamId: string
+  awayTeamId: string
   homeTeamName: string
   awayTeamName: string
   homeTeamPlayers: string[]
@@ -55,10 +57,13 @@ type PendingMatch = {
 type Props = {
   sessionId: string
   currentUserId: string
+  isOrganizer: boolean
   initialSwapped?: boolean
   activeMatch: ActiveMatch | null
   teams: Team[]
   pendingMatches: PendingMatch[]
+  currentRound: number | null
+  nextRoundPreview: { id: string; roundNumber: number; homeTeamId: string; awayTeamId: string; homeTeamName: string; awayTeamName: string; homeTeamPlayers: string[]; awayTeamPlayers: string[] }[] | null
 }
 
 // ─── Audio & Speech ───────────────────────────────────────────────────────────
@@ -508,9 +513,10 @@ function EditGoalDrawer({
 
 // ─── Scoreboard ───────────────────────────────────────────────────────────────
 
-export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = false, activeMatch, teams, pendingMatches }: Props) {
+export function ScoreboardClient({ sessionId, currentUserId, isOrganizer, initialSwapped = false, activeMatch, teams, pendingMatches, currentRound, nextRoundPreview }: Props) {
   const t = useTranslations("scoreboard")
   const router = useRouter()
+  const [pending, startTransition] = useTransition()
   const [drawerSide, setDrawerSide] = useState<"home" | "away" | null>(null)
   const [editGoal, setEditGoal] = useState<GoalEntry | null>(null)
   const [swapped, setSwapped] = useState(initialSwapped)
@@ -525,20 +531,101 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
     return () => clearInterval(id)
   }, [refresh, drawerSide])
 
+  // Auto-end match when timer turns green (5s after expiry blink finishes) — tournament only
+  useEffect(() => {
+    if (timer.isGreen && activeMatch && isOrganizer && !pending) {
+      startTransition(async () => {
+        try {
+          await endMatch(activeMatch.id, "TIME")
+          router.refresh()
+        } catch { /* already ended or race condition — ignore */ }
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer.isGreen])
+
+  function handleStartMatch(matchId: string) {
+    startTransition(async () => {
+      try {
+        await startMatch(matchId)
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
+  function handleEndMatch() {
+    startTransition(async () => {
+      try {
+        await endMatch(activeMatch!.id, "TIME")
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
+  function handleStartNextRound() {
+    startTransition(async () => {
+      try {
+        await startNextRound(sessionId)
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
   if (!activeMatch) {
+    // Between tournament rounds: no pending matches but next round can be started
+    if (pendingMatches.length === 0 && nextRoundPreview && nextRoundPreview.length > 0) {
+      const nextRound = (currentRound ?? 0) + 1
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6">
+          <div className="text-center space-y-1">
+            <p className="text-muted-foreground text-sm uppercase tracking-widest font-bold">{t("roundComplete", { round: currentRound ?? 0 })}</p>
+            <p className="text-2xl font-bold">{t("nextRound", { round: nextRound })}</p>
+          </div>
+          <div className="w-full max-w-md space-y-2">
+            {nextRoundPreview.map((m) => (
+              <div key={m.id} className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+                <div className="flex items-center gap-3 text-sm font-semibold">
+                  <span className="flex-1 truncate">{m.homeTeamName}</span>
+                  <span className="text-muted-foreground font-light text-lg">vs</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamName}</span>
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                  <span className="flex-1 truncate">{m.homeTeamPlayers.join(", ")}</span>
+                  <span className="flex-1 text-right truncate">{m.awayTeamPlayers.join(", ")}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {isOrganizer && (
+            <Button size="lg" disabled={pending} onClick={handleStartNextRound} className="w-full max-w-md">
+              {t("startNextRound", { round: nextRound })}
+            </Button>
+          )}
+          <a href={`/sessions/${sessionId}`} className="text-sm text-muted-foreground underline-offset-4 hover:underline">{t("sessionLink")}</a>
+        </div>
+      )
+    }
+
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6">
         <p className="text-muted-foreground text-lg">{t("noActiveMatch")}</p>
+        <a href={`/sessions/${sessionId}`} className="text-sm text-muted-foreground underline-offset-4 hover:underline">{t("sessionLink")}</a>
         {pendingMatches.length > 0 && (
           <div className="w-full max-w-md space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground text-center mb-3">Nächste Spiele</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground text-center mb-3">{t("nextMatches")}</p>
             {pendingMatches.map((m, i) => (
               <div key={m.id} className={`rounded-xl border px-4 py-3 ${i === 0 ? "border-primary/50 bg-primary/5" : "border-border/50 bg-muted/20"}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   {m.roundNumber != null && (
                     <span className="text-xs text-muted-foreground">Runde {m.roundNumber}</span>
                   )}
-                  {i === 0 && <span className="text-xs font-bold text-primary ml-auto">Nächstes Spiel</span>}
+                  {i === 0 && <span className="text-xs font-bold text-primary ml-auto">{t("nextMatch")}</span>}
                 </div>
                 <div className="flex items-center gap-3 text-sm font-semibold">
                   <span className="flex-1 truncate">{m.homeTeamName}</span>
@@ -549,6 +636,13 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
                   <span className="flex-1 truncate">{m.homeTeamPlayers.join(", ")}</span>
                   <span className="flex-1 text-right truncate">{m.awayTeamPlayers.join(", ")}</span>
                 </div>
+                {isOrganizer && i === 0 && (
+                  <div className="mt-3">
+                    <Button size="sm" className="w-full" disabled={pending} onClick={() => handleStartMatch(m.id)}>
+                      {t("startMatch")}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -696,6 +790,20 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
             {t("timeUp")}
           </span>
         )}
+
+        {/* End match button — organizer only, shown when expired or match running */}
+        {isOrganizer && (isExpired || isRunning || isPaused) && (
+          <Button
+            size="sm"
+            disabled={pending}
+            onClick={handleEndMatch}
+            className={inv
+              ? "bg-white text-red-700 hover:bg-white/90 font-bold"
+              : "bg-red-600 text-white hover:bg-red-700 font-bold"}
+          >
+            {t("endMatch")}
+          </Button>
+        )}
       </div>
       )}
 
@@ -707,7 +815,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           className={cn(
             "group flex flex-1 flex-col items-stretch transition-colors",
             isExpired
-              ? "hover:bg-red-500 active:bg-red-500"
+              ? "hover:bg-white/10 active:bg-white/10"
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
@@ -752,7 +860,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
           className={cn(
             "group flex flex-1 flex-col items-stretch transition-colors",
             isExpired
-              ? "hover:bg-red-500 active:bg-red-500"
+              ? "hover:bg-white/10 active:bg-white/10"
               : "hover:bg-muted/50 active:bg-muted",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           )}
@@ -820,7 +928,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
         <div className={cn("border-t px-6 py-4", isExpired ? "border-white/20" : "border-border")}>
           <div className="mx-auto max-w-lg space-y-2">
             <p className={cn("text-xs font-bold uppercase tracking-wide mb-2", inv ? "text-white/60" : "text-muted-foreground")}>
-              Nächste Spiele
+              {t("nextMatches")}
             </p>
             {pendingMatches.map((m, i) => (
               <div key={m.id} className={cn(
@@ -834,7 +942,7 @@ export function ScoreboardClient({ sessionId, currentUserId, initialSwapped = fa
                     <span className={cn("text-xs", inv ? "text-white/50" : "text-muted-foreground")}>Runde {m.roundNumber}</span>
                   )}
                   {i === 0 && (
-                    <span className={cn("text-xs font-bold ml-auto", inv ? "text-white/80" : "text-primary")}>Nächstes Spiel</span>
+                    <span className={cn("text-xs font-bold ml-auto", inv ? "text-white/80" : "text-primary")}>{t("nextMatch")}</span>
                   )}
                 </div>
                 <div className={cn("flex items-center gap-2 text-sm font-semibold", inv ? "text-white" : "text-foreground")}>
