@@ -59,36 +59,54 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   const sessionsByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.sessionsPlayed]))
   const scoreByPlayerId = new Map(allSeasonStats.map((s) => [s.playerId, s.score]))
 
-  // Previous season stats for blended strength display
-  const seasons = await db.season.findMany({ orderBy: { year: "desc" }, take: 2, select: { id: true } })
-  const prevSeasonId = seasons.find((s) => s.id !== session.seasonId)?.id ?? null
-  const prevSeasonStats = prevSeasonId
-    ? await db.playerStats.findMany({ where: { seasonId: prevSeasonId } })
-    : []
-  const prevByPlayerId = new Map(prevSeasonStats.map((s) => [s.playerId, s]))
-
-  function computeBlendedStrength(playerId: string): number {
-    const curSessions = sessionsByPlayerId.get(playerId) ?? 0
-    const curStr = curSessions > 0
-      ? 0.6 * ((pointsByPlayerId.get(playerId)! - curSessions) / curSessions)
-        + 0.4 * ((scoreByPlayerId.get(playerId) ?? 0) / curSessions)
-      : null
-    const prev = prevByPlayerId.get(playerId)
-    const prevStr = prev && prev.sessionsPlayed > 0
-      ? 0.6 * ((prev.points - prev.sessionsPlayed) / prev.sessionsPlayed)
-        + 0.4 * (prev.score / prev.sessionsPlayed)
-      : null
-    const lt = allSeasonStats.find((s) => s.playerId === playerId)
-    const ltStr = lt && lt.sessionsPlayed > 0
-      ? 0.6 * ((lt.points - lt.sessionsPlayed) / lt.sessionsPlayed) + 0.4 * (lt.score / lt.sessionsPlayed)
-      : 0
-    const cur = curStr ?? ltStr
-    const prv = prevStr ?? ltStr
-    return 0.6 * cur + 0.4 * prv
+  // All historical stats across all past seasons (for fallback strength computation)
+  const allHistoricalStats = await db.playerStats.findMany({
+    where: { seasonId: { not: session.seasonId }, sessionsPlayed: { gt: 0 } },
+  })
+  const historicalByPlayerId = new Map<string, { points: number; sessionsPlayed: number; score: number }[]>()
+  for (const s of allHistoricalStats) {
+    const arr = historicalByPlayerId.get(s.playerId) ?? []
+    arr.push(s)
+    historicalByPlayerId.set(s.playerId, arr)
   }
 
   // Lifetime stats for registered players (needed for balanced-team preview)
   const registeredPlayerIds = session.registrations.map((r) => r.playerId)
+
+  function strFromStats(s: { points: number; sessionsPlayed: number; score: number }): number {
+    return 0.6 * ((s.points - s.sessionsPlayed) / s.sessionsPlayed)
+      + 0.4 * (s.score / s.sessionsPlayed)
+  }
+
+  function rawStrength(playerId: string): number | null {
+    const curSessions = sessionsByPlayerId.get(playerId) ?? 0
+    if (curSessions > 0) {
+      const curStr = 0.6 * ((pointsByPlayerId.get(playerId)! - curSessions) / curSessions)
+        + 0.4 * ((scoreByPlayerId.get(playerId) ?? 0) / curSessions)
+      const hist = historicalByPlayerId.get(playerId)
+      const prevStr = hist && hist.length > 0
+        ? hist.reduce((sum, s) => sum + strFromStats(s), 0) / hist.length
+        : null
+      return prevStr !== null ? 0.6 * curStr + 0.4 * prevStr : curStr
+    }
+    // (a) no current-season data → average of all past seasons played
+    const hist = historicalByPlayerId.get(playerId)
+    if (hist && hist.length > 0) {
+      return hist.reduce((sum, s) => sum + strFromStats(s), 0) / hist.length
+    }
+    return null
+  }
+
+  // (b) new players / guests with no history → session average of players with known strength
+  const knownStrengths = registeredPlayerIds.map(rawStrength).filter((s): s is number => s !== null)
+  const sessionAvg = knownStrengths.length > 0
+    ? knownStrengths.reduce((a, b) => a + b, 0) / knownStrengths.length
+    : 0
+
+  function computeBlendedStrength(playerId: string): number {
+    return rawStrength(playerId) ?? sessionAvg
+  }
+
   const lifetimeStatsRows = await db.playerStatsLifetime.findMany({
     where: { playerId: { in: registeredPlayerIds } },
   })
