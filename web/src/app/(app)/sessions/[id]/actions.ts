@@ -1586,11 +1586,15 @@ export async function renameGuest(sessionId: string, playerId: string, newName: 
   revalidate(sessionId)
 }
 
-export async function convertGuestToPlayer(playerId: string, email: string, password: string) {
+export async function convertGuestToPlayer(playerId: string, firstName: string, lastName: string, email: string, password: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
+  const trimmedFirst = firstName.trim()
+  const trimmedLast = lastName.trim()
   const trimmedEmail = email.trim().toLowerCase()
+  if (!trimmedFirst) throw new Error("Vorname ist erforderlich.")
+  if (!trimmedLast) throw new Error("Nachname ist erforderlich.")
   if (!trimmedEmail) throw new Error("E-Mail-Adresse ist erforderlich.")
   if (password.length < 6) throw new Error("Passwort muss mindestens 6 Zeichen haben.")
 
@@ -1605,13 +1609,30 @@ export async function convertGuestToPlayer(playerId: string, email: string, pass
 
   await db.player.update({
     where: { id: playerId },
-    data: { email: trimmedEmail, passwordHash, active: true },
+    data: { firstName: trimmedFirst, lastName: trimmedLast, email: trimmedEmail, passwordHash, active: true },
   })
 
-  await sendWelcomeEmail({ email: trimmedEmail, firstName: player.firstName })
+  await sendWelcomeEmail({ email: trimmedEmail, firstName: trimmedFirst })
 
   revalidatePath("/sessions", "layout")
   revalidatePath("/schedule")
+}
+
+export async function toggleBeerAdmin(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const reg = await db.sessionRegistration.findUnique({
+    where: { sessionId_playerId: { sessionId, playerId } },
+  })
+  if (!reg || reg.status !== "REGISTERED") throw new Error("Spieler ist nicht angemeldet.")
+
+  await db.sessionRegistration.update({
+    where: { id: reg.id },
+    data: { beerBringer: !reg.beerBringer },
+  })
+
+  revalidate(sessionId)
 }
 
 export async function approveRegistration(sessionId: string, playerId: string) {
