@@ -1524,6 +1524,15 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
     throw new Error(`Maximale Spielerzahl (${cap}) erreicht. Bitte erhöhe den Wert zuerst.`)
   }
 
+  const duplicate = await db.sessionRegistration.findFirst({
+    where: {
+      sessionId,
+      status: { in: ["REGISTERED", "WAITLISTED", "PENDING"] },
+      player: { firstName: "Gast", lastName: `– ${name}` },
+    },
+  })
+  if (duplicate) throw new Error(`Ein Gast mit dem Namen "${name}" ist bereits angemeldet.`)
+
   // Create a guest player with a non-login email (no passwordHash → cannot log in)
   const uniqueTag = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const guest = await db.player.create({

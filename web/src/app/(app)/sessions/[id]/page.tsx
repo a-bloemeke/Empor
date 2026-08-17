@@ -102,7 +102,8 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
   })
 
   const displayNames = buildPlayerNames(allPlayers)
-  const pName = (p: { id: string }) => displayNames.get(p.id) ?? p.id
+  const pName = (p: { id: string; firstName: string; lastName: string }) =>
+    displayNames.get(p.id) ?? `${p.firstName} ${p.lastName}`.trim()
 
   const myStatus = session.registrations.find((r) => r.playerId === currentUserId)?.status ?? null
 
