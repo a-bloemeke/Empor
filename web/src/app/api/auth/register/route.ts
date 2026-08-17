@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const passwordHash = await bcrypt.hash(password, 12)
 
   await db.player.create({
-    data: { firstName, lastName, email, passwordHash },
+    data: { firstName, lastName, email, passwordHash, active: false },
   })
 
   await notifyOrganizersNewPlayer({ firstName, lastName, email })

@@ -282,18 +282,19 @@ export async function notifyOrganizersNewPlayer(player: { firstName: string; las
   const from = config?.value ?? process.env.SMTP_USER!
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
 
-  const subject = `Neue Registrierung: ${player.firstName} ${player.lastName}`
-  const text = `Ein neuer Spieler hat sich registriert.\n\nName: ${player.firstName} ${player.lastName}\nE-Mail: ${player.email}\n\nSpieler verwalten: ${appUrl}/admin/players`
+  const subject = `Neue Registrierung – Freischaltung erforderlich: ${player.firstName} ${player.lastName}`
+  const text = `Ein neuer Spieler hat sich registriert und wartet auf Freischaltung.\n\nName: ${player.firstName} ${player.lastName}\nE-Mail: ${player.email}\n\nBitte das Konto in der Spielerverwaltung freischalten: ${appUrl}/admin/players`
   const html = `
 <!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
-  <p style="margin:0 0 16px">Ein neuer Spieler hat sich registriert.</p>
+  <p style="margin:0 0 16px">Ein neuer Spieler hat sich registriert und wartet auf Freischaltung.</p>
   <table style="border-collapse:collapse;margin-bottom:24px">
     <tr><td style="padding:4px 16px 4px 0;color:#555">Name</td><td><strong>${player.firstName} ${player.lastName}</strong></td></tr>
     <tr><td style="padding:4px 16px 4px 0;color:#555">E-Mail</td><td>${player.email}</td></tr>
   </table>
-  <a href="${appUrl}/admin/players" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieler verwalten →</a>
+  <p style="margin:0 0 16px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:13px">⏳ Das Konto ist noch nicht aktiv. Der Spieler kann sich erst anmelden, nachdem du es freigeschaltet hast.</p>
+  <a href="${appUrl}/admin/players" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Konto freischalten →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>

@@ -1,8 +1,12 @@
-import NextAuth from "next-auth"
+import NextAuth, { CredentialsSignin } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
+
+class InactiveAccountError extends CredentialsSignin {
+  code = "account_inactive" as const
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -30,6 +34,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           player.passwordHash
         )
         if (!valid) return null
+
+        if (!player.active) throw new InactiveAccountError()
 
         return {
           id: player.id,

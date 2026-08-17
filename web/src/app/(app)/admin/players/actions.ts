@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import bcrypt from "bcryptjs"
+import { sendWelcomeEmail } from "@/lib/email"
 
 function revalidate() {
   revalidatePath("/admin/players")
@@ -62,8 +63,11 @@ export async function setEmailNotifications(playerId: string, enabled: boolean) 
 export async function setPlayerActive(playerId: string, active: boolean) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
-  await db.player.update({ where: { id: playerId }, data: { active } })
+  const player = await db.player.update({ where: { id: playerId }, data: { active }, select: { email: true, firstName: true, passwordHash: true } })
   revalidate()
+  if (active && player.passwordHash && !player.email.endsWith("@empor.guest")) {
+    await sendWelcomeEmail({ email: player.email, firstName: player.firstName })
+  }
 }
 
 export async function deletePlayer(playerId: string) {

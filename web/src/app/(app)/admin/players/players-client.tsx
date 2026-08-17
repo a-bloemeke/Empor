@@ -172,6 +172,7 @@ export function PlayersClient({ players }: { players: Player[] }) {
   }
 
   const regular = players.filter((p) => !p.isGuest)
+  const pendingPlayers = regular.filter((p) => !p.active)
   const guests = players.filter((p) => p.isGuest)
 
   return (
@@ -181,10 +182,66 @@ export function PlayersClient({ players }: { players: Player[] }) {
         <p className="text-muted-foreground text-sm">{t("subtitle")}</p>
       </div>
 
+      {/* Pending activation */}
+      {pendingPlayers.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            <h2 className="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">{t("pendingActivation", { count: pendingPlayers.length })}</h2>
+          </div>
+          <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 overflow-hidden">
+            <div className="px-4 py-2 bg-amber-100 dark:bg-amber-900/40 text-xs text-amber-800 dark:text-amber-300 font-medium">
+              {t("pendingActivationDesc")}
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("email")}</TableHead>
+                  <TableHead className="text-center">{t("activate")}</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingPlayers.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">
+                      <Link href={`/players/${p.id}`} className="hover:underline">
+                        {p.displayName}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{p.email}</TableCell>
+                    <TableCell className="text-center">
+                      <button
+                        title={t("activatePlayer")}
+                        disabled={pending && togglingId === p.id}
+                        onClick={() => handleToggleActive(p.id, false)}
+                        className="text-base leading-none transition-opacity hover:opacity-70 disabled:opacity-40"
+                      >
+                        ✅
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        disabled={pending && deletingId === p.id}
+                        onClick={() => handleDelete(p.id, p.displayName)}
+                      >
+                        {t("delete")}
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
       {/* Regular players */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("registeredPlayers", { count: regular.length })}</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">{t("registeredPlayers", { count: regular.filter(p => p.active).length })}</h2>
           <CreatePlayerDialog />
         </div>
         <SportsTable title={t("registeredPlayersTitle")}>
@@ -200,8 +257,8 @@ export function PlayersClient({ players }: { players: Player[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {regular.map((p) => (
-                <TableRow key={p.id} className={!p.active ? "opacity-50" : undefined}>
+              {regular.filter(p => p.active).map((p) => (
+                <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     <Link href={`/players/${p.id}`} className="hover:underline">
                       {p.displayName}

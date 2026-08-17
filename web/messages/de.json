@@ -53,7 +53,10 @@
     "step4Title": "Tag beenden",
     "step4Desc": "Session beenden. Jeder bekommt 1 Pkt für die Teilnahme; Gewinner erhalten +3, Unentschieden +1. Tore, Assists und die Rangliste werden automatisch aktualisiert.",
     "ctaHeadline": "Bereit zum Anstoß?",
-    "ctaDesc": "Tritt deiner Crew bei, melde dich für den nächsten Spieltag an und erklimme die Rangliste."
+    "ctaDesc": "Tritt deiner Crew bei, melde dich für den nächsten Spieltag an und erklimme die Rangliste.",
+    "registerNoticeTitle": "Neu hier?",
+    "registerNoticeDesc": "Nach der Registrierung wird dein Konto von einem Organisator freigeschaltet. Du erhältst eine E-Mail, sobald dein Zugang aktiviert wurde und du dich anmelden kannst.",
+    "registerNoticeCta": "Jetzt registrieren →"
   },
   "auth": {
     "signInTitle": "Bei deinem Konto anmelden",
@@ -70,7 +73,11 @@
     "lastName": "Nachname",
     "creatingAccount": "Konto wird erstellt…",
     "alreadyHaveAccount": "Bereits ein Konto?",
-    "registrationFailed": "Registrierung fehlgeschlagen."
+    "registrationFailed": "Registrierung fehlgeschlagen.",
+    "accountInactive": "Dein Konto wartet noch auf Freischaltung durch einen Organisator.",
+    "registrationSuccessTitle": "Registrierung erfolgreich!",
+    "registrationSuccessDesc": "Dein Konto wartet auf Freischaltung.",
+    "registrationSuccessBody": "Ein Organisator wurde benachrichtigt und wird dein Konto in Kürze freischalten. Du erhältst eine E-Mail mit einer Bestätigung, sobald du dich anmelden kannst."
   },
   "schedule": {
     "title": "Spielplan",
@@ -405,7 +412,11 @@
       "noGuests": "Noch keine Gastkonten.",
       "guestAccounts": "Gastkonten",
       "profile": "Profil",
-      "viewStats": "Statistiken ansehen ↗"
+      "viewStats": "Statistiken ansehen ↗",
+      "pendingActivation": "Warten auf Freischaltung ({count})",
+      "pendingActivationDesc": "Diese Spieler haben sich registriert und warten auf Freischaltung. Klicke auf ✅ um ein Konto zu aktivieren – der Spieler erhält dann eine Bestätigungs-E-Mail.",
+      "activate": "Freischalten",
+      "activatePlayer": "Konto freischalten"
     },
     "membership": {
       "title": "Mitgliedsbeiträge",
