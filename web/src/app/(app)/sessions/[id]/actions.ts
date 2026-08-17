@@ -398,16 +398,17 @@ export async function getStatusUpdateDefaults(sessionId: string) {
 
   const displayNames = buildPlayerNames(players)
 
-  const registeredList = registered.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ") || "– noch niemand –"
-  const maybeList = maybe.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
-  const cancelledList = cancelled.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
-  const waitlistedList = waitlisted.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
-  const noAnswerList = noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName).join(", ")
+  const pn = (p: { id: string; firstName: string; lastName: string }) =>
+    displayNames.get(p.id) ?? `${p.firstName} ${p.lastName}`.trim()
+
+  const registeredList = registered.map(pn).join(", ") || "– noch niemand –"
+  const maybeList = maybe.map(pn).join(", ")
+  const cancelledList = cancelled.map(pn).join(", ")
+  const waitlistedList = waitlisted.map(pn).join(", ")
+  const noAnswerList = noAnswer.map(pn).join(", ")
 
   const beerBringerReg = session.registrations.find((r) => r.status === "REGISTERED" && r.beerBringer)
-  const beerBringerName = beerBringerReg
-    ? (displayNames.get(beerBringerReg.player.id) ?? beerBringerReg.player.firstName)
-    : null
+  const beerBringerName = beerBringerReg ? pn(beerBringerReg.player) : null
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
@@ -434,12 +435,12 @@ Empor Lichtenberg`
   const newRegistrations = since
     ? session.registrations
         .filter((r) => r.status === "REGISTERED" && r.registeredAt > since)
-        .map((r) => displayNames.get(r.player.id) ?? r.player.firstName)
+        .map((r) => pn(r.player))
     : []
   const newCancellations = since
     ? session.registrations
         .filter((r) => r.status === "CANCELLED" && r.cancelledAt && r.cancelledAt > since)
-        .map((r) => displayNames.get(r.player.id) ?? r.player.firstName)
+        .map((r) => pn(r.player))
     : []
 
   return {
@@ -450,10 +451,10 @@ Empor Lichtenberg`
     lastSentAt: session.lastStatusEmailSentAt?.toISOString() ?? null,
     delta: { newRegistrations, newCancellations },
     lists: {
-      registered: registered.map((p) => displayNames.get(p.id) ?? p.firstName),
-      maybe: maybe.map((p) => displayNames.get(p.id) ?? p.firstName),
-      cancelled: cancelled.map((p) => displayNames.get(p.id) ?? p.firstName),
-      noAnswer: noAnswer.map((p) => displayNames.get(p.id) ?? p.firstName),
+      registered: registered.map(pn),
+      maybe: maybe.map(pn),
+      cancelled: cancelled.map(pn),
+      noAnswer: noAnswer.map(pn),
     },
     players: players.map((p) => ({
       id: p.id,
@@ -491,7 +492,8 @@ export async function sendStatusUpdate(
   })
 
   const displayNames = buildPlayerNames(allNonGuests)
-  const abbrev = (p: { id: string }) => displayNames.get(p.id) ?? p.id
+  const abbrev = (p: { id: string; firstName: string; lastName: string }) =>
+    displayNames.get(p.id) ?? `${p.firstName} ${p.lastName}`.trim()
 
   const respondedIds = new Set(session.registrations.map((r) => r.playerId))
   const lists = {
@@ -1555,6 +1557,49 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
 
   revalidate(sessionId)
   return guest.id
+}
+
+export async function removeGuestAndPlayer(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const player = await db.player.findUnique({ where: { id: playerId } })
+  if (!player || player.passwordHash !== null) throw new Error("Nicht ein Gastspieler.")
+
+  await db.sessionRegistration.deleteMany({ where: { sessionId, playerId } })
+  await db.teamPlayer.deleteMany({ where: { playerId, team: { sessionId } } })
+  try {
+    await db.player.delete({ where: { id: playerId } })
+  } catch {
+    // Goals or other references exist — leave the player record, registration is already gone
+  }
+
+  revalidate(sessionId)
+}
+
+export async function renameGuest(sessionId: string, playerId: string, newName: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const name = newName.trim()
+  if (!name) throw new Error("Name ist erforderlich.")
+
+  const player = await db.player.findUnique({ where: { id: playerId } })
+  if (!player || player.passwordHash !== null) throw new Error("Nicht ein Gastspieler.")
+
+  const duplicate = await db.sessionRegistration.findFirst({
+    where: {
+      sessionId,
+      status: { in: ["REGISTERED", "WAITLISTED", "PENDING"] },
+      player: { firstName: "Gast", lastName: `– ${name}` },
+      NOT: { playerId },
+    },
+  })
+  if (duplicate) throw new Error(`Ein Gast mit dem Namen "${name}" ist bereits angemeldet.`)
+
+  await db.player.update({ where: { id: playerId }, data: { lastName: `– ${name}` } })
+
+  revalidate(sessionId)
 }
 
 export async function convertGuestToPlayer(playerId: string, email: string, password: string) {
