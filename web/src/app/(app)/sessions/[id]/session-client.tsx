@@ -68,6 +68,8 @@ import {
   addToWaitingList,
   removeFromWaitingList,
   setMaxPlayers,
+  removeGuestAndPlayer,
+  renameGuest,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
@@ -236,6 +238,8 @@ function RegistrationPanel({
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [guestName, setGuestName] = useState("")
+  const [editingGuestId, setEditingGuestId] = useState<string | null>(null)
+  const [editingGuestName, setEditingGuestName] = useState("")
   const [editingCap, setEditingCap] = useState(false)
   const [capValue, setCapValue] = useState(String(session.maxPlayers ?? 12))
   const [capConflict, setCapConflict] = useState<{ playerId: string; playerName: string } | null>(null)
@@ -307,6 +311,28 @@ function RegistrationPanel({
         toast.success("Player removed.")
       } catch (e) { toast.error((e as Error).message) }
       finally { setActionId(null) }
+    })
+  }
+
+  function handleRemoveGuest(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await removeGuestAndPlayer(session.id, playerId)
+        toast.success("Gast entfernt.")
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
+    })
+  }
+
+  function handleRenameGuest(playerId: string) {
+    if (!editingGuestName.trim()) return
+    startTransition(async () => {
+      try {
+        await renameGuest(session.id, playerId, editingGuestName.trim())
+        setEditingGuestId(null)
+        toast.success("Gast umbenannt.")
+      } catch (e) { toast.error((e as Error).message) }
     })
   }
 
@@ -655,11 +681,42 @@ function RegistrationPanel({
                   <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <td className="py-1 px-2 w-7 text-right text-muted-foreground tabular-nums">{i + 1}.</td>
                     <td className="py-1 px-2">
-                      <span className="flex items-center gap-1">
-                        {r.playerName}
-                        {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
-                        {r.isGuest && <span className="text-xs text-muted-foreground italic">{t("guestLabel")}</span>}
-                      </span>
+                      {r.isGuest && editingGuestId === r.playerId ? (
+                        <span className="flex items-center gap-1">
+                          <input
+                            className="h-6 text-sm border border-border rounded px-1.5 bg-background w-36"
+                            value={editingGuestName}
+                            onChange={(e) => setEditingGuestName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleRenameGuest(r.playerId)
+                              if (e.key === "Escape") setEditingGuestId(null)
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            className="text-xs px-1.5 py-0.5 rounded border border-green-300 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 hover:bg-green-100 disabled:opacity-50"
+                            disabled={pending}
+                            onClick={() => handleRenameGuest(r.playerId)}
+                          >✓</button>
+                          <button
+                            className="text-xs px-1.5 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted"
+                            onClick={() => setEditingGuestId(null)}
+                          >✕</button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          {r.playerName}
+                          {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
+                          {r.isGuest && <span className="text-xs text-muted-foreground italic">{t("guestLabel")}</span>}
+                          {r.isGuest && isOrganizer && (
+                            <button
+                              className="text-xs text-muted-foreground hover:text-foreground ml-0.5"
+                              title="Umbenennen"
+                              onClick={() => { setEditingGuestId(r.playerId); setEditingGuestName(r.playerName) }}
+                            >✎</button>
+                          )}
+                        </span>
+                      )}
                     </td>
                     {isOrganizer && (
                       <td className="py-1 px-2 text-right">
@@ -670,7 +727,7 @@ function RegistrationPanel({
                           <button
                             className="text-muted-foreground hover:text-destructive"
                             disabled={pending && actionId === r.playerId}
-                            onClick={() => handleRemove(r.playerId)}
+                            onClick={() => r.isGuest ? handleRemoveGuest(r.playerId) : handleRemove(r.playerId)}
                           >×</button>
                         </div>
                       </td>

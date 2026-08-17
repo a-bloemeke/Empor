@@ -1557,6 +1557,49 @@ export async function addGuestAndRegister(sessionId: string, guestName: string) 
   return guest.id
 }
 
+export async function removeGuestAndPlayer(sessionId: string, playerId: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const player = await db.player.findUnique({ where: { id: playerId } })
+  if (!player || player.passwordHash !== null) throw new Error("Nicht ein Gastspieler.")
+
+  await db.sessionRegistration.deleteMany({ where: { sessionId, playerId } })
+  await db.teamPlayer.deleteMany({ where: { playerId, team: { sessionId } } })
+  try {
+    await db.player.delete({ where: { id: playerId } })
+  } catch {
+    // Goals or other references exist — leave the player record, registration is already gone
+  }
+
+  revalidate(sessionId)
+}
+
+export async function renameGuest(sessionId: string, playerId: string, newName: string) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  const name = newName.trim()
+  if (!name) throw new Error("Name ist erforderlich.")
+
+  const player = await db.player.findUnique({ where: { id: playerId } })
+  if (!player || player.passwordHash !== null) throw new Error("Nicht ein Gastspieler.")
+
+  const duplicate = await db.sessionRegistration.findFirst({
+    where: {
+      sessionId,
+      status: { in: ["REGISTERED", "WAITLISTED", "PENDING"] },
+      player: { firstName: "Gast", lastName: `– ${name}` },
+      NOT: { playerId },
+    },
+  })
+  if (duplicate) throw new Error(`Ein Gast mit dem Namen "${name}" ist bereits angemeldet.`)
+
+  await db.player.update({ where: { id: playerId }, data: { lastName: `– ${name}` } })
+
+  revalidate(sessionId)
+}
+
 export async function convertGuestToPlayer(playerId: string, email: string, password: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
