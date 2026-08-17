@@ -11,18 +11,8 @@ export const proxy = auth((req) => {
     res.cookies.set("NEXT_LOCALE", locale, { path: "/", maxAge: 60 * 60 * 24 * 365 })
   }
 
-  const isLoggedIn = !!req.auth
   const pathname = req.nextUrl.pathname
-  const isPublicPage = pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/leaderboard")
-
-  if (!isLoggedIn && !isPublicPage) {
-    return NextResponse.redirect(new URL("/login", req.nextUrl))
-  }
-
-  if (isLoggedIn && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
+  if (req.auth && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
     return NextResponse.redirect(new URL("/schedule", req.nextUrl))
   }
 

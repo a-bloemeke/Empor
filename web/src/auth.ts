@@ -47,6 +47,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user
+      const pathname = nextUrl.pathname
+      const isPublicPage =
+        pathname === "/" ||
+        pathname.startsWith("/login") ||
+        pathname.startsWith("/register") ||
+        pathname.startsWith("/leaderboard")
+      if (isPublicPage) return true
+      return isLoggedIn
+    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id
