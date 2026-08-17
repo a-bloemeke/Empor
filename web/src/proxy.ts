@@ -12,14 +12,17 @@ export const proxy = auth((req) => {
   }
 
   const isLoggedIn = !!req.auth
-  const isAuthPage = req.nextUrl.pathname.startsWith("/login") ||
-    req.nextUrl.pathname.startsWith("/register")
+  const pathname = req.nextUrl.pathname
+  const isPublicPage = pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/leaderboard")
 
-  if (!isLoggedIn && !isAuthPage) {
+  if (!isLoggedIn && !isPublicPage) {
     return NextResponse.redirect(new URL("/login", req.nextUrl))
   }
 
-  if (isLoggedIn && isAuthPage) {
+  if (isLoggedIn && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
     return NextResponse.redirect(new URL("/schedule", req.nextUrl))
   }
 
