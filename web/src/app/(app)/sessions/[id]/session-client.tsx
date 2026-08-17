@@ -70,6 +70,7 @@ import {
   setMaxPlayers,
   removeGuestAndPlayer,
   renameGuest,
+  toggleBeerAdmin,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
@@ -170,18 +171,30 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
+  function handleOpen(isOpen: boolean) {
+    setOpen(isOpen)
+    if (isOpen) {
+      const raw = playerName.endsWith(" (Gast)") ? playerName.slice(0, -7) : playerName
+      const parts = raw.trim().split(/\s+/)
+      setFirstName(parts[0] ?? "")
+      setLastName(parts.slice(1).join(" "))
+    }
+  }
+
   function handleConvert() {
-    if (!email.trim() || !password) { toast.error("E-Mail und Passwort sind erforderlich."); return }
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
+      toast.error("Alle Felder sind erforderlich."); return
+    }
     startTransition(async () => {
       try {
-        await convertGuestToPlayer(playerId, email.trim(), password)
-        toast.success(`${playerName} hat jetzt ein Konto.`)
+        await convertGuestToPlayer(playerId, firstName.trim(), lastName.trim(), email.trim(), password)
+        toast.success(`${firstName.trim()} ${lastName.trim()} hat jetzt ein Konto.`)
         setOpen(false)
-        setEmail("")
-        setPassword("")
         router.refresh()
       } catch (e) { toast.error((e as Error).message) }
     })
@@ -189,7 +202,7 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
 
   const tc = useTranslations("session")
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger render={
         <button className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 disabled:opacity-50" />
       }>
@@ -200,6 +213,16 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
           <DialogTitle>{tc("createAccountTitle", { name: playerName })}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="conv-fn">Vorname</Label>
+              <Input id="conv-fn" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Max" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="conv-ln">Nachname</Label>
+              <Input id="conv-ln" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Müller" />
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="conv-email">E-Mail-Adresse</Label>
             <Input id="conv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
@@ -211,7 +234,7 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
           <p className="text-xs text-muted-foreground">Der Spieler erhält eine Willkommens-E-Mail mit dem Login-Link.</p>
         </div>
         <DialogFooter>
-          <Button onClick={handleConvert} disabled={pending || !email.trim() || !password}>
+          <Button onClick={handleConvert} disabled={pending || !firstName.trim() || !lastName.trim() || !email.trim() || !password}>
             {pending ? tc("creatingAccountBtn") : tc("createAccountBtn")}
           </Button>
         </DialogFooter>
@@ -333,6 +356,16 @@ function RegistrationPanel({
         setEditingGuestId(null)
         toast.success("Gast umbenannt.")
       } catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleToggleBeer(playerId: string) {
+    setActionId(playerId)
+    startTransition(async () => {
+      try {
+        await toggleBeerAdmin(session.id, playerId)
+      } catch (e) { toast.error((e as Error).message) }
+      finally { setActionId(null) }
     })
   }
 
@@ -706,13 +739,13 @@ function RegistrationPanel({
                       ) : (
                         <span className="flex items-center gap-1">
                           {r.playerName}
-                          {r.beerBringer && <span title={t("beerBringerLabel")}>🍺</span>}
+                          {r.beerBringer && !isOrganizer && <span title={t("beerBringerLabel")}>🍺</span>}
                           {r.isGuest && <span className="text-xs text-muted-foreground italic">{t("guestLabel")}</span>}
                           {r.isGuest && isOrganizer && (
                             <button
                               className="text-xs text-muted-foreground hover:text-foreground ml-0.5"
                               title="Umbenennen"
-                              onClick={() => { setEditingGuestId(r.playerId); setEditingGuestName(r.playerName) }}
+                              onClick={() => { setEditingGuestId(r.playerId); setEditingGuestName(r.playerName.endsWith(" (Gast)") ? r.playerName.slice(0, -7) : r.playerName) }}
                             >✎</button>
                           )}
                         </span>
@@ -724,6 +757,12 @@ function RegistrationPanel({
                           {r.isGuest && (
                             <ConvertGuestDialog playerId={r.playerId} playerName={r.playerName} sessionId={session.id} />
                           )}
+                          <button
+                            className={`text-sm ${r.beerBringer ? "opacity-100" : "opacity-30 hover:opacity-70"}`}
+                            title={r.beerBringer ? "Bier entfernen" : "Bier mitbringen"}
+                            disabled={pending && actionId === r.playerId}
+                            onClick={() => handleToggleBeer(r.playerId)}
+                          >🍺</button>
                           <button
                             className="text-muted-foreground hover:text-destructive"
                             disabled={pending && actionId === r.playerId}
