@@ -40,7 +40,7 @@ type Season = { id: string; year: number; status: string }
 
 // ─── Points table ─────────────────────────────────────────────────────────────
 
-function PointsTable({ rows }: { rows: StatsRow[] }) {
+function PointsTable({ rows, isLoggedIn }: { rows: StatsRow[], isLoggedIn: boolean }) {
   const t = useTranslations("leaderboard")
   const sorted = [...rows].sort((a, b) =>
     b.points !== a.points ? b.points - a.points : b.score - a.score
@@ -76,9 +76,10 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
             <TableRow key={row.playerId}>
               <TableCell className="text-muted-foreground">{i + 1}</TableCell>
               <TableCell>
-                <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
-                  {row.playerName}
-                </Link>
+                {isLoggedIn
+                  ? <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">{row.playerName}</Link>
+                  : <span className="font-medium">{row.playerName}</span>
+                }
               </TableCell>
               <TableCell className="text-right text-muted-foreground hidden sm:table-cell">{row.sessionsPlayed}</TableCell>
               <TableCell className="text-right tabular-nums">{outcomePts}</TableCell>
@@ -97,7 +98,7 @@ function PointsTable({ rows }: { rows: StatsRow[] }) {
 
 // ─── Beer King table ──────────────────────────────────────────────────────────
 
-function BeerKingTable({ rows }: { rows: StatsRow[] }) {
+function BeerKingTable({ rows, isLoggedIn }: { rows: StatsRow[], isLoggedIn: boolean }) {
   const t = useTranslations("leaderboard")
   const sorted = [...rows].filter((r) => r.beers > 0).sort((a, b) => b.beers - a.beers)
 
@@ -122,9 +123,10 @@ function BeerKingTable({ rows }: { rows: StatsRow[] }) {
               <TableRow key={row.playerId} className={i === 0 ? "font-semibold" : ""}>
                 <TableCell className="text-muted-foreground">{i === 0 ? "👑" : i + 1}</TableCell>
                 <TableCell>
-                  <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
-                    {row.playerName}
-                  </Link>
+                  {isLoggedIn
+                    ? <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">{row.playerName}</Link>
+                    : <span className="font-medium">{row.playerName}</span>
+                  }
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{row.beers} 🍺</TableCell>
               </TableRow>
@@ -147,7 +149,7 @@ function strengthOf(row: StatsRow): number {
   return 0.6 * outcomePtsPerGD + 0.4 * scorePerGD
 }
 
-function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?: StatsRow[] }) {
+function StrengthTable({ rows, fallbackRows, isLoggedIn }: { rows: StatsRow[]; fallbackRows?: StatsRow[]; isLoggedIn: boolean }) {
   const t = useTranslations("leaderboard")
   const fallbackById = new Map(fallbackRows?.map((r) => [r.playerId, r]) ?? [])
 
@@ -191,9 +193,10 @@ function StrengthTable({ rows, fallbackRows }: { rows: StatsRow[]; fallbackRows?
               <TableCell className="text-muted-foreground">{i + 1}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
-                    {row.playerName}
-                  </Link>
+                  {isLoggedIn
+                    ? <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">{row.playerName}</Link>
+                    : <span className="font-medium">{row.playerName}</span>
+                  }
                   {usingFallback && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/60 leading-none">
                       {t("lifetimeBadge")}
@@ -264,7 +267,7 @@ function SortableHead({
   )
 }
 
-function ScorersTable({ rows }: { rows: StatsRow[] }) {
+function ScorersTable({ rows, isLoggedIn }: { rows: StatsRow[], isLoggedIn: boolean }) {
   const t = useTranslations("leaderboard")
   const [sortKey, setSortKey] = useState<SortKey>("goals")
   const [sortDir, setSortDir] = useState<SortDir>("desc")
@@ -323,9 +326,10 @@ function ScorersTable({ rows }: { rows: StatsRow[] }) {
           <TableRow key={row.playerId}>
             <TableCell className="text-muted-foreground">{i + 1}</TableCell>
             <TableCell>
-              <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">
-                {row.playerName}
-              </Link>
+              {isLoggedIn
+                ? <Link href={`/players/${row.playerId}`} className="font-medium hover:underline">{row.playerName}</Link>
+                : <span className="font-medium">{row.playerName}</span>
+              }
             </TableCell>
             <TableCell className="text-right font-semibold">{row.goals}</TableCell>
             <TableCell className="text-right">{row.assists}</TableCell>
@@ -350,11 +354,13 @@ function ScorersTable({ rows }: { rows: StatsRow[] }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function LeaderboardClient({
+  isLoggedIn,
   seasons,
   currentSeasonId,
   initialSeasonStats,
   lifetimeStats,
 }: {
+  isLoggedIn: boolean
   seasons: Season[]
   currentSeasonId: string | null
   initialSeasonStats: StatsRow[]
@@ -428,35 +434,106 @@ export function LeaderboardClient({
       <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
       <p className="text-muted-foreground mb-6">{t("subtitle")}</p>
 
-      <Tabs defaultValue="season">
-        <TabsList className="mb-4">
-          <TabsTrigger value="season">{t("season")}</TabsTrigger>
-          <TabsTrigger value="lifetime">{t("lifetime")}</TabsTrigger>
-        </TabsList>
+      {isLoggedIn ? (
+        <Tabs defaultValue="season">
+          <TabsList className="mb-4">
+            <TabsTrigger value="season">{t("season")}</TabsTrigger>
+            <TabsTrigger value="lifetime">{t("lifetime")}</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="season" className="space-y-8">
-          <div className="flex items-center gap-3">
-            <Select value={selectedSeasonId} onValueChange={(v) => { if (v) handleSeasonChange(v) }}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder={t("selectSeason")}>
-                  {(v: string) => {
-                    const s = seasons.find((s) => s.id === v)
-                    return s ? `${s.year}${s.status === "ACTIVE" ? ` ${t("active")}` : ""}` : t("selectSeason")
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {seasons.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.year}{s.status === "ACTIVE" ? ` ${t("active")}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedSeason && (
-              <span className="text-sm text-muted-foreground">{t("season")} {selectedSeason.year}</span>
+          <TabsContent value="season" className="space-y-8">
+            <div className="flex items-center gap-3">
+              <Select value={selectedSeasonId} onValueChange={(v) => { if (v) handleSeasonChange(v) }}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder={t("selectSeason")}>
+                    {(v: string) => {
+                      const s = seasons.find((s) => s.id === v)
+                      return s ? `${s.year}${s.status === "ACTIVE" ? ` ${t("active")}` : ""}` : t("selectSeason")
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {seasons.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.year}{s.status === "ACTIVE" ? ` ${t("active")}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedSeason && (
+                <span className="text-sm text-muted-foreground">{t("season")} {selectedSeason.year}</span>
+              )}
+            </div>
+            {pending ? (
+              <p className="text-sm text-muted-foreground">{t("loading")}</p>
+            ) : (
+              <>
+                <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+                    style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+                  >{pointsHeader}</div>
+                  <PointsTable rows={seasonStats} isLoggedIn={isLoggedIn} />
+                </div>
+                <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+                    style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+                  >{t("topScorers")}</div>
+                  <ScorersTable rows={seasonStats} isLoggedIn={isLoggedIn} />
+                </div>
+                <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+                    style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+                  >{strengthHeader}</div>
+                  <StrengthTable rows={seasonStats} fallbackRows={lifetimeStats} isLoggedIn={isLoggedIn} />
+                </div>
+                <BeerKingTable rows={seasonStats} isLoggedIn={isLoggedIn} />
+              </>
             )}
-          </div>
+          </TabsContent>
+
+          <TabsContent value="lifetime" className="space-y-8">
+            <div className="flex flex-wrap gap-2">
+              {seasons.map((s) => (
+                <label key={s.id} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={selectedLifetimeIds.has(s.id)}
+                    onChange={() => toggleLifetimeSeason(s.id)}
+                    className="h-3.5 w-3.5 rounded border"
+                  />
+                  {s.year}{s.status === "ACTIVE" ? ` ${t("active")}` : ""}
+                </label>
+              ))}
+            </div>
+            {pending ? (
+              <p className="text-sm text-muted-foreground">{t("loading")}</p>
+            ) : (
+              <>
+                <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+                    style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+                  >{t("pointsRanking")}</div>
+                  <PointsTable rows={currentLifetimeStats} isLoggedIn={isLoggedIn} />
+                </div>
+                <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+                    style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+                  >{t("topScorers")}</div>
+                  <ScorersTable rows={currentLifetimeStats} isLoggedIn={isLoggedIn} />
+                </div>
+                <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+                  <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
+                    style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
+                  >{strengthHeader}</div>
+                  <StrengthTable rows={currentLifetimeStats} isLoggedIn={isLoggedIn} />
+                </div>
+                <BeerKingTable rows={currentLifetimeStats} isLoggedIn={isLoggedIn} />
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-8">
           {pending ? (
             <p className="text-sm text-muted-foreground">{t("loading")}</p>
           ) : (
@@ -465,67 +542,25 @@ export function LeaderboardClient({
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
                 >{pointsHeader}</div>
-                <PointsTable rows={seasonStats} />
+                <PointsTable rows={seasonStats} isLoggedIn={false} />
               </div>
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
                 >{t("topScorers")}</div>
-                <ScorersTable rows={seasonStats} />
+                <ScorersTable rows={seasonStats} isLoggedIn={false} />
               </div>
               <div className="overflow-hidden rounded-xl border border-border shadow-sm">
                 <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
                   style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
                 >{strengthHeader}</div>
-                <StrengthTable rows={seasonStats} fallbackRows={lifetimeStats} />
+                <StrengthTable rows={seasonStats} fallbackRows={lifetimeStats} isLoggedIn={false} />
               </div>
-              <BeerKingTable rows={seasonStats} />
+              <BeerKingTable rows={seasonStats} isLoggedIn={false} />
             </>
           )}
-        </TabsContent>
-
-        <TabsContent value="lifetime" className="space-y-8">
-          {/* Season filter */}
-          <div className="flex flex-wrap gap-2">
-            {seasons.map((s) => (
-              <label key={s.id} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={selectedLifetimeIds.has(s.id)}
-                  onChange={() => toggleLifetimeSeason(s.id)}
-                  className="h-3.5 w-3.5 rounded border"
-                />
-                {s.year}{s.status === "ACTIVE" ? ` ${t("active")}` : ""}
-              </label>
-            ))}
-          </div>
-          {pending ? (
-            <p className="text-sm text-muted-foreground">{t("loading")}</p>
-          ) : (
-          <>
-          <div className="overflow-hidden rounded-xl border border-border shadow-sm">
-            <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
-              style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-            >{t("pointsRanking")}</div>
-            <PointsTable rows={currentLifetimeStats} />
-          </div>
-          <div className="overflow-hidden rounded-xl border border-border shadow-sm">
-            <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
-              style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-            >{t("topScorers")}</div>
-            <ScorersTable rows={currentLifetimeStats} />
-          </div>
-          <div className="overflow-hidden rounded-xl border border-border shadow-sm">
-            <div className="px-4 py-3 text-white font-bold tracking-wide uppercase text-xs"
-              style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
-            >{strengthHeader}</div>
-            <StrengthTable rows={currentLifetimeStats} />
-          </div>
-          <BeerKingTable rows={currentLifetimeStats} />
-          </>
-          )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
       {/* Abbreviation legend */}
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground mt-8 border rounded-lg px-4 py-2.5 bg-muted/30">
