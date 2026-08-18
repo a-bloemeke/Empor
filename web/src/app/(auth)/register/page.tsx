@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
@@ -10,9 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function RegisterPage() {
-  const router = useRouter()
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
   const t = useTranslations("auth")
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -35,8 +34,29 @@ export default function RegisterPage() {
       const data = await res.json()
       setError(data.error ?? t("registrationFailed"))
     } else {
-      router.push("/login")
+      setSuccess(true)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl">{t("registrationSuccessTitle")}</CardTitle>
+            <CardDescription>{t("registrationSuccessDesc")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t("registrationSuccessBody")}</p>
+          </CardContent>
+          <CardFooter>
+            <Link href="/login" className="text-sm underline underline-offset-4 text-muted-foreground">
+              {t("signIn")}
+            </Link>
+          </CardFooter>
+        </Card>
+      </div>
+    )
   }
 
   return (

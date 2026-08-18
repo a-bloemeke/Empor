@@ -53,7 +53,10 @@
     "step4Title": "End the day",
     "step4Desc": "Close the session. Everyone gets 1 pt for attending; match winners get +3, draws +1. Goals, assists, and the leaderboard update automatically.",
     "ctaHeadline": "Ready to kick off?",
-    "ctaDesc": "Join your crew, register for the next game day, and start climbing the leaderboard."
+    "ctaDesc": "Join your crew, register for the next game day, and start climbing the leaderboard.",
+    "registerNoticeTitle": "New here?",
+    "registerNoticeDesc": "After registering, your account will be activated by an organizer. You will receive an email once your access has been activated and you can log in.",
+    "registerNoticeCta": "Register now →"
   },
   "auth": {
     "signInTitle": "Sign in to your account",
@@ -70,7 +73,11 @@
     "lastName": "Last name",
     "creatingAccount": "Creating account…",
     "alreadyHaveAccount": "Already have an account?",
-    "registrationFailed": "Registration failed."
+    "registrationFailed": "Registration failed.",
+    "accountInactive": "Your account is awaiting activation by an organizer.",
+    "registrationSuccessTitle": "Registration successful!",
+    "registrationSuccessDesc": "Your account is pending activation.",
+    "registrationSuccessBody": "An organizer has been notified and will activate your account shortly. You will receive a confirmation email once you can log in."
   },
   "schedule": {
     "title": "Schedule",
@@ -405,7 +412,11 @@
       "noGuests": "No guest accounts yet.",
       "guestAccounts": "Guest Accounts",
       "profile": "Profile",
-      "viewStats": "View stats ↗"
+      "viewStats": "View stats ↗",
+      "pendingActivation": "Awaiting activation ({count})",
+      "pendingActivationDesc": "These players have registered and are waiting for activation. Click ✅ to activate an account – the player will receive a confirmation email.",
+      "activate": "Activate",
+      "activatePlayer": "Activate account"
     },
     "membership": {
       "title": "Membership Fees",

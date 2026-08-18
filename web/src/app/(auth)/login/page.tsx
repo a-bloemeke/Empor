@@ -28,7 +28,11 @@ export default function LoginPage() {
     })
     setLoading(false)
     if (result?.error) {
-      setError(t("invalidCredentials"))
+      if (result.code === "account_inactive") {
+        setError(t("accountInactive"))
+      } else {
+        setError(t("invalidCredentials"))
+      }
     } else {
       router.push("/schedule")
     }
