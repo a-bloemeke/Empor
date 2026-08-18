@@ -101,66 +101,89 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
                   </DropdownMenuItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push(`/players/${session?.user?.id}`)}>
-                  {t("profile")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLocaleCookie(locale === "de" ? "en" : "de")}>
-                  🌐 {locale === "de" ? t("switchToEn") : t("switchToDe")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                >
-                  {t("signOut")}
-                </DropdownMenuItem>
+                {session ? (
+                  <>
+                    <DropdownMenuItem onClick={() => router.push(`/players/${session?.user?.id}`)}>
+                      {t("profile")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setLocaleCookie(locale === "de" ? "en" : "de")}>
+                      🌐 {locale === "de" ? t("switchToEn") : t("switchToDe")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => signOut({ callbackUrl: "/login" })}
+                    >
+                      {t("signOut")}
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem onClick={() => setLocaleCookie(locale === "de" ? "en" : "de")}>
+                      🌐 {locale === "de" ? t("switchToEn") : t("switchToDe")}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => router.push("/login")}>
+                      {t("signIn")}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
-          {/* Avatar dropdown — desktop only */}
+          {/* Avatar dropdown (logged in) or Login link (anonymous) — desktop only */}
           <div className="hidden sm:block">
-            <DropdownMenu>
-              <DropdownMenuTrigger className="rounded-full outline-none ring-offset-2 ring-offset-primary focus-visible:ring-2 focus-visible:ring-white">
-                <Avatar className="h-8 w-8 cursor-pointer border-2 border-white/30">
-                  <AvatarFallback className="text-xs bg-white/20 text-white">{initials}</AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <div className="px-2 py-1.5 text-sm font-medium">{session?.user?.name}</div>
-                <div className="px-2 pb-1.5 text-xs text-muted-foreground">{session?.user?.email}</div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push(`/players/${session?.user?.id}`)}>
-                  {t("profile")}
-                </DropdownMenuItem>
-                {isOrganizer && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuLabel className="text-xs text-amber-600 dark:text-amber-400 px-2 py-1">⚙ Admin</DropdownMenuLabel>
-                      <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/players")}>{t("players")}</DropdownMenuItem>
-                      <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/membership")}>{t("membershipFees")}</DropdownMenuItem>
-                      <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/seasons")}>{t("seasons")}</DropdownMenuItem>
-                      <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/data")}>{t("data")}</DropdownMenuItem>
-                      <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/quotes")}>Zitate</DropdownMenuItem>
-                      <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/settings")}>{t("settings")}</DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLocaleCookie(locale === "de" ? "en" : "de")}>
-                  🌐 {locale === "de" ? t("switchToEn") : t("switchToDe")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => signOut({ callbackUrl: "/login" })}
-                >
-                  {t("signOut")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger className="rounded-full outline-none ring-offset-2 ring-offset-primary focus-visible:ring-2 focus-visible:ring-white">
+                  <Avatar className="h-8 w-8 cursor-pointer border-2 border-white/30">
+                    <AvatarFallback className="text-xs bg-white/20 text-white">{initials}</AvatarFallback>
+                  </Avatar>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <div className="px-2 py-1.5 text-sm font-medium">{session?.user?.name}</div>
+                  <div className="px-2 pb-1.5 text-xs text-muted-foreground">{session?.user?.email}</div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push(`/players/${session?.user?.id}`)}>
+                    {t("profile")}
+                  </DropdownMenuItem>
+                  {isOrganizer && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs text-amber-600 dark:text-amber-400 px-2 py-1">⚙ Admin</DropdownMenuLabel>
+                        <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/players")}>{t("players")}</DropdownMenuItem>
+                        <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/membership")}>{t("membershipFees")}</DropdownMenuItem>
+                        <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/seasons")}>{t("seasons")}</DropdownMenuItem>
+                        <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/data")}>{t("data")}</DropdownMenuItem>
+                        <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/quotes")}>Zitate</DropdownMenuItem>
+                        <DropdownMenuItem className="text-amber-700 dark:text-amber-300 focus:bg-amber-50 dark:focus:bg-amber-950/40" onClick={() => router.push("/admin/settings")}>{t("settings")}</DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLocaleCookie(locale === "de" ? "en" : "de")}>
+                    🌐 {locale === "de" ? t("switchToEn") : t("switchToDe")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => signOut({ callbackUrl: "/login" })}
+                  >
+                    {t("signOut")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Link
+                href="/login"
+                className="px-3 py-1.5 rounded-md text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                {t("signIn")}
+              </Link>
+            )}
           </div>
         </div>
       </div>
