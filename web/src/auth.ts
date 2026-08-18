@@ -54,7 +54,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         pathname === "/" ||
         pathname.startsWith("/login") ||
         pathname.startsWith("/register") ||
-        pathname.startsWith("/leaderboard")
+        pathname.startsWith("/leaderboard") ||
+        pathname.startsWith("/schedule")
       if (isPublicPage) return true
       return isLoggedIn
     },

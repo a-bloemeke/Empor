@@ -247,6 +247,7 @@ export function ScheduleClient({
   const [maxPlayersValue, setMaxPlayersValue] = useState("")
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
+  const isLoggedIn = currentUserId !== ""
 
   function handleCreate() {
     if (!dateValue) { toast.error(t("pickDateTime")); return }
@@ -399,7 +400,7 @@ export function ScheduleClient({
                 <TableHead className="hidden sm:table-cell">{t("season")}</TableHead>
                 <TableHead className="text-right">{t("players")}</TableHead>
                 <TableHead className="hidden sm:table-cell">{t("status")}</TableHead>
-                <TableHead className="hidden sm:table-cell">{t("you")}</TableHead>
+                {isLoggedIn && <TableHead className="hidden sm:table-cell">{t("you")}</TableHead>}
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -412,38 +413,45 @@ export function ScheduleClient({
                 return (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">
-                      <Link href={`/sessions/${s.id}`} className="hover:underline">
-                        <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
-                        <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
-                      </Link>
+                      {isLoggedIn ? (
+                        <Link href={`/sessions/${s.id}`} className="hover:underline">
+                          <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
+                          <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
+                        </Link>
+                      ) : (
+                        <>
+                          <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
+                          <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
+                        </>
+                      )}
                       <div className="sm:hidden flex items-center gap-1.5 mt-0.5">
                         <StatusBadge status={s.status} />
-                        <MyStatusBadge status={s.myStatus} />
+                        {isLoggedIn && <MyStatusBadge status={s.myStatus} />}
                       </div>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
                     <TableCell className="text-right">{s.registrationCount}{s.maxPlayers ? `/${s.maxPlayers}` : ""}</TableCell>
                     <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
-                    <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>
+                    {isLoggedIn && <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2 flex-wrap">
-                        {s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
+                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
                             {busy ? "…" : t("register")}
                           </Button>
                         )}
-                        {s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
+                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
                           <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMaybe(s.id)}
                             className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40">
                             {t("statusMaybe")}
                           </Button>
                         )}
-                        {s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (
+                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (
                           <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleCancelReg(s.id)}>
                             {busy ? "…" : t("cancel")}
                           </Button>
                         )}
-                        {s.status === "SCHEDULED" && s.myStatus === "REGISTERED" && (
+                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus === "REGISTERED" && (
                           s.myBeer ? (
                             <Button
                               size="sm"
@@ -503,10 +511,17 @@ export function ScheduleClient({
                 return (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">
-                    <Link href={`/sessions/${s.id}`} className="hover:underline">
-                      <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
-                      <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
-                    </Link>
+                    {isLoggedIn ? (
+                      <Link href={`/sessions/${s.id}`} className="hover:underline">
+                        <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
+                        <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
+                      </Link>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
+                        <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
+                      </>
+                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
                   <TableCell className="text-right">{s.registrationCount}{s.maxPlayers ? `/${s.maxPlayers}` : ""}</TableCell>

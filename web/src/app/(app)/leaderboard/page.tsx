@@ -1,8 +1,11 @@
 import { db } from "@/lib/db"
 import { LeaderboardClient } from "./leaderboard-client"
 import { buildPlayerNames } from "@/lib/player-names"
+import { auth } from "@/auth"
 
 export default async function LeaderboardPage() {
+  const session = await auth()
+  const isLoggedIn = !!session?.user
   const seasons = await db.season.findMany({ orderBy: { year: "desc" } })
   const currentSeason = seasons.find((s) => s.status === "ACTIVE") ?? seasons[0]
 
@@ -53,6 +56,7 @@ export default async function LeaderboardPage() {
 
   return (
     <LeaderboardClient
+      isLoggedIn={isLoggedIn}
       seasons={seasons.map((s) => ({ id: s.id, year: s.year, status: s.status as string }))}
       currentSeasonId={currentSeason?.id ?? null}
       initialSeasonStats={seasonStats.map((s) => ({
