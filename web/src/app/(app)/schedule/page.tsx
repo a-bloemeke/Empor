@@ -9,13 +9,22 @@ export default async function SchedulePage() {
   const currentUserId = authSession?.user?.id ?? ""
   const t = await getTranslations("schedule")
 
-  const sessions = await db.session.findMany({
-    orderBy: { date: "asc" },
-    include: {
-      season: { select: { year: true } },
-      _count: { select: { registrations: { where: { status: "REGISTERED" } } } },
-    },
-  })
+  const now = new Date()
+  const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+
+  const [sessions, upcomingClosures] = await Promise.all([
+    db.session.findMany({
+      orderBy: { date: "asc" },
+      include: {
+        season: { select: { year: true } },
+        _count: { select: { registrations: { where: { status: "REGISTERED" } } } },
+      },
+    }),
+    db.hallClosure.findMany({
+      where: { endDate: { gte: now }, startDate: { lte: twoWeeksFromNow } },
+      orderBy: { startDate: "asc" },
+    }),
+  ])
 
   // Load current user's registrations
   const myRegistrations = currentUserId
@@ -36,8 +45,6 @@ export default async function SchedulePage() {
     },
   })
   const beerMap = new Map(beerRegs.map((r) => [r.sessionId, r]))
-
-  const now = new Date()
 
   const toRow = (s: (typeof sessions)[number]) => {
     const beerReg = beerMap.get(s.id)
@@ -64,6 +71,13 @@ export default async function SchedulePage() {
     .reverse()
     .map(toRow)
 
+  const closures = upcomingClosures.map((c) => ({
+    id: c.id,
+    startDate: c.startDate.toISOString(),
+    endDate: c.endDate.toISOString(),
+    reason: c.reason,
+  }))
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
@@ -73,6 +87,7 @@ export default async function SchedulePage() {
         past={past}
         isOrganizer={isOrganizer}
         currentUserId={currentUserId}
+        closures={closures}
       />
     </div>
   )

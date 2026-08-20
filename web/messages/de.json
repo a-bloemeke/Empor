@@ -134,7 +134,8 @@
     "statusPending": "Ausstehend",
     "statusWaitlisted": "Warteliste",
     "maxPlayersLabel": "Max. Spieler (optional)",
-    "maxPlayersPlaceholder": "12 (Standard)"
+    "maxPlayersPlaceholder": "12 (Standard)",
+    "hallClosure": "Hallensperrung"
   },
   "session": {
     "noPlayersYet": "Noch keine Spieler angemeldet.",

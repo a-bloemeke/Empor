@@ -289,3 +289,11 @@ model QuoteCollection {
   quote  String
   author String
 }
+
+model HallClosure {
+  id        String   @id @default(cuid())
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+}

@@ -63,6 +63,7 @@ PlayerStats (per season: goals, assists, score, points, sessionsPlayed, matchesP
 PlayerStatsLifetime (same fields, lifetime totals)
 AppConfig (key/value: "emailFrom", "requireApproval")
 PlayerAbsence (startDate, endDate — hides player from "no answer" lists)
+HallClosure (startDate, endDate, reason? — blocks session creation on that date; shown in /schedule within 2 weeks)
 ```
 
 `passwordHash = null` means guest player (added by organizer, cannot log in).
@@ -89,6 +90,7 @@ REGISTERED → CANCELLED (self: 1h cutoff; organizer: anytime) → auto-promotes
 | `/sessions/[id]` | `sessions/[id]/page.tsx`, `actions.ts`, `session-client.tsx` |
 | `/sessions/[id]/scoreboard` | `(fullscreen)/sessions/[id]/scoreboard/page.tsx`, `scoreboard-client.tsx` |
 | `/admin/settings` | `admin/settings/page.tsx`, `actions.ts`, `settings-client.tsx` |
+| `/admin/closures` | `admin/closures/` — hall closure periods |
 | `/admin/players` | `admin/players/` |
 | `/admin/membership` | `admin/membership/` |
 | `/leaderboard` | `leaderboard/` |
@@ -131,7 +133,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 - Email: `getDefaultInvitation`, `sendInvitation`, `getSummaryEmailDefaults`, `sendSummaryEmail`, `getStatusUpdateDefaults`, `sendStatusUpdate`
 
 ### Schedule actions (`schedule/actions.ts`) — mixed
-- `createSession(dateIso, maxPlayers?)` — default cap 12
+- `createSession(dateIso, maxPlayers?)` — default cap 12; throws if date falls within a `HallClosure`
 - `registerSelf`, `maybeSelf`, `cancelSelf`, `toggleBeer` — player self-service
 - `cancelSession`, `reopenCancelledSession`, `getCancelEmailDefaults`, `sendCancelEmail`
 

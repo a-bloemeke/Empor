@@ -19,6 +19,17 @@ export async function createSession(dateIso: string, maxPlayers?: number) {
   const date = new Date(dateIso)
   if (isNaN(date.getTime())) throw new Error("Invalid date.")
 
+  const closure = await db.hallClosure.findFirst({
+    where: { startDate: { lte: date }, endDate: { gte: date } },
+  })
+  if (closure) {
+    const startStr = format(closure.startDate, "d. MMM", { locale: de })
+    const endStr = format(closure.endDate, "d. MMM yyyy", { locale: de })
+    throw new Error(
+      `Die Halle ist vom ${startStr} bis ${endStr} gesperrt${closure.reason ? ` (${closure.reason})` : ""}.`
+    )
+  }
+
   const year = date.getFullYear()
   const season = await db.season.findUnique({ where: { year } })
   if (!season) throw new Error(`No season exists for ${year}. Create one under Admin → Seasons first.`)

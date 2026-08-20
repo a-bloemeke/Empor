@@ -134,7 +134,8 @@
     "statusPending": "Pending",
     "statusWaitlisted": "Waitlisted",
     "maxPlayersLabel": "Max. players (optional)",
-    "maxPlayersPlaceholder": "12 (default)"
+    "maxPlayersPlaceholder": "12 (default)",
+    "hallClosure": "Hall closed"
   },
   "session": {
     "noPlayersYet": "No players registered yet.",
