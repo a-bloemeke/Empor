@@ -19,8 +19,9 @@ export async function createSession(dateIso: string, maxPlayers?: number) {
   const date = new Date(dateIso)
   if (isNaN(date.getTime())) throw new Error("Invalid date.")
 
+  const sessionDayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
   const closure = await db.hallClosure.findFirst({
-    where: { startDate: { lte: date }, endDate: { gte: date } },
+    where: { startDate: { lte: date }, endDate: { gte: sessionDayStart } },
   })
   if (closure) {
     const startStr = format(closure.startDate, "d. MMM", { locale: de })

@@ -9,7 +9,7 @@ export async function createHallClosure(startDate: string, endDate: string, reas
   if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
   const start = new Date(startDate + "T00:00:00.000Z")
-  const end = new Date(endDate + "T23:59:59.999Z")
+  const end = new Date(endDate + "T00:00:00.000Z")
   if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new Error("Ungültiges Datum.")
   if (end < start) throw new Error("Enddatum muss nach Startdatum liegen.")
 
@@ -26,7 +26,7 @@ export async function updateHallClosure(id: string, startDate: string, endDate: 
   if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
   const start = new Date(startDate + "T00:00:00.000Z")
-  const end = new Date(endDate + "T23:59:59.999Z")
+  const end = new Date(endDate + "T00:00:00.000Z")
   if (isNaN(start.getTime()) || isNaN(end.getTime())) throw new Error("Ungültiges Datum.")
   if (end < start) throw new Error("Enddatum muss nach Startdatum liegen.")
 

@@ -11,6 +11,7 @@ export default async function SchedulePage() {
 
   const now = new Date()
   const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 
   const [sessions, upcomingClosures] = await Promise.all([
     db.session.findMany({
@@ -21,7 +22,7 @@ export default async function SchedulePage() {
       },
     }),
     db.hallClosure.findMany({
-      where: { endDate: { gte: now }, startDate: { lte: twoWeeksFromNow } },
+      where: { endDate: { gte: todayUTC }, startDate: { lte: twoWeeksFromNow } },
       orderBy: { startDate: "asc" },
     }),
   ])
