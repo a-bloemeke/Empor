@@ -151,6 +151,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 ## Conventions
 
 - **Server actions** use `"use server"` at top; organizer-only actions throw `"Unauthorized"` if role ≠ ORGANIZER.
+- **Error handling**: every server action call in a client component must be in `try { ... } catch (e) { toast.error((e as Error).message) }`. Actions throw `new Error("readable German message")` for expected failures.
 - **Revalidation**: session detail actions call `revalidate(sessionId)` helper; schedule actions call `revalidatePath("/schedule")`.
 - **Cap enforcement**: `maxPlayers ?? 12` everywhere — NULL means "default 12", not "unlimited".
 - **Amber** styling = organizer-only UI element.
