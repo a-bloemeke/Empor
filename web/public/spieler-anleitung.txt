@@ -1,0 +1,127 @@
+====================================================================
+  EMPOR LICHTENBERG – SPIELER-ANLEITUNG
+  So meldest du dich zu einem Spieltag an und nutzt alle Funktionen
+====================================================================
+
+Willkommen! Diese Anleitung erklärt Schritt für Schritt, wie du dich
+über unsere Web-App zu Spieltagen an- und abmeldest und welche
+Zusatzfunktionen es gibt. Die App erreichst du unter:
+
+    https://empor-lichtenberg.vercel.app
+
+--------------------------------------------------------------------
+1) KONTO ERSTELLEN & ANMELDEN
+--------------------------------------------------------------------
+- Neu dabei? Klicke auf "Registrieren" und lege mit Vorname,
+  Nachname, E-Mail und Passwort ein Konto an.
+- Nach der Registrierung muss dein Konto von einem Organisator
+  FREIGESCHALTET werden. Du bekommst eine E-Mail, sobald du dich
+  anmelden kannst.
+- Danach meldest du dich jederzeit mit E-Mail und Passwort an
+  ("Anmelden").
+
+--------------------------------------------------------------------
+2) SPIELPLAN ANSEHEN
+--------------------------------------------------------------------
+- Unter "Spielplan" siehst du alle kommenden und vergangenen
+  Spieltage mit Datum, Uhrzeit und der Anzahl angemeldeter Spieler
+  (z. B. "8/12" = 8 von 12 Plätzen belegt).
+- Dein eigener Status zu jedem Spieltag wird als farbige Markierung
+  angezeigt (siehe Punkt 8).
+
+--------------------------------------------------------------------
+3) FÜR EINEN SPIELTAG ANMELDEN  ->  Button "Anmelden"
+--------------------------------------------------------------------
+- Klicke beim gewünschten Spieltag auf "Anmelden".
+- Dein Status wechselt auf "Angemeldet". Fertig – du bist dabei!
+- Ist der Spieltag schon voll, kommst du automatisch auf die
+  Warteliste (siehe Punkt 6).
+
+--------------------------------------------------------------------
+4) "VIELLEICHT" ANTWORTEN  ->  Button "Vielleicht"
+--------------------------------------------------------------------
+- Noch nicht sicher? Mit "Vielleicht" gibst du eine unverbindliche
+  Rückmeldung. So sieht der Organisator, dass du evtl. kommst.
+- Du kannst später jederzeit auf "Anmelden" oder "Absagen" wechseln.
+- Wichtig: "Vielleicht" ist KEINE feste Anmeldung und sichert dir
+  keinen Platz.
+
+--------------------------------------------------------------------
+5) ABSAGEN  ->  Button "Absagen"
+--------------------------------------------------------------------
+- Kannst du doch nicht? Klicke auf "Absagen".
+- Bitte rechtzeitig absagen! Eine Absage ist nur bis 1 STUNDE vor
+  Spielbeginn möglich. Danach ist der Button gesperrt – melde dich
+  in dem Fall direkt beim Organisator.
+- Wenn du einen belegten Platz freigibst, rückt automatisch der/die
+  erste Spieler von der Warteliste nach.
+
+--------------------------------------------------------------------
+6) WARTELISTE
+--------------------------------------------------------------------
+- Ist ein Spieltag voll, wirst du beim Anmelden automatisch auf die
+  Warteliste gesetzt (Status "Warteliste"). Du bekommst dazu eine
+  E-Mail.
+- Sagt jemand ab, rückst du automatisch nach – auch darüber wirst du
+  per E-Mail informiert.
+
+--------------------------------------------------------------------
+7) FREISCHALTUNG DER ANMELDUNG ("Ausstehend")
+--------------------------------------------------------------------
+- Je nach Einstellung müssen Anmeldungen vom Organisator bestätigt
+  werden. Dann steht dein Status zunächst auf "Ausstehend", bis er
+  freigegeben ist.
+
+--------------------------------------------------------------------
+8) DEIN STATUS AUF EINEN BLICK
+--------------------------------------------------------------------
+   Angemeldet  = fester Platz, du bist dabei
+   Vielleicht  = unverbindliche Rückmeldung
+   Abgesagt    = du hast abgesagt
+   Warteliste  = Spieltag voll, du rückst bei Absagen nach
+   Ausstehend  = Anmeldung wartet auf Bestätigung
+
+--------------------------------------------------------------------
+9) BIER MITBRINGEN  🍺
+--------------------------------------------------------------------
+- Nur für angemeldete Spieler: Klicke auf "Bier mitbringen 🍺", um
+  dich als Bier-Bringer für diesen Spieltag einzutragen.
+- Pro Spieltag gibt es genau EINEN Bier-Bringer. Trägst du dich ein,
+  wird ein zuvor eingetragener Mitspieler automatisch ersetzt.
+- Wer Bier mitbringt, wird für alle sichtbar angezeigt
+  (z. B. "🍺 Max"). Mit erneutem Klick trägst du dich wieder aus.
+
+--------------------------------------------------------------------
+10) HALLENSPERRUNGEN
+--------------------------------------------------------------------
+- Ist die Halle gesperrt (z. B. Ferien, Feiertage), erscheint dies
+  rot markiert im Spielplan. An solchen Tagen finden keine Spieltage
+  statt.
+
+--------------------------------------------------------------------
+11) RANGLISTE & DEIN PROFIL
+--------------------------------------------------------------------
+- Unter "Rangliste" siehst du die Tabelle mit Toren, Vorlagen,
+  Punkten usw.
+- Über das Menü (dein Name) kommst du zu "Profil" mit deinen
+  persönlichen Statistiken.
+
+--------------------------------------------------------------------
+12) E-MAILS
+--------------------------------------------------------------------
+Du erhältst automatisch E-Mails, z. B.:
+- Einladung zum nächsten Spieltag
+- Bestätigung deiner Anmeldung
+- Warteliste-Bestätigung und Benachrichtigung beim Nachrücken
+- Absage eines Spieltags
+
+--------------------------------------------------------------------
+KURZ-TIPPS
+--------------------------------------------------------------------
+- Melde dich früh an – die Plätze sind begrenzt (Standard: 12).
+- Sag rechtzeitig ab (spätestens 1 Std. vorher), damit ein Spieler
+  von der Warteliste nachrücken kann.
+- Nutze "Vielleicht" nur als Zwischenstand, nicht als Zusage.
+
+Viel Spaß und bis bald in der Halle!
+– Euer Empor-Lichtenberg-Team

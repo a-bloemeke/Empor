@@ -87,6 +87,7 @@ REGISTERED → CANCELLED (self: 1h cutoff; organizer: anytime) → auto-promotes
 | Route | Files |
 |---|---|
 | `/schedule` | `schedule/page.tsx`, `schedule/actions.ts`, `schedule-client.tsx` |
+| `/anleitung` | `anleitung/page.tsx` — static German player how-to guide; mirrors `public/spieler-anleitung.txt` (email attachment). Public route (in `auth.ts` allowlist), linked from homepage hero. |
 | `/sessions/[id]` | `sessions/[id]/page.tsx`, `actions.ts`, `session-client.tsx` |
 | `/sessions/[id]/scoreboard` | `(fullscreen)/sessions/[id]/scoreboard/page.tsx`, `scoreboard-client.tsx` |
 | `/admin/settings` | `admin/settings/page.tsx`, `actions.ts`, `settings-client.tsx` |
