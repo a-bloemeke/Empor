@@ -254,24 +254,26 @@ export function ScheduleClient({
   const [open, setOpen] = useState(false)
   const [dateValue, setDateValue] = useState("")
   const [maxPlayersValue, setMaxPlayersValue] = useState("")
+  const [creating, setCreating] = useState(false)
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const isLoggedIn = currentUserId !== ""
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!dateValue) { toast.error(t("pickDateTime")); return }
     const maxPlayers = maxPlayersValue ? parseInt(maxPlayersValue, 10) : undefined
-    startTransition(async () => {
-      try {
-        await createSession(new Date(dateValue).toISOString(), maxPlayers)
-        toast.success(t("gameDayScheduled"))
-        setOpen(false)
-        setDateValue("")
-        setMaxPlayersValue("")
-      } catch (e) {
-        toast.error((e as Error).message)
-      }
-    })
+    setCreating(true)
+    try {
+      await createSession(new Date(dateValue).toISOString(), maxPlayers)
+      toast.success(t("gameDayScheduled"))
+      setOpen(false)
+      setDateValue("")
+      setMaxPlayersValue("")
+    } catch (e) {
+      toast.error((e as Error).message || "Fehler beim Planen des Spieltags.")
+    } finally {
+      setCreating(false)
+    }
   }
 
   function handleRegister(id: string) {
@@ -389,8 +391,8 @@ export function ScheduleClient({
                   />
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleCreate} disabled={pending}>
-                    {pending ? t("scheduling") : t("schedule")}
+                  <Button onClick={handleCreate} disabled={creating}>
+                    {creating ? t("scheduling") : t("schedule")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
