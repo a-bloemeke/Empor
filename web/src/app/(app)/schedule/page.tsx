@@ -24,7 +24,7 @@ export default async function SchedulePage() {
     db.hallClosure.findMany({
       where: { endDate: { gte: todayUTC }, startDate: { lte: twoWeeksFromNow } },
       orderBy: { startDate: "asc" },
-    }),
+    }).catch(() => [] as { id: string; startDate: Date; endDate: Date; reason: string | null; createdAt: Date }[]),
   ])
 
   // Load current user's registrations
