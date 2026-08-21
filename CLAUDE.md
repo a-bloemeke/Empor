@@ -63,6 +63,7 @@ PlayerStats (per season: goals, assists, score, points, sessionsPlayed, matchesP
 PlayerStatsLifetime (same fields, lifetime totals)
 AppConfig (key/value: "emailFrom", "requireApproval")
 PlayerAbsence (startDate, endDate — hides player from "no answer" lists)
+HallClosure (startDate, endDate, reason? — blocks session creation on that date; shown in /schedule within 2 weeks)
 ```
 
 `passwordHash = null` means guest player (added by organizer, cannot log in).
@@ -86,9 +87,11 @@ REGISTERED → CANCELLED (self: 1h cutoff; organizer: anytime) → auto-promotes
 | Route | Files |
 |---|---|
 | `/schedule` | `schedule/page.tsx`, `schedule/actions.ts`, `schedule-client.tsx` |
+| `/anleitung` | `anleitung/page.tsx` — static German player how-to guide; mirrors `public/spieler-anleitung.txt` (email attachment). Public route (in `auth.ts` allowlist), linked from homepage hero. |
 | `/sessions/[id]` | `sessions/[id]/page.tsx`, `actions.ts`, `session-client.tsx` |
 | `/sessions/[id]/scoreboard` | `(fullscreen)/sessions/[id]/scoreboard/page.tsx`, `scoreboard-client.tsx` |
 | `/admin/settings` | `admin/settings/page.tsx`, `actions.ts`, `settings-client.tsx` |
+| `/admin/closures` | `admin/closures/` — hall closure periods |
 | `/admin/players` | `admin/players/` |
 | `/admin/membership` | `admin/membership/` |
 | `/leaderboard` | `leaderboard/` |
@@ -131,7 +134,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 - Email: `getDefaultInvitation`, `sendInvitation`, `getSummaryEmailDefaults`, `sendSummaryEmail`, `getStatusUpdateDefaults`, `sendStatusUpdate`
 
 ### Schedule actions (`schedule/actions.ts`) — mixed
-- `createSession(dateIso, maxPlayers?)` — default cap 12
+- `createSession(dateIso, maxPlayers?)` — default cap 12; throws if date falls within a `HallClosure`
 - `registerSelf`, `maybeSelf`, `cancelSelf`, `toggleBeer` — player self-service
 - `cancelSession`, `reopenCancelledSession`, `getCancelEmailDefaults`, `sendCancelEmail`
 
@@ -149,6 +152,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 ## Conventions
 
 - **Server actions** use `"use server"` at top; organizer-only actions throw `"Unauthorized"` if role ≠ ORGANIZER.
+- **Error handling**: every server action call in a client component must be in `try { ... } catch (e) { toast.error((e as Error).message) }` to catch *unexpected* errors. For *expected* validation failures, **return** a result object (`Promise<{ error: string } | { ok: true }>`) instead of throwing — Next.js redacts thrown Error messages in production (client only sees "An error occurred in the Server Components render…"), so a thrown German message never reaches the user. Client checks `if (res && "error" in res) toast.error(res.error)`. Also avoid `startTransition` around a mutation you try/catch — thrown errors inside it bubble to the error boundary (full-page error). `createSession` follows this pattern; other actions still throw (pending refactor).
 - **Revalidation**: session detail actions call `revalidate(sessionId)` helper; schedule actions call `revalidatePath("/schedule")`.
 - **Cap enforcement**: `maxPlayers ?? 12` everywhere — NULL means "default 12", not "unlimited".
 - **Amber** styling = organizer-only UI element.

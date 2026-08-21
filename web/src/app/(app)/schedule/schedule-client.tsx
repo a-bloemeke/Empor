@@ -41,6 +41,13 @@ type GameSession = {
   myBeer: boolean
 }
 
+type HallClosure = {
+  id: string
+  startDate: string
+  endDate: string
+  reason: string | null
+}
+
 function StatusBadge({ status }: { status: string }) {
   const t = useTranslations("schedule")
   if (status === "SCHEDULED") return <Badge>{t("statusScheduled")}</Badge>
@@ -235,34 +242,42 @@ export function ScheduleClient({
   past,
   isOrganizer,
   currentUserId,
+  closures,
 }: {
   upcoming: GameSession[]
   past: GameSession[]
   isOrganizer: boolean
   currentUserId: string
+  closures: HallClosure[]
 }) {
   const t = useTranslations("schedule")
   const [open, setOpen] = useState(false)
   const [dateValue, setDateValue] = useState("")
   const [maxPlayersValue, setMaxPlayersValue] = useState("")
+  const [creating, setCreating] = useState(false)
   const [pending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const isLoggedIn = currentUserId !== ""
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!dateValue) { toast.error(t("pickDateTime")); return }
     const maxPlayers = maxPlayersValue ? parseInt(maxPlayersValue, 10) : undefined
-    startTransition(async () => {
-      try {
-        await createSession(new Date(dateValue).toISOString(), maxPlayers)
-        toast.success(t("gameDayScheduled"))
-        setOpen(false)
-        setDateValue("")
-        setMaxPlayersValue("")
-      } catch (e) {
-        toast.error((e as Error).message)
+    setCreating(true)
+    try {
+      const res = await createSession(new Date(dateValue).toISOString(), maxPlayers)
+      if (res && "error" in res) {
+        toast.error(res.error)
+        return
       }
-    })
+      toast.success(t("gameDayScheduled"))
+      setOpen(false)
+      setDateValue("")
+      setMaxPlayersValue("")
+    } catch (e) {
+      toast.error((e as Error).message || "Fehler beim Planen des Spieltags.")
+    } finally {
+      setCreating(false)
+    }
   }
 
   function handleRegister(id: string) {
@@ -305,7 +320,11 @@ export function ScheduleClient({
     setActionId(id)
     startTransition(async () => {
       try {
-        await toggleBeer(id)
+        const res = await toggleBeer(id)
+        if (res && "error" in res) {
+          toast.error(res.error)
+          return
+        }
         toast.success(t("beerToggled"))
       } catch (e) {
         toast.error((e as Error).message)
@@ -380,8 +399,8 @@ export function ScheduleClient({
                   />
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleCreate} disabled={pending}>
-                    {pending ? t("scheduling") : t("schedule")}
+                  <Button onClick={handleCreate} disabled={creating}>
+                    {creating ? t("scheduling") : t("schedule")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -389,7 +408,7 @@ export function ScheduleClient({
           )}
         </div>
 
-        {upcoming.length === 0 ? (
+        {upcoming.length === 0 && closures.length === 0 ? (
           <p className="text-sm text-muted-foreground p-4">{t("noUpcomingGameDays")}</p>
         ) : (
           <div className="overflow-x-auto">
@@ -405,84 +424,119 @@ export function ScheduleClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {upcoming.map((s) => {
-                const withinCutoff = new Date() >= new Date(new Date(s.date).getTime() - 60 * 60 * 1000)
-                const isRegistered = s.myStatus === "REGISTERED"
-                const busy = pending && actionId === s.id
+              {(() => {
+                type Item =
+                  | { kind: "session"; data: GameSession; sortDate: string }
+                  | { kind: "closure"; data: HallClosure; sortDate: string }
+                const items: Item[] = [
+                  ...upcoming.map((s) => ({ kind: "session" as const, data: s, sortDate: s.date })),
+                  ...closures.map((c) => ({ kind: "closure" as const, data: c, sortDate: c.startDate })),
+                ].sort((a, b) => new Date(a.sortDate).getTime() - new Date(b.sortDate).getTime())
 
-                return (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">
-                      {isLoggedIn ? (
-                        <Link href={`/sessions/${s.id}`} className="hover:underline">
-                          <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
-                          <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
-                        </Link>
-                      ) : (
-                        <>
-                          <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
-                          <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
-                        </>
-                      )}
-                      <div className="sm:hidden flex items-center gap-1.5 mt-0.5">
-                        <StatusBadge status={s.status} />
-                        {isLoggedIn && <MyStatusBadge status={s.myStatus} />}
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
-                    <TableCell className="text-right">{s.registrationCount}{s.maxPlayers ? `/${s.maxPlayers}` : ""}</TableCell>
-                    <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
-                    {isLoggedIn && <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>}
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2 flex-wrap">
-                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
-                          <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
-                            {busy ? "…" : t("register")}
-                          </Button>
-                        )}
-                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
-                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMaybe(s.id)}
-                            className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40">
-                            {t("statusMaybe")}
-                          </Button>
-                        )}
-                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (
-                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleCancelReg(s.id)}>
-                            {busy ? "…" : t("cancel")}
-                          </Button>
-                        )}
-                        {isLoggedIn && s.status === "SCHEDULED" && s.myStatus === "REGISTERED" && (
-                          s.myBeer ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              onClick={() => handleToggleBeer(s.id)}
-                              className="border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
-                            >
-                              {t("bringingBeer")}
-                            </Button>
-                          ) : s.beerBringerId ? (
-                            <span className="text-xs text-muted-foreground">🍺 {s.beerBringerName}</span>
-                          ) : (
-                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleToggleBeer(s.id)}>
-                              {t("bringBeer")}
-                            </Button>
-                          )
-                        )}
-                        {isOrganizer && s.status === "SCHEDULED" && (
-                          <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
-                            <CancelGameDayDialog
-                              sessionId={s.id}
-                              onCancelled={() => setActionId(null)}
-                            />
+                return items.map((item) => {
+                  if (item.kind === "closure") {
+                    const c = item.data
+                    const sameDay = c.startDate.slice(0, 10) === c.endDate.slice(0, 10)
+                    const dateLabel = sameDay
+                      ? format(new Date(c.startDate), "EEE, d MMM yyyy")
+                      : `${format(new Date(c.startDate), "d. MMM")} – ${format(new Date(c.endDate), "d. MMM yyyy")}`
+                    const colSpan = isLoggedIn ? 5 : 4
+                    return (
+                      <TableRow key={`closure-${c.id}`} className="bg-red-50 dark:bg-red-950/20 hover:bg-red-100/60 dark:hover:bg-red-950/30">
+                        <TableCell colSpan={colSpan} className="font-medium text-red-700 dark:text-red-400">
+                          <span className="mr-1.5">🔒</span>
+                          <span className="hidden sm:inline">{dateLabel}</span>
+                          <span className="sm:hidden">{format(new Date(c.startDate), "dd.MM.")}{!sameDay ? ` – ${format(new Date(c.endDate), "dd.MM.")}` : ""}</span>
+                          {c.reason && (
+                            <span className="ml-2 text-xs font-normal text-red-500 dark:text-red-400/70">({c.reason})</span>
+                          )}
+                          <span className="ml-2 text-xs font-normal hidden sm:inline bg-red-200 dark:bg-red-800/40 text-red-700 dark:text-red-300 px-1.5 py-0.5 rounded">
+                            {t("hallClosure")}
                           </span>
+                        </TableCell>
+                        <TableCell />
+                      </TableRow>
+                    )
+                  }
+
+                  const s = item.data
+                  const withinCutoff = new Date() >= new Date(new Date(s.date).getTime() - 60 * 60 * 1000)
+                  const busy = pending && actionId === s.id
+
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-medium">
+                        {isLoggedIn ? (
+                          <Link href={`/sessions/${s.id}`} className="hover:underline">
+                            <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
+                            <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
+                          </Link>
+                        ) : (
+                          <>
+                            <span className="hidden sm:inline">{format(new Date(s.date), "EEE, d MMM yyyy · HH:mm")}</span>
+                            <span className="sm:hidden">{format(new Date(s.date), "dd.MM. · HH:mm")}</span>
+                          </>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
+                        <div className="sm:hidden flex items-center gap-1.5 mt-0.5">
+                          <StatusBadge status={s.status} />
+                          {isLoggedIn && <MyStatusBadge status={s.myStatus} />}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">{s.seasonYear}</TableCell>
+                      <TableCell className="text-right">{s.registrationCount}{s.maxPlayers ? `/${s.maxPlayers}` : ""}</TableCell>
+                      <TableCell className="hidden sm:table-cell"><StatusBadge status={s.status} /></TableCell>
+                      {isLoggedIn && <TableCell className="hidden sm:table-cell"><MyStatusBadge status={s.myStatus} /></TableCell>}
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                          {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "REGISTERED" && (
+                            <Button size="sm" variant="outline" disabled={busy} onClick={() => handleRegister(s.id)}>
+                              {busy ? "…" : t("register")}
+                            </Button>
+                          )}
+                          {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "MAYBE" && s.myStatus !== "REGISTERED" && (
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleMaybe(s.id)}
+                              className="text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40">
+                              {t("statusMaybe")}
+                            </Button>
+                          )}
+                          {isLoggedIn && s.status === "SCHEDULED" && s.myStatus !== "CANCELLED" && !withinCutoff && (
+                            <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleCancelReg(s.id)}>
+                              {busy ? "…" : t("cancel")}
+                            </Button>
+                          )}
+                          {isLoggedIn && s.status === "SCHEDULED" && s.myStatus === "REGISTERED" && (
+                            s.myBeer ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() => handleToggleBeer(s.id)}
+                                className="border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+                              >
+                                {t("bringingBeer")}
+                              </Button>
+                            ) : s.beerBringerId ? (
+                              <span className="text-xs text-muted-foreground">🍺 {s.beerBringerName}</span>
+                            ) : (
+                              <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleToggleBeer(s.id)}>
+                                {t("bringBeer")}
+                              </Button>
+                            )
+                          )}
+                          {isOrganizer && s.status === "SCHEDULED" && (
+                            <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
+                              <CancelGameDayDialog
+                                sessionId={s.id}
+                                onCancelled={() => setActionId(null)}
+                              />
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              })()}
             </TableBody>
           </Table>
           </div>

@@ -76,6 +76,12 @@ export default async function HomePage() {
             >
               {t("ctaLeaderboard")}
             </Link>
+            <Link
+              href="/anleitung"
+              className="rounded-lg border border-white/30 bg-white/10 px-7 py-3 text-sm font-semibold text-white hover:bg-white/20 transition-all backdrop-blur-sm"
+            >
+              📖 Anleitung für Spieler
+            </Link>
           </div>
         </div>
       </section>

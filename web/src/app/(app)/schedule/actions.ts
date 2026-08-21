@@ -12,17 +12,29 @@ import type { RegistrationStatus } from "@/generated/prisma/enums"
 
 export { endSession }
 
-export async function createSession(dateIso: string, maxPlayers?: number) {
+export async function createSession(dateIso: string, maxPlayers?: number): Promise<{ error: string } | { ok: true }> {
   const session = await auth()
-  if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (session?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const date = new Date(dateIso)
-  if (isNaN(date.getTime())) throw new Error("Invalid date.")
+  if (isNaN(date.getTime())) return { error: "Ungültiges Datum." }
+
+  const sessionDayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+  const closure = await db.hallClosure.findFirst({
+    where: { startDate: { lte: date }, endDate: { gte: sessionDayStart } },
+  })
+  if (closure) {
+    const startStr = format(closure.startDate, "d. MMM", { locale: de })
+    const endStr = format(closure.endDate, "d. MMM yyyy", { locale: de })
+    return {
+      error: `Die Halle ist vom ${startStr} bis ${endStr} gesperrt${closure.reason ? ` (${closure.reason})` : ""}.`,
+    }
+  }
 
   const year = date.getFullYear()
   const season = await db.season.findUnique({ where: { year } })
-  if (!season) throw new Error(`No season exists for ${year}. Create one under Admin → Seasons first.`)
-  if (season.status === "COMPLETED") throw new Error(`Season ${year} is already closed.`)
+  if (!season) return { error: `Für ${year} existiert keine Saison. Lege zuerst unter Admin → Saisons eine an.` }
+  if (season.status === "COMPLETED") return { error: `Die Saison ${year} ist bereits abgeschlossen.` }
 
   await db.session.create({
     data: {
@@ -34,6 +46,7 @@ export async function createSession(dateIso: string, maxPlayers?: number) {
   })
 
   revalidatePath("/schedule")
+  return { ok: true }
 }
 
 export async function cancelSession(sessionId: string) {
@@ -350,38 +363,42 @@ export async function cancelSelf(sessionId: string) {
   revalidatePath("/schedule")
 }
 
-export async function toggleBeer(sessionId: string) {
+export async function toggleBeer(sessionId: string): Promise<{ error: string } | { ok: true }> {
   const authSession = await auth()
-  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (!authSession?.user?.id) return { error: "Nicht autorisiert." }
 
   const s = await db.session.findUnique({ where: { id: sessionId } })
-  if (!s) throw new Error("Session not found.")
-  if (s.status !== "SCHEDULED") throw new Error("Registration is closed for this session.")
+  if (!s) return { error: "Spieltag nicht gefunden." }
+  if (s.status !== "SCHEDULED") return { error: "Anmeldung für diesen Spieltag ist geschlossen." }
 
   const myReg = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },
   })
   if (!myReg || myReg.status !== "REGISTERED") {
-    throw new Error("Du musst angemeldet sein, um Bier mitzubringen.")
+    return { error: "Du musst angemeldet sein, um Bier mitzubringen." }
   }
 
   if (myReg.beerBringer) {
+    // Toggle own beer flag off
     await db.sessionRegistration.update({
       where: { id: myReg.id },
       data: { beerBringer: false },
     })
   } else {
-    await db.$transaction([
-      db.sessionRegistration.updateMany({
-        where: { sessionId, beerBringer: true },
-        data: { beerBringer: false },
-      }),
-      db.sessionRegistration.update({
-        where: { id: myReg.id },
-        data: { beerBringer: true },
-      }),
-    ])
+    // Only claim the beer slot if nobody else already brings beer.
+    // Players cannot override another player's assignment — only an organizer can reassign.
+    const existing = await db.sessionRegistration.findFirst({
+      where: { sessionId, beerBringer: true },
+    })
+    if (existing) {
+      return { error: "Es bringt bereits jemand Bier mit. Bitte wende dich an den Organisator, um das zu ändern." }
+    }
+    await db.sessionRegistration.update({
+      where: { id: myReg.id },
+      data: { beerBringer: true },
+    })
   }
 
   revalidatePath("/schedule")
+  return { ok: true }
 }
