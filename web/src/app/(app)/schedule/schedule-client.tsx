@@ -320,7 +320,11 @@ export function ScheduleClient({
     setActionId(id)
     startTransition(async () => {
       try {
-        await toggleBeer(id)
+        const res = await toggleBeer(id)
+        if (res && "error" in res) {
+          toast.error(res.error)
+          return
+        }
         toast.success(t("beerToggled"))
       } catch (e) {
         toast.error((e as Error).message)

@@ -86,20 +86,35 @@ Zusatzfunktionen es gibt. Die App erreichst du unter:
 --------------------------------------------------------------------
 - Nur für angemeldete Spieler: Klicke auf "Bier mitbringen 🍺", um
   dich als Bier-Bringer für diesen Spieltag einzutragen.
-- Pro Spieltag gibt es genau EINEN Bier-Bringer. Trägst du dich ein,
-  wird ein zuvor eingetragener Mitspieler automatisch ersetzt.
-- Wer Bier mitbringt, wird für alle sichtbar angezeigt
-  (z. B. "🍺 Max"). Mit erneutem Klick trägst du dich wieder aus.
+- Pro Spieltag gibt es genau EINEN Bier-Bringer. Der Button erscheint
+  nur, solange noch niemand Bier übernommen hat. Ist bereits jemand
+  eingetragen, siehst du nur den Namen (z. B. "🍺 Max") – du kannst
+  einen anderen Bier-Bringer NICHT überschreiben.
+- Möchtest du die Zuordnung ändern, wende dich an den Organisator –
+  nur er kann den Bier-Bringer neu vergeben.
+- Mit erneutem Klick trägst du dich selbst wieder aus.
 
 --------------------------------------------------------------------
-10) HALLENSPERRUNGEN
+10) ABWESENHEIT / URLAUB EINTRAGEN
+--------------------------------------------------------------------
+- Du bist länger verhindert (z. B. Urlaub)? Trage einen
+  Abwesenheitszeitraum in deinem Profil ein.
+- So: Menü mit deinem Namen -> "Profil" -> Bereich "Abwesenheiten"
+  -> Start- und Enddatum (und optional einen Grund, z. B. "Urlaub")
+  angeben.
+- In diesem Zeitraum wirst du auf den "Keine Antwort"-Listen der
+  Organisatoren ausgeblendet – du bekommst also keine Nachfragen,
+  während du weg bist. Einträge kannst du jederzeit wieder löschen.
+
+--------------------------------------------------------------------
+11) HALLENSPERRUNGEN
 --------------------------------------------------------------------
 - Ist die Halle gesperrt (z. B. Ferien, Feiertage), erscheint dies
   rot markiert im Spielplan. An solchen Tagen finden keine Spieltage
   statt.
 
 --------------------------------------------------------------------
-11) RANGLISTE & DEIN PROFIL
+12) RANGLISTE & DEIN PROFIL
 --------------------------------------------------------------------
 - Unter "Rangliste" siehst du die Tabelle mit Toren, Vorlagen,
   Punkten usw.
@@ -107,7 +122,7 @@ Zusatzfunktionen es gibt. Die App erreichst du unter:
   persönlichen Statistiken.
 
 --------------------------------------------------------------------
-12) E-MAILS
+13) E-MAILS
 --------------------------------------------------------------------
 Du erhältst automatisch E-Mails, z. B.:
 - Einladung zum nächsten Spieltag

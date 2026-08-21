@@ -363,38 +363,42 @@ export async function cancelSelf(sessionId: string) {
   revalidatePath("/schedule")
 }
 
-export async function toggleBeer(sessionId: string) {
+export async function toggleBeer(sessionId: string): Promise<{ error: string } | { ok: true }> {
   const authSession = await auth()
-  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (!authSession?.user?.id) return { error: "Nicht autorisiert." }
 
   const s = await db.session.findUnique({ where: { id: sessionId } })
-  if (!s) throw new Error("Session not found.")
-  if (s.status !== "SCHEDULED") throw new Error("Registration is closed for this session.")
+  if (!s) return { error: "Spieltag nicht gefunden." }
+  if (s.status !== "SCHEDULED") return { error: "Anmeldung für diesen Spieltag ist geschlossen." }
 
   const myReg = await db.sessionRegistration.findUnique({
     where: { sessionId_playerId: { sessionId, playerId: authSession.user.id } },
   })
   if (!myReg || myReg.status !== "REGISTERED") {
-    throw new Error("Du musst angemeldet sein, um Bier mitzubringen.")
+    return { error: "Du musst angemeldet sein, um Bier mitzubringen." }
   }
 
   if (myReg.beerBringer) {
+    // Toggle own beer flag off
     await db.sessionRegistration.update({
       where: { id: myReg.id },
       data: { beerBringer: false },
     })
   } else {
-    await db.$transaction([
-      db.sessionRegistration.updateMany({
-        where: { sessionId, beerBringer: true },
-        data: { beerBringer: false },
-      }),
-      db.sessionRegistration.update({
-        where: { id: myReg.id },
-        data: { beerBringer: true },
-      }),
-    ])
+    // Only claim the beer slot if nobody else already brings beer.
+    // Players cannot override another player's assignment — only an organizer can reassign.
+    const existing = await db.sessionRegistration.findFirst({
+      where: { sessionId, beerBringer: true },
+    })
+    if (existing) {
+      return { error: "Es bringt bereits jemand Bier mit. Bitte wende dich an den Organisator, um das zu ändern." }
+    }
+    await db.sessionRegistration.update({
+      where: { id: myReg.id },
+      data: { beerBringer: true },
+    })
   }
 
   revalidatePath("/schedule")
+  return { ok: true }
 }
