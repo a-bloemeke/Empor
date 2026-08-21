@@ -264,7 +264,11 @@ export function ScheduleClient({
     const maxPlayers = maxPlayersValue ? parseInt(maxPlayersValue, 10) : undefined
     setCreating(true)
     try {
-      await createSession(new Date(dateValue).toISOString(), maxPlayers)
+      const res = await createSession(new Date(dateValue).toISOString(), maxPlayers)
+      if (res && "error" in res) {
+        toast.error(res.error)
+        return
+      }
       toast.success(t("gameDayScheduled"))
       setOpen(false)
       setDateValue("")

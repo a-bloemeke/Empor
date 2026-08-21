@@ -151,7 +151,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 ## Conventions
 
 - **Server actions** use `"use server"` at top; organizer-only actions throw `"Unauthorized"` if role ≠ ORGANIZER.
-- **Error handling**: every server action call in a client component must be in `try { ... } catch (e) { toast.error((e as Error).message) }`. Actions throw `new Error("readable German message")` for expected failures.
+- **Error handling**: every server action call in a client component must be in `try { ... } catch (e) { toast.error((e as Error).message) }` to catch *unexpected* errors. For *expected* validation failures, **return** a result object (`Promise<{ error: string } | { ok: true }>`) instead of throwing — Next.js redacts thrown Error messages in production (client only sees "An error occurred in the Server Components render…"), so a thrown German message never reaches the user. Client checks `if (res && "error" in res) toast.error(res.error)`. Also avoid `startTransition` around a mutation you try/catch — thrown errors inside it bubble to the error boundary (full-page error). `createSession` follows this pattern; other actions still throw (pending refactor).
 - **Revalidation**: session detail actions call `revalidate(sessionId)` helper; schedule actions call `revalidatePath("/schedule")`.
 - **Cap enforcement**: `maxPlayers ?? 12` everywhere — NULL means "default 12", not "unlimited".
 - **Amber** styling = organizer-only UI element.

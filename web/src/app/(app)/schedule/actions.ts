@@ -12,12 +12,12 @@ import type { RegistrationStatus } from "@/generated/prisma/enums"
 
 export { endSession }
 
-export async function createSession(dateIso: string, maxPlayers?: number) {
+export async function createSession(dateIso: string, maxPlayers?: number): Promise<{ error: string } | { ok: true }> {
   const session = await auth()
-  if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (session?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const date = new Date(dateIso)
-  if (isNaN(date.getTime())) throw new Error("Invalid date.")
+  if (isNaN(date.getTime())) return { error: "Ungültiges Datum." }
 
   const sessionDayStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
   const closure = await db.hallClosure.findFirst({
@@ -26,15 +26,15 @@ export async function createSession(dateIso: string, maxPlayers?: number) {
   if (closure) {
     const startStr = format(closure.startDate, "d. MMM", { locale: de })
     const endStr = format(closure.endDate, "d. MMM yyyy", { locale: de })
-    throw new Error(
-      `Die Halle ist vom ${startStr} bis ${endStr} gesperrt${closure.reason ? ` (${closure.reason})` : ""}.`
-    )
+    return {
+      error: `Die Halle ist vom ${startStr} bis ${endStr} gesperrt${closure.reason ? ` (${closure.reason})` : ""}.`,
+    }
   }
 
   const year = date.getFullYear()
   const season = await db.season.findUnique({ where: { year } })
-  if (!season) throw new Error(`No season exists for ${year}. Create one under Admin → Seasons first.`)
-  if (season.status === "COMPLETED") throw new Error(`Season ${year} is already closed.`)
+  if (!season) return { error: `Für ${year} existiert keine Saison. Lege zuerst unter Admin → Saisons eine an.` }
+  if (season.status === "COMPLETED") return { error: `Die Saison ${year} ist bereits abgeschlossen.` }
 
   await db.session.create({
     data: {
@@ -46,6 +46,7 @@ export async function createSession(dateIso: string, maxPlayers?: number) {
   })
 
   revalidatePath("/schedule")
+  return { ok: true }
 }
 
 export async function cancelSession(sessionId: string) {
