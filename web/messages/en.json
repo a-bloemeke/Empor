@@ -274,6 +274,22 @@
     "toastWaitlisted": "Added to waiting list.",
     "toastRemovedFromWaitlist": "Removed from waiting list."
   },
+  "sessionComments": {
+    "title": "Comments",
+    "placeholder": "Write something about this game day…",
+    "post": "Comment",
+    "posting": "Sending…",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDelete": "Really delete this comment?",
+    "empty": "No comments yet.",
+    "edited": "edited",
+    "posted": "Comment saved.",
+    "updated": "Comment updated.",
+    "deleted": "Comment deleted."
+  },
   "leaderboard": {
     "title": "Leaderboard",
     "subtitle": "Season and lifetime rankings.",

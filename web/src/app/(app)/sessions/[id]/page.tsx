@@ -134,6 +134,15 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
     include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
   })
 
+  // Session comments (any logged-in player can post)
+  const comments = await db.sessionComment.findMany({
+    where: { sessionId: session.id },
+    orderBy: { createdAt: "asc" },
+    include: { player: { select: { id: true, firstName: true, lastName: true, nickname: true } } },
+  })
+  const cName = (p: { id: string; firstName: string; lastName: string; nickname: string | null }) =>
+    displayNames.get(p.id) ?? p.nickname ?? `${p.firstName} ${p.lastName}`.trim()
+
   return (
     <SessionClient
       session={{
@@ -196,6 +205,14 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
         })),
         allPlayers: allPlayers.map((p) => ({ id: p.id, name: pName(p), displayName: pName(p), seasonPoints: 0, seasonSessions: 0, seasonScore: 0, strength: 0, seasonRank: null })),
         absentPlayers: absentPlayers.map((a) => ({ id: a.playerId, name: pName(a.player) })),
+        comments: comments.map((c) => ({
+          id: c.id,
+          body: c.body,
+          authorId: c.playerId,
+          authorName: cName(c.player),
+          createdAt: c.createdAt.toISOString(),
+          updatedAt: c.updatedAt.toISOString(),
+        })),
         myStatus,
         maxPlayers: session.maxPlayers ?? null,
       }}

@@ -529,6 +529,63 @@ function revalidate(sessionId: string) {
   revalidatePath("/schedule")
 }
 
+// ── Comments ──────────────────────────────────────────────────────────
+const COMMENT_MAX = 2000
+
+export async function addComment(sessionId: string, body: string): Promise<{ error: string } | { ok: true }> {
+  const authSession = await auth()
+  if (!authSession?.user?.id) return { error: "Nicht autorisiert." }
+
+  const self = await db.player.findUnique({ where: { id: authSession.user.id }, select: { active: true } })
+  if (!self?.active) return { error: "Dein Konto ist derzeit inaktiv." }
+
+  const text = body.trim()
+  if (!text) return { error: "Kommentar darf nicht leer sein." }
+  if (text.length > COMMENT_MAX) return { error: `Kommentar ist zu lang (max. ${COMMENT_MAX} Zeichen).` }
+
+  const s = await db.session.findUnique({ where: { id: sessionId }, select: { id: true } })
+  if (!s) return { error: "Spieltag nicht gefunden." }
+
+  await db.sessionComment.create({
+    data: { sessionId, playerId: authSession.user.id, body: text },
+  })
+  revalidate(sessionId)
+  return { ok: true }
+}
+
+export async function editComment(commentId: string, body: string): Promise<{ error: string } | { ok: true }> {
+  const authSession = await auth()
+  if (!authSession?.user?.id) return { error: "Nicht autorisiert." }
+
+  const text = body.trim()
+  if (!text) return { error: "Kommentar darf nicht leer sein." }
+  if (text.length > COMMENT_MAX) return { error: `Kommentar ist zu lang (max. ${COMMENT_MAX} Zeichen).` }
+
+  const comment = await db.sessionComment.findUnique({ where: { id: commentId } })
+  if (!comment) return { error: "Kommentar nicht gefunden." }
+  if (comment.playerId !== authSession.user.id) return { error: "Du kannst nur eigene Kommentare bearbeiten." }
+
+  await db.sessionComment.update({ where: { id: commentId }, data: { body: text } })
+  revalidate(comment.sessionId)
+  return { ok: true }
+}
+
+export async function deleteComment(commentId: string): Promise<{ error: string } | { ok: true }> {
+  const authSession = await auth()
+  if (!authSession?.user?.id) return { error: "Nicht autorisiert." }
+
+  const comment = await db.sessionComment.findUnique({ where: { id: commentId } })
+  if (!comment) return { error: "Kommentar nicht gefunden." }
+
+  const isAuthor = comment.playerId === authSession.user.id
+  const isOrganizer = authSession.user.role === "ORGANIZER"
+  if (!isAuthor && !isOrganizer) return { error: "Nicht autorisiert." }
+
+  await db.sessionComment.delete({ where: { id: commentId } })
+  revalidate(comment.sessionId)
+  return { ok: true }
+}
+
 export async function reopenMatch(matchId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")

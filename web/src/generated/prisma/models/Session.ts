@@ -237,6 +237,7 @@ export type SessionWhereInput = {
   registrations?: Prisma.SessionRegistrationListRelationFilter
   teams?: Prisma.TeamListRelationFilter
   matches?: Prisma.MatchListRelationFilter
+  comments?: Prisma.SessionCommentListRelationFilter
 }
 
 export type SessionOrderByWithRelationInput = {
@@ -252,6 +253,7 @@ export type SessionOrderByWithRelationInput = {
   registrations?: Prisma.SessionRegistrationOrderByRelationAggregateInput
   teams?: Prisma.TeamOrderByRelationAggregateInput
   matches?: Prisma.MatchOrderByRelationAggregateInput
+  comments?: Prisma.SessionCommentOrderByRelationAggregateInput
 }
 
 export type SessionWhereUniqueInput = Prisma.AtLeast<{
@@ -270,6 +272,7 @@ export type SessionWhereUniqueInput = Prisma.AtLeast<{
   registrations?: Prisma.SessionRegistrationListRelationFilter
   teams?: Prisma.TeamListRelationFilter
   matches?: Prisma.MatchListRelationFilter
+  comments?: Prisma.SessionCommentListRelationFilter
 }, "id">
 
 export type SessionOrderByWithAggregationInput = {
@@ -311,6 +314,7 @@ export type SessionCreateInput = {
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUncheckedCreateInput = {
@@ -324,6 +328,7 @@ export type SessionUncheckedCreateInput = {
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUpdateInput = {
@@ -337,6 +342,7 @@ export type SessionUpdateInput = {
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateInput = {
@@ -350,6 +356,7 @@ export type SessionUncheckedUpdateInput = {
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionCreateManyInput = {
@@ -535,6 +542,20 @@ export type SessionUpdateOneRequiredWithoutRegistrationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.SessionUpdateToOneWithWhereWithoutRegistrationsInput, Prisma.SessionUpdateWithoutRegistrationsInput>, Prisma.SessionUncheckedUpdateWithoutRegistrationsInput>
 }
 
+export type SessionCreateNestedOneWithoutCommentsInput = {
+  create?: Prisma.XOR<Prisma.SessionCreateWithoutCommentsInput, Prisma.SessionUncheckedCreateWithoutCommentsInput>
+  connectOrCreate?: Prisma.SessionCreateOrConnectWithoutCommentsInput
+  connect?: Prisma.SessionWhereUniqueInput
+}
+
+export type SessionUpdateOneRequiredWithoutCommentsNestedInput = {
+  create?: Prisma.XOR<Prisma.SessionCreateWithoutCommentsInput, Prisma.SessionUncheckedCreateWithoutCommentsInput>
+  connectOrCreate?: Prisma.SessionCreateOrConnectWithoutCommentsInput
+  upsert?: Prisma.SessionUpsertWithoutCommentsInput
+  connect?: Prisma.SessionWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.SessionUpdateToOneWithWhereWithoutCommentsInput, Prisma.SessionUpdateWithoutCommentsInput>, Prisma.SessionUncheckedUpdateWithoutCommentsInput>
+}
+
 export type SessionCreateNestedOneWithoutTeamsInput = {
   create?: Prisma.XOR<Prisma.SessionCreateWithoutTeamsInput, Prisma.SessionUncheckedCreateWithoutTeamsInput>
   connectOrCreate?: Prisma.SessionCreateOrConnectWithoutTeamsInput
@@ -573,6 +594,7 @@ export type SessionCreateWithoutOrganizerInput = {
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUncheckedCreateWithoutOrganizerInput = {
@@ -585,6 +607,7 @@ export type SessionUncheckedCreateWithoutOrganizerInput = {
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutSessionInput
 }
 
 export type SessionCreateOrConnectWithoutOrganizerInput = {
@@ -636,6 +659,7 @@ export type SessionCreateWithoutSeasonInput = {
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUncheckedCreateWithoutSeasonInput = {
@@ -648,6 +672,7 @@ export type SessionUncheckedCreateWithoutSeasonInput = {
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutSessionInput
 }
 
 export type SessionCreateOrConnectWithoutSeasonInput = {
@@ -686,6 +711,7 @@ export type SessionCreateWithoutRegistrationsInput = {
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
   teams?: Prisma.TeamCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUncheckedCreateWithoutRegistrationsInput = {
@@ -698,6 +724,7 @@ export type SessionUncheckedCreateWithoutRegistrationsInput = {
   maxPlayers?: number | null
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutSessionInput
 }
 
 export type SessionCreateOrConnectWithoutRegistrationsInput = {
@@ -726,6 +753,7 @@ export type SessionUpdateWithoutRegistrationsInput = {
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
   teams?: Prisma.TeamUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateWithoutRegistrationsInput = {
@@ -736,6 +764,75 @@ export type SessionUncheckedUpdateWithoutRegistrationsInput = {
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
+  matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutSessionNestedInput
+}
+
+export type SessionCreateWithoutCommentsInput = {
+  id?: string
+  date: Date | string
+  status?: $Enums.SessionStatus
+  lastStatusEmailSentAt?: Date | string | null
+  maxPlayers?: number | null
+  season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
+  organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
+  registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
+  teams?: Prisma.TeamCreateNestedManyWithoutSessionInput
+  matches?: Prisma.MatchCreateNestedManyWithoutSessionInput
+}
+
+export type SessionUncheckedCreateWithoutCommentsInput = {
+  id?: string
+  seasonId: string
+  date: Date | string
+  status?: $Enums.SessionStatus
+  organizerId: string
+  lastStatusEmailSentAt?: Date | string | null
+  maxPlayers?: number | null
+  registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
+  teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
+  matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
+}
+
+export type SessionCreateOrConnectWithoutCommentsInput = {
+  where: Prisma.SessionWhereUniqueInput
+  create: Prisma.XOR<Prisma.SessionCreateWithoutCommentsInput, Prisma.SessionUncheckedCreateWithoutCommentsInput>
+}
+
+export type SessionUpsertWithoutCommentsInput = {
+  update: Prisma.XOR<Prisma.SessionUpdateWithoutCommentsInput, Prisma.SessionUncheckedUpdateWithoutCommentsInput>
+  create: Prisma.XOR<Prisma.SessionCreateWithoutCommentsInput, Prisma.SessionUncheckedCreateWithoutCommentsInput>
+  where?: Prisma.SessionWhereInput
+}
+
+export type SessionUpdateToOneWithWhereWithoutCommentsInput = {
+  where?: Prisma.SessionWhereInput
+  data: Prisma.XOR<Prisma.SessionUpdateWithoutCommentsInput, Prisma.SessionUncheckedUpdateWithoutCommentsInput>
+}
+
+export type SessionUpdateWithoutCommentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
+  lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
+  organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
+  registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
+  teams?: Prisma.TeamUpdateManyWithoutSessionNestedInput
+  matches?: Prisma.MatchUpdateManyWithoutSessionNestedInput
+}
+
+export type SessionUncheckedUpdateWithoutCommentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  seasonId?: Prisma.StringFieldUpdateOperationsInput | string
+  date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
+  organizerId?: Prisma.StringFieldUpdateOperationsInput | string
+  lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
 }
@@ -750,6 +847,7 @@ export type SessionCreateWithoutTeamsInput = {
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUncheckedCreateWithoutTeamsInput = {
@@ -762,6 +860,7 @@ export type SessionUncheckedCreateWithoutTeamsInput = {
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutSessionInput
 }
 
 export type SessionCreateOrConnectWithoutTeamsInput = {
@@ -790,6 +889,7 @@ export type SessionUpdateWithoutTeamsInput = {
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateWithoutTeamsInput = {
@@ -802,6 +902,7 @@ export type SessionUncheckedUpdateWithoutTeamsInput = {
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionCreateWithoutMatchesInput = {
@@ -814,6 +915,7 @@ export type SessionCreateWithoutMatchesInput = {
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutSessionInput
 }
 
 export type SessionUncheckedCreateWithoutMatchesInput = {
@@ -826,6 +928,7 @@ export type SessionUncheckedCreateWithoutMatchesInput = {
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutSessionInput
 }
 
 export type SessionCreateOrConnectWithoutMatchesInput = {
@@ -854,6 +957,7 @@ export type SessionUpdateWithoutMatchesInput = {
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateWithoutMatchesInput = {
@@ -866,6 +970,7 @@ export type SessionUncheckedUpdateWithoutMatchesInput = {
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionCreateManyOrganizerInput = {
@@ -887,6 +992,7 @@ export type SessionUpdateWithoutOrganizerInput = {
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateWithoutOrganizerInput = {
@@ -899,6 +1005,7 @@ export type SessionUncheckedUpdateWithoutOrganizerInput = {
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateManyWithoutOrganizerInput = {
@@ -929,6 +1036,7 @@ export type SessionUpdateWithoutSeasonInput = {
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateWithoutSeasonInput = {
@@ -941,6 +1049,7 @@ export type SessionUncheckedUpdateWithoutSeasonInput = {
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutSessionNestedInput
 }
 
 export type SessionUncheckedUpdateManyWithoutSeasonInput = {
@@ -961,12 +1070,14 @@ export type SessionCountOutputType = {
   registrations: number
   teams: number
   matches: number
+  comments: number
 }
 
 export type SessionCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   registrations?: boolean | SessionCountOutputTypeCountRegistrationsArgs
   teams?: boolean | SessionCountOutputTypeCountTeamsArgs
   matches?: boolean | SessionCountOutputTypeCountMatchesArgs
+  comments?: boolean | SessionCountOutputTypeCountCommentsArgs
 }
 
 /**
@@ -1000,6 +1111,13 @@ export type SessionCountOutputTypeCountMatchesArgs<ExtArgs extends runtime.Types
   where?: Prisma.MatchWhereInput
 }
 
+/**
+ * SessionCountOutputType without action
+ */
+export type SessionCountOutputTypeCountCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SessionCommentWhereInput
+}
+
 
 export type SessionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1014,6 +1132,7 @@ export type SessionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   registrations?: boolean | Prisma.Session$registrationsArgs<ExtArgs>
   teams?: boolean | Prisma.Session$teamsArgs<ExtArgs>
   matches?: boolean | Prisma.Session$matchesArgs<ExtArgs>
+  comments?: boolean | Prisma.Session$commentsArgs<ExtArgs>
   _count?: boolean | Prisma.SessionCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["session"]>
 
@@ -1058,6 +1177,7 @@ export type SessionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   registrations?: boolean | Prisma.Session$registrationsArgs<ExtArgs>
   teams?: boolean | Prisma.Session$teamsArgs<ExtArgs>
   matches?: boolean | Prisma.Session$matchesArgs<ExtArgs>
+  comments?: boolean | Prisma.Session$commentsArgs<ExtArgs>
   _count?: boolean | Prisma.SessionCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type SessionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1077,6 +1197,7 @@ export type $SessionPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     registrations: Prisma.$SessionRegistrationPayload<ExtArgs>[]
     teams: Prisma.$TeamPayload<ExtArgs>[]
     matches: Prisma.$MatchPayload<ExtArgs>[]
+    comments: Prisma.$SessionCommentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1485,6 +1606,7 @@ export interface Prisma__SessionClient<T, Null = never, ExtArgs extends runtime.
   registrations<T extends Prisma.Session$registrationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Session$registrationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SessionRegistrationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   teams<T extends Prisma.Session$teamsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Session$teamsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TeamPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   matches<T extends Prisma.Session$matchesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Session$matchesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MatchPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  comments<T extends Prisma.Session$commentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Session$commentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SessionCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1991,6 +2113,30 @@ export type Session$matchesArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.MatchScalarFieldEnum | Prisma.MatchScalarFieldEnum[]
+}
+
+/**
+ * Session.comments
+ */
+export type Session$commentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SessionComment
+   */
+  select?: Prisma.SessionCommentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SessionComment
+   */
+  omit?: Prisma.SessionCommentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SessionCommentInclude<ExtArgs> | null
+  where?: Prisma.SessionCommentWhereInput
+  orderBy?: Prisma.SessionCommentOrderByWithRelationInput | Prisma.SessionCommentOrderByWithRelationInput[]
+  cursor?: Prisma.SessionCommentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SessionCommentScalarFieldEnum | Prisma.SessionCommentScalarFieldEnum[]
 }
 
 /**

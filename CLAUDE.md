@@ -55,6 +55,7 @@ mv .env.local.bak .env.local
 Season (year, ACTIVE|COMPLETED)
   └── Session (date, SCHEDULED|IN_PROGRESS|COMPLETED|CANCELLED, maxPlayers=12)
         ├── SessionRegistration (status: REGISTERED|CANCELLED|MAYBE|PENDING|WAITLISTED)
+        ├── SessionComment (playerId, body, createdAt, updatedAt — per-session comment thread, any logged-in player)
         ├── Team → TeamPlayer → Player
         └── Match → Goal
 
@@ -131,6 +132,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 - Teams: `generateTeams`, `generateTeamsWithPins`, `addPlayerToTeam`, `movePlayer`, `createEmptyTeam`, `deleteTeam`
 - Matches: `createMatchesFromTeams`, `startMatch`, `endMatch`, `recordGoal`, `undoLastGoal`, `deleteGoal`, `reopenMatch`, `startNextRound`, `addRematch`, `addNewMatch`
 - Session lifecycle: `endSession`, `reopenSession`, `setMaxPlayers`
+- Comments: `addComment`, `editComment`, `deleteComment` — any logged-in active player posts; author edits/deletes own, organizer deletes any. Return-value error pattern. Rendered in `CommentsPanel` (session-client.tsx) across all session statuses.
 - Email: `getDefaultInvitation`, `sendInvitation`, `getSummaryEmailDefaults`, `sendSummaryEmail`, `getStatusUpdateDefaults`, `sendStatusUpdate`
 
 ### Schedule actions (`schedule/actions.ts`) — mixed

@@ -58,6 +58,7 @@ export const ModelName = {
   Season: 'Season',
   Session: 'Session',
   SessionRegistration: 'SessionRegistration',
+  SessionComment: 'SessionComment',
   Team: 'Team',
   TeamPlayer: 'TeamPlayer',
   Match: 'Match',
@@ -181,6 +182,18 @@ export const SessionRegistrationScalarFieldEnum = {
 } as const
 
 export type SessionRegistrationScalarFieldEnum = (typeof SessionRegistrationScalarFieldEnum)[keyof typeof SessionRegistrationScalarFieldEnum]
+
+
+export const SessionCommentScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  playerId: 'playerId',
+  body: 'body',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SessionCommentScalarFieldEnum = (typeof SessionCommentScalarFieldEnum)[keyof typeof SessionCommentScalarFieldEnum]
 
 
 export const TeamScalarFieldEnum = {

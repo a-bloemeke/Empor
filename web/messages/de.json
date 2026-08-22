@@ -274,6 +274,22 @@
     "toastWaitlisted": "Auf Warteliste gesetzt.",
     "toastRemovedFromWaitlist": "Von Warteliste entfernt."
   },
+  "sessionComments": {
+    "title": "Kommentare",
+    "placeholder": "Schreib etwas zu diesem Spieltag…",
+    "post": "Kommentieren",
+    "posting": "Wird gesendet…",
+    "edit": "Bearbeiten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "confirmDelete": "Kommentar wirklich löschen?",
+    "empty": "Noch keine Kommentare.",
+    "edited": "bearbeitet",
+    "posted": "Kommentar gespeichert.",
+    "updated": "Kommentar aktualisiert.",
+    "deleted": "Kommentar gelöscht."
+  },
   "leaderboard": {
     "title": "Rangliste",
     "subtitle": "Saison- und Gesamtranglisten.",
