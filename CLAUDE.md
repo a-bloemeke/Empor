@@ -139,6 +139,7 @@ All email functions guard on `SMTP_HOST` / `emailNotifications` — they silentl
 - `createSession(dateIso, maxPlayers?)` — default cap 12; throws if date falls within a `HallClosure`
 - `registerSelf`, `maybeSelf`, `cancelSelf`, `toggleBeer` — player self-service
 - `cancelSession`, `reopenCancelledSession`, `getCancelEmailDefaults`, `sendCancelEmail`
+- `deleteSession(sessionId)` — hard-delete a SCHEDULED/CANCELLED session (organizer only, return-value pattern); cascades goals/matches/teams/registrations/comments in a transaction. Blocks IN_PROGRESS/COMPLETED (stats/live game).
 
 ### AppConfig keys
 | Key | Values | Effect |
