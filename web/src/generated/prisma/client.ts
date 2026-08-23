@@ -77,6 +77,11 @@ export type Session = Prisma.SessionModel
  */
 export type SessionRegistration = Prisma.SessionRegistrationModel
 /**
+ * Model SessionComment
+ * 
+ */
+export type SessionComment = Prisma.SessionCommentModel
+/**
  * Model Team
  * 
  */

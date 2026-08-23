@@ -3,6 +3,7 @@
 import React, { useState, useTransition, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
+import { de } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -71,6 +72,9 @@ import {
   removeGuestAndPlayer,
   renameGuest,
   toggleBeerAdmin,
+  addComment,
+  editComment,
+  deleteComment,
 } from "./actions"
 import { registerSelf, maybeSelf, cancelSelf } from "@/app/(app)/schedule/actions"
 import type { PointsScope } from "@/lib/types"
@@ -107,6 +111,14 @@ type Match = {
   goals: Goal[]
 }
 type Team = { id: string; name: string; players: Player[] }
+type Comment = {
+  id: string
+  body: string
+  authorId: string
+  authorName: string
+  createdAt: string
+  updatedAt: string
+}
 type Registration = {
   playerId: string
   playerName: string
@@ -132,6 +144,7 @@ type SessionData = {
   matches: Match[]
   allPlayers: Player[]
   absentPlayers: { id: string; name: string }[]
+  comments: Comment[]
   myStatus: string | null
 }
 
@@ -2996,6 +3009,161 @@ export function SessionClient({
           )}
         </div>
       )}
+
+      <CommentsPanel session={session} currentUserId={currentUserId} isOrganizer={isOrganizer} />
     </div>
+  )
+}
+
+// ─── Comments ───────────────────────────────────────────────────────────────
+function CommentsPanel({
+  session,
+  currentUserId,
+  isOrganizer,
+}: {
+  session: SessionData
+  currentUserId: string
+  isOrganizer: boolean
+}) {
+  const t = useTranslations("sessionComments")
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [draft, setDraft] = useState("")
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState("")
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  function handleAdd() {
+    const body = draft.trim()
+    if (!body) return
+    startTransition(async () => {
+      try {
+        const res = await addComment(session.id, body)
+        if (res && "error" in res) { toast.error(res.error); return }
+        setDraft("")
+        toast.success(t("posted"))
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
+  function startEdit(c: Comment) {
+    setEditingId(c.id)
+    setEditDraft(c.body)
+  }
+
+  function handleSaveEdit(id: string) {
+    const body = editDraft.trim()
+    if (!body) return
+    setBusyId(id)
+    startTransition(async () => {
+      try {
+        const res = await editComment(id, body)
+        if (res && "error" in res) { toast.error(res.error); return }
+        setEditingId(null)
+        toast.success(t("updated"))
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setBusyId(null) }
+    })
+  }
+
+  function handleDelete(id: string) {
+    if (!window.confirm(t("confirmDelete"))) return
+    setBusyId(id)
+    startTransition(async () => {
+      try {
+        const res = await deleteComment(id)
+        if (res && "error" in res) { toast.error(res.error); return }
+        toast.success(t("deleted"))
+        router.refresh()
+      } catch (e) {
+        toast.error((e as Error).message)
+      } finally { setBusyId(null) }
+    })
+  }
+
+  const comments = session.comments
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{t("title")} {comments.length > 0 && <span className="text-muted-foreground font-normal">({comments.length})</span>}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Composer */}
+        <div className="space-y-2">
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t("placeholder")}
+            rows={3}
+            maxLength={2000}
+          />
+          <div className="flex justify-end">
+            <Button size="sm" disabled={pending || !draft.trim()} onClick={handleAdd}>
+              {pending ? t("posting") : t("post")}
+            </Button>
+          </div>
+        </div>
+
+        {/* List */}
+        {comments.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("empty")}</p>
+        ) : (
+          <ul className="space-y-3">
+            {comments.map((c) => {
+              const canEdit = c.authorId === currentUserId
+              const canDelete = canEdit || isOrganizer
+              const edited = c.updatedAt > c.createdAt
+              const isEditing = editingId === c.id
+              const rowBusy = busyId === c.id && pending
+              return (
+                <li key={c.id} className="flex gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                    {playerInitials(c.authorName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-semibold">{c.authorName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(c.createdAt), "d. MMM yyyy, HH:mm", { locale: de })}
+                        {edited && <span className="ml-1">({t("edited")})</span>}
+                      </span>
+                    </div>
+                    {isEditing ? (
+                      <div className="mt-1 space-y-2">
+                        <Textarea value={editDraft} onChange={(e) => setEditDraft(e.target.value)} rows={3} maxLength={2000} />
+                        <div className="flex gap-2">
+                          <Button size="sm" disabled={rowBusy || !editDraft.trim()} onClick={() => handleSaveEdit(c.id)}>{t("save")}</Button>
+                          <Button size="sm" variant="ghost" disabled={rowBusy} onClick={() => setEditingId(null)}>{t("cancel")}</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{c.body}</p>
+                        {(canEdit || canDelete) && (
+                          <div className="flex gap-3 mt-1">
+                            {canEdit && (
+                              <button className="text-xs text-muted-foreground hover:text-foreground" disabled={rowBusy} onClick={() => startEdit(c)}>{t("edit")}</button>
+                            )}
+                            {canDelete && (
+                              <button className="text-xs text-muted-foreground hover:text-destructive" disabled={rowBusy} onClick={() => handleDelete(c.id)}>{t("delete")}</button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }

@@ -391,6 +391,7 @@ export const ModelName = {
   Season: 'Season',
   Session: 'Session',
   SessionRegistration: 'SessionRegistration',
+  SessionComment: 'SessionComment',
   Team: 'Team',
   TeamPlayer: 'TeamPlayer',
   Match: 'Match',
@@ -418,7 +419,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "account" | "authSession" | "verificationToken" | "player" | "season" | "session" | "sessionRegistration" | "team" | "teamPlayer" | "match" | "goal" | "membershipFee" | "playerStats" | "playerStatsLifetime" | "appConfig" | "playerAbsence" | "invitationQuote" | "quoteCollection" | "hallClosure"
+    modelProps: "account" | "authSession" | "verificationToken" | "player" | "season" | "session" | "sessionRegistration" | "sessionComment" | "team" | "teamPlayer" | "match" | "goal" | "membershipFee" | "playerStats" | "playerStatsLifetime" | "appConfig" | "playerAbsence" | "invitationQuote" | "quoteCollection" | "hallClosure"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -937,6 +938,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.SessionRegistrationCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.SessionRegistrationCountAggregateOutputType> | number
+        }
+      }
+    }
+    SessionComment: {
+      payload: Prisma.$SessionCommentPayload<ExtArgs>
+      fields: Prisma.SessionCommentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SessionCommentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SessionCommentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>
+        }
+        findFirst: {
+          args: Prisma.SessionCommentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SessionCommentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>
+        }
+        findMany: {
+          args: Prisma.SessionCommentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>[]
+        }
+        create: {
+          args: Prisma.SessionCommentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>
+        }
+        createMany: {
+          args: Prisma.SessionCommentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SessionCommentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>[]
+        }
+        delete: {
+          args: Prisma.SessionCommentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>
+        }
+        update: {
+          args: Prisma.SessionCommentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>
+        }
+        deleteMany: {
+          args: Prisma.SessionCommentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SessionCommentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SessionCommentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>[]
+        }
+        upsert: {
+          args: Prisma.SessionCommentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SessionCommentPayload>
+        }
+        aggregate: {
+          args: Prisma.SessionCommentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSessionComment>
+        }
+        groupBy: {
+          args: Prisma.SessionCommentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SessionCommentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SessionCommentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SessionCommentCountAggregateOutputType> | number
         }
       }
     }
@@ -1962,6 +2037,18 @@ export const SessionRegistrationScalarFieldEnum = {
 export type SessionRegistrationScalarFieldEnum = (typeof SessionRegistrationScalarFieldEnum)[keyof typeof SessionRegistrationScalarFieldEnum]
 
 
+export const SessionCommentScalarFieldEnum = {
+  id: 'id',
+  sessionId: 'sessionId',
+  playerId: 'playerId',
+  body: 'body',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SessionCommentScalarFieldEnum = (typeof SessionCommentScalarFieldEnum)[keyof typeof SessionCommentScalarFieldEnum]
+
+
 export const TeamScalarFieldEnum = {
   id: 'id',
   sessionId: 'sessionId',
@@ -2407,6 +2494,7 @@ export type GlobalOmitConfig = {
   season?: Prisma.SeasonOmit
   session?: Prisma.SessionOmit
   sessionRegistration?: Prisma.SessionRegistrationOmit
+  sessionComment?: Prisma.SessionCommentOmit
   team?: Prisma.TeamOmit
   teamPlayer?: Prisma.TeamPlayerOmit
   match?: Prisma.MatchOmit

@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { createSession, cancelSession, registerSelf, cancelSelf, maybeSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
+import { createSession, cancelSession, deleteSession, registerSelf, cancelSelf, maybeSelf, toggleBeer, getCancelEmailDefaults, sendCancelEmail, reopenCancelledSession, revalidateSchedule, endSession } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { useTranslations } from "next-intl"
@@ -69,6 +69,54 @@ function MyStatusBadge({ status }: { status: string | null }) {
 // ─── Cancel Game Day Dialog ───────────────────────────────────────────────────
 
 type CancelPlayer = { id: string; name: string; email: string; emailNotifications: boolean }
+
+function DeleteGameDayDialog({
+  sessionId,
+  onDeleted,
+}: {
+  sessionId: string
+  onDeleted: () => void
+}) {
+  const t = useTranslations("schedule")
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+
+  function handleConfirm() {
+    startTransition(async () => {
+      try {
+        const res = await deleteSession(sessionId)
+        if (res && "error" in res) { toast.error(res.error); return }
+        toast.success(t("gameDayDeleted"))
+        setOpen(false)
+        onDeleted()
+      } catch (e) {
+        toast.error((e as Error).message)
+      }
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button variant="ghost" size="sm" className="text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40" />}>
+        {t("deleteGameDay")}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("deleteGameDayTitle")}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{t("deleteGameDayConfirm")}</p>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            {t("back")}
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={pending}>
+            {pending ? t("deleting") : t("confirmDelete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 function CancelGameDayDialog({
   sessionId,
@@ -531,6 +579,9 @@ export function ScheduleClient({
                               />
                             </span>
                           )}
+                          {isOrganizer && s.status === "SCHEDULED" && (
+                            <DeleteGameDayDialog sessionId={s.id} onDeleted={() => setActionId(null)} />
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -583,16 +634,22 @@ export function ScheduleClient({
                   {isOrganizer && (
                     <TableCell className="text-right">
                       {s.status === "CANCELLED" && (
-                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}
-                          className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                        >
-                          {busy ? "…" : t("reopenGameDay")}
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleReopen(s.id)}
+                            className="text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                          >
+                            {busy ? "…" : t("reopenGameDay")}
+                          </Button>
+                          <DeleteGameDayDialog sessionId={s.id} onDeleted={() => setActionId(null)} />
+                        </div>
                       )}
                       {s.status === "SCHEDULED" && (
-                        <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
-                          <CancelGameDayDialog sessionId={s.id} onCancelled={() => setActionId(null)} />
-                        </span>
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="rounded border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-1 py-0.5">
+                            <CancelGameDayDialog sessionId={s.id} onCancelled={() => setActionId(null)} />
+                          </span>
+                          <DeleteGameDayDialog sessionId={s.id} onDeleted={() => setActionId(null)} />
+                        </div>
                       )}
                       {s.status === "IN_PROGRESS" && (
                         <div className="flex items-center justify-end gap-1">

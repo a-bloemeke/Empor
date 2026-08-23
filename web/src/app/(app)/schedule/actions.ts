@@ -160,6 +160,32 @@ export async function reopenCancelledSession(sessionId: string) {
   revalidatePath("/schedule")
 }
 
+export async function deleteSession(sessionId: string): Promise<{ error: string } | { ok: true }> {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
+
+  const s = await db.session.findUnique({ where: { id: sessionId }, select: { status: true } })
+  if (!s) return { error: "Spieltag nicht gefunden." }
+  if (s.status === "IN_PROGRESS" || s.status === "COMPLETED") {
+    return { error: "Laufende oder abgeschlossene Spieltage können nicht gelöscht werden. Sag den Spieltag stattdessen ab." }
+  }
+
+  // Hard delete: remove all dependent rows (no cascade in schema except comments) then the session.
+  await db.$transaction(async (tx) => {
+    const teamIds = (await tx.team.findMany({ where: { sessionId }, select: { id: true } })).map((t) => t.id)
+    await tx.goal.deleteMany({ where: { match: { sessionId } } })
+    await tx.match.deleteMany({ where: { sessionId } })
+    if (teamIds.length) await tx.teamPlayer.deleteMany({ where: { teamId: { in: teamIds } } })
+    await tx.team.deleteMany({ where: { sessionId } })
+    await tx.sessionRegistration.deleteMany({ where: { sessionId } })
+    await tx.sessionComment.deleteMany({ where: { sessionId } })
+    await tx.session.delete({ where: { id: sessionId } })
+  })
+
+  revalidatePath("/schedule")
+  return { ok: true }
+}
+
 export async function registerSelf(sessionId: string) {
   const authSession = await auth()
   if (!authSession?.user?.id) throw new Error("Unauthorized")
