@@ -604,8 +604,8 @@ function RegistrationPanel({
           </div>
         )}
 
-        {/* Self-RSVP row — visible for players when session is open and not in the past */}
-        {isPlayer && !isPast && (
+        {/* Self-RSVP row — visible for players when session is still scheduled */}
+        {isPlayer && isScheduled && (
           <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
             <span className="text-sm font-medium shrink-0">{t("myRegistration")}</span>
             {myStatus === "REGISTERED" && (
@@ -1665,7 +1665,7 @@ function SendSummaryDialog({ sessionId }: { sessionId: string }) {
   )
 }
 
-function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrganizer: boolean }) {
+function SessionSummary({ session, isOrganizer, onToggleBeer }: { session: SessionData; isOrganizer: boolean; onToggleBeer?: (playerId: string) => void }) {
   const t = useTranslations("session")
   const { teamRefs, matchRefs } = useMemo(
     () => buildClientMatchRefs(session.teams, session.matches),
@@ -1758,12 +1758,31 @@ function SessionSummary({ session, isOrganizer }: { session: SessionData; isOrga
             </TableBody>
           </Table>
         </div>
-        {beerBringerName && (
+        {onToggleBeer ? (
+          <div className="space-y-1">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">🍺 Bier</div>
+            <div className="flex flex-wrap gap-1.5">
+              {session.registrations.filter(r => r.status === "REGISTERED").map(r => (
+                <button
+                  key={r.playerId}
+                  className={`text-xs px-2.5 py-1 rounded border transition-colors ${r.beerBringer
+                    ? "border-amber-400 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 font-semibold"
+                    : "border-border text-muted-foreground hover:border-amber-300 hover:text-amber-700"
+                  }`}
+                  title={r.beerBringer ? "Bier entfernen" : "Bier zuweisen"}
+                  onClick={() => onToggleBeer(r.playerId)}
+                >
+                  {r.beerBringer ? "🍺 " : ""}{r.playerName}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : beerBringerName ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
             <span>🍺</span>
             <span>{t("beerBroughtBy", { name: beerBringerName })}</span>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -2632,6 +2651,13 @@ export function SessionClient({
     : []
   const roundComplete = roundMatches.length > 0 && roundMatches.every((m) => m.status === "COMPLETED")
 
+  function handleToggleBeer(playerId: string) {
+    startTransition(async () => {
+      try { await toggleBeerAdmin(session.id, playerId); router.refresh() }
+      catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
   function handleStartMatch(matchId: string) {
     startTransition(async () => {
       try { await startMatch(matchId); router.refresh() }
@@ -2850,6 +2876,34 @@ export function SessionClient({
             </div>
           </details>
 
+          {/* Registered players / beer toggle — organizer only */}
+          {isOrganizer && (
+            <details className="group">
+              <summary className="cursor-pointer list-none">
+                <SectionHeader title={`Spieler (${session.registrations.filter(r => r.status === "REGISTERED").length})`} collapsible />
+              </summary>
+              <div className="mt-3">
+                <table className="w-full text-sm border-collapse">
+                  <tbody>
+                    {session.registrations.filter(r => r.status === "REGISTERED").map((r, i) => (
+                      <tr key={r.playerId} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                        <td className="py-1 px-2">{r.playerName}</td>
+                        <td className="py-1 px-2 text-right">
+                          <button
+                            className={`text-sm ${r.beerBringer ? "opacity-100" : "opacity-30 hover:opacity-70"}`}
+                            title={r.beerBringer ? "Bier entfernen" : "Bier mitbringen"}
+                            disabled={pending}
+                            onClick={() => handleToggleBeer(r.playerId)}
+                          >🍺</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+
           {/* Completed matches */}
           {completedMatches.length > 0 && (
             <div className="space-y-3">
@@ -2991,7 +3045,7 @@ export function SessionClient({
             </div>
           )}
 
-          <SessionSummary session={session} isOrganizer={isOrganizer} />
+          <SessionSummary session={session} isOrganizer={isOrganizer} onToggleBeer={isOrganizer ? handleToggleBeer : undefined} />
 
           <details className="group">
             <summary className="cursor-pointer list-none">
