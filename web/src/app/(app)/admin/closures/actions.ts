@@ -3,8 +3,37 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { sendHallClosureConflictEmail } from "@/lib/email"
 
-export async function createHallClosure(startDate: string, endDate: string, reason?: string) {
+async function checkAndNotifyConflicts(
+  start: Date,
+  end: Date,
+  reason: string | null | undefined,
+  excludeClosureId?: string,
+) {
+  const conflicts = await db.session.findMany({
+    where: { status: "SCHEDULED", date: { gte: start, lte: end } },
+    select: { id: true, date: true },
+    orderBy: { date: "asc" },
+  })
+
+  if (conflicts.length > 0) {
+    const organizers = await db.player.findMany({
+      where: { role: "ORGANIZER", active: true, passwordHash: { not: null } },
+      select: { email: true },
+    })
+    const emails = organizers.map((o) => o.email).filter(Boolean) as string[]
+    await sendHallClosureConflictEmail({ startDate: start, endDate: end, reason }, conflicts, emails)
+  }
+
+  return conflicts.map((s) => s.date.toISOString())
+}
+
+export async function createHallClosure(
+  startDate: string,
+  endDate: string,
+  reason?: string,
+): Promise<{ conflictDates: string[] }> {
   const session = await auth()
   if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
@@ -17,11 +46,19 @@ export async function createHallClosure(startDate: string, endDate: string, reas
     data: { startDate: start, endDate: end, reason: reason?.trim() || null },
   })
 
+  const conflictDates = await checkAndNotifyConflicts(start, end, reason?.trim() || null)
+
   revalidatePath("/admin/closures")
   revalidatePath("/schedule")
+  return { conflictDates }
 }
 
-export async function updateHallClosure(id: string, startDate: string, endDate: string, reason?: string) {
+export async function updateHallClosure(
+  id: string,
+  startDate: string,
+  endDate: string,
+  reason?: string,
+): Promise<{ conflictDates: string[] }> {
   const session = await auth()
   if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
@@ -35,8 +72,11 @@ export async function updateHallClosure(id: string, startDate: string, endDate: 
     data: { startDate: start, endDate: end, reason: reason?.trim() || null },
   })
 
+  const conflictDates = await checkAndNotifyConflicts(start, end, reason?.trim() || null, id)
+
   revalidatePath("/admin/closures")
   revalidatePath("/schedule")
+  return { conflictDates }
 }
 
 export async function deleteHallClosure(id: string) {

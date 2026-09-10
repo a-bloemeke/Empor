@@ -33,14 +33,30 @@ type HallClosure = {
   reason: string | null
 }
 
+type ScheduledSession = {
+  id: string
+  date: string
+}
+
 function toDateInput(iso: string) {
   return new Date(iso).toISOString().slice(0, 10)
 }
 
+function conflictsForClosure(closure: HallClosure, sessions: ScheduledSession[]): ScheduledSession[] {
+  const start = new Date(closure.startDate).getTime()
+  const end = new Date(closure.endDate).getTime()
+  return sessions.filter((s) => {
+    const d = new Date(s.date).getTime()
+    return d >= start && d <= end
+  })
+}
+
 function ClosureFormDialog({
   closure,
+  sessions,
 }: {
   closure?: HallClosure
+  sessions: ScheduledSession[]
 }) {
   const isEdit = !!closure
   const [open, setOpen] = useState(false)
@@ -62,12 +78,20 @@ function ClosureFormDialog({
     if (!startDate || !endDate) { toast.error("Bitte Start- und Enddatum angeben."); return }
     startTransition(async () => {
       try {
-        if (isEdit) {
-          await updateHallClosure(closure.id, startDate, endDate, reason || undefined)
-          toast.success("Sperrung aktualisiert.")
+        const result = isEdit
+          ? await updateHallClosure(closure.id, startDate, endDate, reason || undefined)
+          : await createHallClosure(startDate, endDate, reason || undefined)
+
+        if (result.conflictDates.length > 0) {
+          const dateList = result.conflictDates
+            .map((d) => format(new Date(d), "d. MMM yyyy", { locale: de }))
+            .join(", ")
+          toast.warning(
+            `Sperrung gespeichert – ${result.conflictDates.length} bereits geplanter Spieltag${result.conflictDates.length > 1 ? "e fallen" : " fällt"} in diesen Zeitraum: ${dateList}`,
+            { duration: 8000 },
+          )
         } else {
-          await createHallClosure(startDate, endDate, reason || undefined)
-          toast.success("Sperrung gespeichert.")
+          toast.success(isEdit ? "Sperrung aktualisiert." : "Sperrung gespeichert.")
         }
         setOpen(false)
       } catch (e) {
@@ -119,6 +143,28 @@ function ClosureFormDialog({
               onChange={(e) => setReason(e.target.value)}
             />
           </div>
+          {/* Preview: show conflicting sessions for current input */}
+          {startDate && endDate && (() => {
+            const preview: ScheduledSession[] = sessions.filter((s) => {
+              const d = new Date(s.date).getTime()
+              const st = new Date(startDate + "T00:00:00.000Z").getTime()
+              const en = new Date(endDate + "T00:00:00.000Z").getTime()
+              return d >= st && d <= en
+            })
+            if (preview.length === 0) return null
+            return (
+              <div className="rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30 px-3 py-2 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-orange-700 dark:text-orange-400 mb-1">
+                  ⚠️ {preview.length} geplanter Spieltag{preview.length > 1 ? "e betroffen" : " betroffen"}
+                </p>
+                <ul className="space-y-0.5 text-orange-800 dark:text-orange-300">
+                  {preview.map((s) => (
+                    <li key={s.id}>{format(new Date(s.date), "EEEE, d. MMM yyyy", { locale: de })}</li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })()}
         </div>
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={pending}>
@@ -130,7 +176,13 @@ function ClosureFormDialog({
   )
 }
 
-export function ClosuresClient({ closures }: { closures: HallClosure[] }) {
+export function ClosuresClient({
+  closures,
+  sessions,
+}: {
+  closures: HallClosure[]
+  sessions: ScheduledSession[]
+}) {
   const [pending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -158,7 +210,7 @@ export function ClosuresClient({ closures }: { closures: HallClosure[] }) {
             Zeiträume verwalten, in denen die Halle nicht verfügbar ist. Spieltage können nicht auf gesperrte Tage gelegt werden.
           </p>
         </div>
-        <ClosureFormDialog />
+        <ClosureFormDialog sessions={sessions} />
       </div>
 
       <Card>
@@ -172,31 +224,55 @@ export function ClosuresClient({ closures }: { closures: HallClosure[] }) {
                   <TableHead>Von</TableHead>
                   <TableHead>Bis</TableHead>
                   <TableHead>Grund</TableHead>
+                  <TableHead>Konflikte</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {closures.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>{format(new Date(c.startDate), "d. MMM yyyy", { locale: de })}</TableCell>
-                    <TableCell>{format(new Date(c.endDate), "d. MMM yyyy", { locale: de })}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.reason ?? "—"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <ClosureFormDialog closure={c} />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          disabled={pending && deletingId === c.id}
-                          onClick={() => handleDelete(c.id)}
-                        >
-                          {pending && deletingId === c.id ? "…" : "Löschen"}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {closures.map((c) => {
+                  const conflicts = conflictsForClosure(c, sessions)
+                  const hasConflict = conflicts.length > 0
+                  return (
+                    <TableRow
+                      key={c.id}
+                      className={hasConflict ? "bg-orange-50 dark:bg-orange-950/20" : ""}
+                    >
+                      <TableCell className={hasConflict ? "text-orange-800 dark:text-orange-300 font-medium" : ""}>
+                        {format(new Date(c.startDate), "d. MMM yyyy", { locale: de })}
+                      </TableCell>
+                      <TableCell className={hasConflict ? "text-orange-800 dark:text-orange-300 font-medium" : ""}>
+                        {format(new Date(c.endDate), "d. MMM yyyy", { locale: de })}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{c.reason ?? "—"}</TableCell>
+                      <TableCell>
+                        {hasConflict ? (
+                          <span
+                            className="text-xs font-semibold text-orange-700 dark:text-orange-400"
+                            title={conflicts.map((s) => format(new Date(s.date), "d. MMM yyyy", { locale: de })).join(", ")}
+                          >
+                            ⚠️ {conflicts.length} Spieltag{conflicts.length > 1 ? "e" : ""}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <ClosureFormDialog closure={c} sessions={sessions} />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            disabled={pending && deletingId === c.id}
+                            onClick={() => handleDelete(c.id)}
+                          >
+                            {pending && deletingId === c.id ? "…" : "Löschen"}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

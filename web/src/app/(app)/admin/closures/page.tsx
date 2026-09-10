@@ -7,9 +7,14 @@ export default async function ClosuresPage() {
   const session = await auth()
   if (session?.user?.role !== "ORGANIZER") redirect("/schedule")
 
-  const closures = await db.hallClosure.findMany({
-    orderBy: { startDate: "asc" },
-  })
+  const [closures, sessions] = await Promise.all([
+    db.hallClosure.findMany({ orderBy: { startDate: "asc" } }),
+    db.session.findMany({
+      where: { status: "SCHEDULED" },
+      select: { id: true, date: true },
+      orderBy: { date: "asc" },
+    }),
+  ])
 
   return (
     <ClosuresClient
@@ -18,6 +23,10 @@ export default async function ClosuresPage() {
         startDate: c.startDate.toISOString(),
         endDate: c.endDate.toISOString(),
         reason: c.reason,
+      }))}
+      sessions={sessions.map((s) => ({
+        id: s.id,
+        date: s.date.toISOString(),
       }))}
     />
   )

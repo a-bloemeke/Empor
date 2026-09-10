@@ -1534,6 +1534,18 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
               <Label htmlFor="su-subject">Betreff</Label>
               <Input id="su-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
             </div>
+
+            {/* Body */}
+            <div className="space-y-1.5">
+              <Label htmlFor="su-body">E-Mail-Text</Label>
+              <textarea
+                id="su-body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={8}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
         )}
         <DialogFooter>
