@@ -98,6 +98,43 @@ export type ExportLifetimeStat = {
   beers: number
 }
 
+export type ExportSessionComment = {
+  sessionDate: string
+  playerEmail: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type ExportHallClosure = {
+  startDate: string
+  endDate: string
+  reason: string | null
+}
+
+export type ExportPlayerAbsence = {
+  playerEmail: string
+  startDate: string
+  endDate: string
+  reason: string | null
+}
+
+export type ExportAppConfig = {
+  key: string
+  value: string
+}
+
+export type ExportQuoteCollectionItem = {
+  quote: string
+  author: string
+}
+
+export type ExportInvitationQuote = {
+  quote: string
+  author: string
+  usedAt: string
+}
+
 export type ExportBundle = {
   exportedAt: string
   version: number
@@ -112,7 +149,13 @@ export type ExportBundle = {
   goals: ExportGoal[]
   fees: ExportFee[]
   seasonStats: ExportSeasonStat[]
-  lifetimeStats?: ExportLifetimeStat[]   // only in full export
+  lifetimeStats?: ExportLifetimeStat[]          // only in full export
+  comments?: ExportSessionComment[]
+  hallClosures?: ExportHallClosure[]            // only in full export
+  playerAbsences?: ExportPlayerAbsence[]        // only in full export
+  appConfig?: ExportAppConfig[]                 // only in full export
+  quoteCollection?: ExportQuoteCollectionItem[] // only in full export
+  invitationQuotes?: ExportInvitationQuote[]    // only in full export
 }
 
 // ─── Filter a full bundle down to a single season ────────────────────────────
@@ -143,7 +186,8 @@ export function filterBundleToSeason(data: ExportBundle, year: number): ExportBu
     goals:         data.goals.filter((g) => sessionDates.has(g.sessionDate)),
     fees:          data.fees.filter((f) => Number(f.year) === year),
     seasonStats:   data.seasonStats.filter((s) => Number(s.seasonYear) === year),
-    // lifetime stats intentionally omitted — season import never touches them
+    comments:      (data.comments ?? []).filter((c) => sessionDates.has(c.sessionDate)),
+    // lifetime stats and global tables intentionally omitted from season scope
   }
 }
 
@@ -164,6 +208,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
       teams: { include: { players: true } },
       matches: { include: { goals: true } },
       registrations: true,
+      comments: true,
     },
     orderBy: { date: "asc" },
   })
@@ -179,6 +224,11 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
   const seasonStatsWhere = seasonId ? { seasonId } : {}
   const seasonStats = await db.playerStats.findMany({ where: seasonStatsWhere })
   const lifetimeStats = seasonId ? null : await db.playerStatsLifetime.findMany()
+  const hallClosures = seasonId ? null : await db.hallClosure.findMany({ orderBy: { startDate: "asc" } })
+  const playerAbsences = seasonId ? null : await db.playerAbsence.findMany({ orderBy: { startDate: "asc" } })
+  const appConfig = seasonId ? null : await db.appConfig.findMany()
+  const quoteCollection = seasonId ? null : await db.quoteCollection.findMany()
+  const invitationQuotes = seasonId ? null : await db.invitationQuote.findMany({ orderBy: { usedAt: "asc" } })
 
   // ── transform ──
 
@@ -290,6 +340,45 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     beers: s.beers,
   }))
 
+  const exportComments: ExportSessionComment[] = sessions.flatMap((s) =>
+    s.comments.map((c) => ({
+      sessionDate: s.date.toISOString(),
+      playerEmail: emailById.get(c.playerId) ?? "",
+      body: c.body,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+    }))
+  )
+
+  const exportHallClosures: ExportHallClosure[] | undefined = hallClosures?.map((h) => ({
+    startDate: h.startDate.toISOString(),
+    endDate: h.endDate.toISOString(),
+    reason: h.reason ?? null,
+  }))
+
+  const exportPlayerAbsences: ExportPlayerAbsence[] | undefined = playerAbsences?.map((a) => ({
+    playerEmail: emailById.get(a.playerId) ?? "",
+    startDate: a.startDate.toISOString(),
+    endDate: a.endDate.toISOString(),
+    reason: a.reason ?? null,
+  }))
+
+  const exportAppConfig: ExportAppConfig[] | undefined = appConfig?.map((c) => ({
+    key: c.key,
+    value: c.value,
+  }))
+
+  const exportQuoteCollection: ExportQuoteCollectionItem[] | undefined = quoteCollection?.map((q) => ({
+    quote: q.quote,
+    author: q.author,
+  }))
+
+  const exportInvitationQuotes: ExportInvitationQuote[] | undefined = invitationQuotes?.map((q) => ({
+    quote: q.quote,
+    author: q.author,
+    usedAt: q.usedAt.toISOString(),
+  }))
+
   const targetSeason = seasonId ? seasons.find((s) => s.id === seasonId) : undefined
 
   return {
@@ -306,7 +395,13 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     goals: exportGoals,
     fees: exportFees,
     seasonStats: exportSeasonStats,
+    comments: exportComments,
     ...(exportLifetimeStats ? { lifetimeStats: exportLifetimeStats } : {}),
+    ...(exportHallClosures ? { hallClosures: exportHallClosures } : {}),
+    ...(exportPlayerAbsences ? { playerAbsences: exportPlayerAbsences } : {}),
+    ...(exportAppConfig ? { appConfig: exportAppConfig } : {}),
+    ...(exportQuoteCollection ? { quoteCollection: exportQuoteCollection } : {}),
+    ...(exportInvitationQuotes ? { invitationQuotes: exportInvitationQuotes } : {}),
   }
 }
 
@@ -326,8 +421,13 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
     await db.teamPlayer.deleteMany()
     await db.team.deleteMany()
     await db.sessionRegistration.deleteMany()
-    await db.session.deleteMany()
+    await db.session.deleteMany()   // cascades SessionComment
     await db.season.deleteMany()
+    await db.hallClosure.deleteMany()
+    await db.playerAbsence.deleteMany()
+    await db.appConfig.deleteMany()
+    await db.quoteCollection.deleteMany()
+    await db.invitationQuote.deleteMany()
   } else {
     const existingSeason = await db.season.findUnique({ where: { year: Number(data.seasonYear!) } })
     if (existingSeason) {
@@ -384,6 +484,7 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
 
   // Sessions: upsert by date (merge skips existing, replace always creates fresh after wipe)
   const sessionIdByDate = new Map<string, string>()
+  const newSessionDates = new Set<string>()
   for (const s of data.sessions ?? []) {
     const seasonId = seasonIdByYear.get(Number(s.seasonYear))!
     const organizerId = playerIdByEmail.get(s.organizerEmail)!
@@ -396,6 +497,7 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
       data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId, maxPlayers: s.maxPlayers != null ? Number(s.maxPlayers) : 12 },
     })
     sessionIdByDate.set(s.date, row.id)
+    newSessionDates.add(s.date)
   }
 
   // Registrations: skip duplicates in both modes (safe to always use skipDuplicates)
@@ -518,6 +620,50 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
         where: { playerId },
         create: { playerId, ...vals },
         update: vals,
+      })
+    }
+  }
+
+  // Session comments — in merge mode only add comments for newly created sessions
+  const commentData = (data.comments ?? []).flatMap((c) => {
+    if (mode === "merge" && !newSessionDates.has(c.sessionDate)) return []
+    const sessionId = sessionIdByDate.get(c.sessionDate)
+    const playerId = playerIdByEmail.get(c.playerEmail)
+    if (!sessionId || !playerId) return []
+    return [{ sessionId, playerId, body: c.body, createdAt: new Date(c.createdAt), updatedAt: new Date(c.updatedAt) }]
+  })
+  if (commentData.length) await db.sessionComment.createMany({ data: commentData })
+
+  // Global tables — only restored in replace mode (merge leaves them untouched)
+  if (mode === "replace") {
+    if ((data.hallClosures ?? []).length) {
+      await db.hallClosure.createMany({
+        data: (data.hallClosures ?? []).map((h) => ({
+          startDate: new Date(h.startDate), endDate: new Date(h.endDate), reason: h.reason ?? null,
+        })),
+      })
+    }
+    if ((data.playerAbsences ?? []).length) {
+      const absenceData = (data.playerAbsences ?? []).flatMap((a) => {
+        const playerId = playerIdByEmail.get(a.playerEmail)
+        if (!playerId) return []
+        return [{ playerId, startDate: new Date(a.startDate), endDate: new Date(a.endDate), reason: a.reason ?? null }]
+      })
+      if (absenceData.length) await db.playerAbsence.createMany({ data: absenceData })
+    }
+    if ((data.appConfig ?? []).length) {
+      for (const c of data.appConfig ?? []) {
+        await db.appConfig.upsert({ where: { key: c.key }, update: { value: c.value }, create: { key: c.key, value: c.value } })
+      }
+    }
+    if ((data.quoteCollection ?? []).length) {
+      await db.quoteCollection.createMany({
+        data: (data.quoteCollection ?? []).map((q) => ({ quote: q.quote, author: q.author })),
+      })
+    }
+    if ((data.invitationQuotes ?? []).length) {
+      await db.invitationQuote.createMany({
+        data: (data.invitationQuotes ?? []).map((q) => ({ quote: q.quote, author: q.author, usedAt: new Date(q.usedAt) })),
       })
     }
   }

@@ -11,6 +11,20 @@ To release to production: merge `dev` → `main` and push. Then run pending DB m
 
 ---
 
+## Export / Import maintenance rule
+
+**Whenever a new Prisma model is added or an existing model gains new fields, update `web/src/lib/export-data.ts` in the same commit:**
+1. Add an `Export*` type for the new shape.
+2. Add the field to `ExportBundle` (optional `?` for backward compat).
+3. Update `filterBundleToSeason` — season-scoped models filter by `sessionDate`; global models pass through or are omitted from season scope.
+4. Update `buildExport` — fetch and serialize the new data.
+5. Update `importBundle` wipe phase — delete the table in replace mode (full scope).
+6. Update `importBundle` restore phase — insert/upsert the new data.
+
+Failure to do this means prod backups silently omit the new data.
+
+---
+
 ## Databases (Neon PostgreSQL, eu-central-1)
 
 | File | DB branch | Used by |
