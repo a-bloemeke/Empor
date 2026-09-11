@@ -458,3 +458,40 @@ export async function sendWaitlistPromotion(
   const transporter = createTransport()
   await transporter.sendMail({ from, to: player.email, subject, text, html })
 }
+
+export async function sendHallClosureConflictEmail(
+  closure: { startDate: Date; endDate: Date; reason?: string | null },
+  conflicts: { id: string; date: Date }[],
+  organizerEmails: string[],
+) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) return
+  if (organizerEmails.length === 0 || conflicts.length === 0) return
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+
+  const startStr = format(closure.startDate, "d. MMMM yyyy", { locale: de })
+  const endStr = format(closure.endDate, "d. MMMM yyyy", { locale: de })
+  const periodStr = startStr === endStr ? startStr : `${startStr} – ${endStr}`
+  const reasonStr = closure.reason ? ` (${closure.reason})` : ""
+
+  const conflictList = conflicts
+    .map((s) => `• ${format(s.date, "EEEE, d. MMMM yyyy", { locale: de })}`)
+    .join("\n")
+
+  const n = conflicts.length
+  const subject = `⚠️ Hallensperrung: ${n} Spieltag${n > 1 ? "e betroffen" : " betroffen"}`
+  const text = `Hallensperrung ${periodStr}${reasonStr} wurde gespeichert.
+
+Folgende bereits geplante Spieltage fallen in diesen Zeitraum:
+
+${conflictList}
+
+Bitte prüfe, ob diese Spieltage abgesagt werden müssen.
+
+${appUrl}/schedule`
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: organizerEmails, subject, text })
+}
