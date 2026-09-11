@@ -393,7 +393,7 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
       if (existing) { sessionIdByDate.set(s.date, existing.id); continue }
     }
     const row = await db.session.create({
-      data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId, maxPlayers: s.maxPlayers ?? 12 },
+      data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId, maxPlayers: s.maxPlayers != null ? Number(s.maxPlayers) : 12 },
     })
     sessionIdByDate.set(s.date, row.id)
   }
