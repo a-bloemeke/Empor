@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 })
   }
 
+  const mode = (req.nextUrl.searchParams.get("mode") === "merge" ? "merge" : "replace") as "replace" | "merge"
   const seasonYear = req.nextUrl.searchParams.get("season")
   if (seasonYear) {
     try {
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await importBundle(data)
+    await importBundle(data, mode)
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 })
   }

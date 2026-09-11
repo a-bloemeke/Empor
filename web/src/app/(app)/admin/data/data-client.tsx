@@ -209,10 +209,12 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
       const params = new URLSearchParams()
       if (importScope !== "all") params.set("season", importScope)
       params.set("mode", importMode)
-      const url = `/api/admin/import-xlsx?${params}`
+      const isJson = file.name.endsWith(".json")
+      const url = `${isJson ? "/api/admin/import" : "/api/admin/import-xlsx"}?${params}`
       const res = await fetch(url, {
         method: "POST",
-        body: await file.arrayBuffer(),
+        headers: isJson ? { "Content-Type": "application/json" } : undefined,
+        body: isJson ? await file.text() : await file.arrayBuffer(),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? "Import fehlgeschlagen.")
@@ -235,12 +237,12 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
   return (
     <>
       <Button variant="outline" className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={openDialog}>
-        <UploadIcon className="size-4" /> Excel importieren
+        <UploadIcon className="size-4" /> Importieren
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!importing) setOpen(o) }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Aus Excel importieren</DialogTitle>
+            <DialogTitle>Daten importieren</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {/* Mode */}
@@ -295,10 +297,10 @@ function ExcelImportDialog({ seasons }: { seasons: Season[] }) {
             </div>
             {/* File picker */}
             <div className="space-y-1.5">
-              <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange} />
+              <input ref={fileRef} type="file" accept=".xlsx,.json" className="hidden" onChange={handleFileChange} />
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-                  Excel-Datei wählen
+                  Datei wählen (.xlsx / .json)
                 </Button>
                 {file
                   ? <span className="text-sm text-muted-foreground truncate max-w-[220px]">{file.name}</span>
