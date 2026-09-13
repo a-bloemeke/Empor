@@ -33,6 +33,7 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
   const navLinks = [
     { href: "/schedule", label: t("schedule") },
     { href: "/leaderboard", label: t("leaderboard") },
+    { href: "/stats", label: t("stats") },
     ...(isOrganizer ? [{ href: "/admin/seasons", label: t("admin") }] : []),
   ]
 

@@ -370,11 +370,11 @@ function GoalDrawer({
               </div>
             </div>
           </div>
-          <div className="mt-6 flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>{t("cancel")}</Button>
-            <Button className="flex-1" onClick={handleRecord} disabled={pending || !scorerId}>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button className="w-full py-4 text-base" onClick={handleRecord} disabled={pending || !scorerId}>
               {pending ? t("saving") : t("recordGoal")}
             </Button>
+            <Button variant="ghost" className="w-full" onClick={() => onOpenChange(false)} disabled={pending}>{t("cancel")}</Button>
           </div>
         </Drawer.Popup>
       </Drawer.Portal>
@@ -494,16 +494,18 @@ function EditGoalDrawer({
               </div>
             </div>
           </div>
-          <div className="mt-6 flex gap-3">
-            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleDelete} disabled={pending}>
-              {t("remove")}
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
-              {t("cancel")}
-            </Button>
-            <Button className="flex-1" onClick={handleSave} disabled={pending || !scorerId}>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button className="w-full py-4 text-base" onClick={handleSave} disabled={pending || !scorerId}>
               {pending ? t("saving") : t("save")}
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 text-destructive hover:text-destructive" onClick={handleDelete} disabled={pending}>
+                {t("remove")}
+              </Button>
+              <Button variant="ghost" className="flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
+                {t("cancel")}
+              </Button>
+            </div>
           </div>
         </Drawer.Popup>
       </Drawer.Portal>
