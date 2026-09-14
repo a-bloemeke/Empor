@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { computeAndSaveStats } from "@/lib/stats"
+import { computeAndSaveStats, rebuildBeerStatsForPlayers } from "@/lib/stats"
 import type { PointsScope } from "@/lib/types"
 import { nextTeamNames, optimalPartition2, computePlayerDeltas } from "@/lib/game-logic"
 import type { TeamRef, MatchRef } from "@/lib/game-logic"
@@ -689,10 +689,11 @@ export async function reopenSession(sessionId: string) {
   const allPlayerIds = new Set<string>()
   for (const team of session.teams) for (const tp of team.players) allPlayerIds.add(tp.playerId)
 
-  const beerReg = await db.sessionRegistration.findFirst({
+  const beerRegs = await db.sessionRegistration.findMany({
     where: { sessionId, beerBringer: true },
     select: { playerId: true },
   })
+  const beerN = beerRegs.length
 
   await db.$transaction(async (tx) => {
     // Reverse stats for each player who participated
@@ -730,15 +731,18 @@ export async function reopenSession(sessionId: string) {
 
     await tx.session.update({ where: { id: sessionId }, data: { status: "IN_PROGRESS" } })
 
-    if (beerReg) {
-      await tx.playerStats.updateMany({
-        where: { playerId: beerReg.playerId, seasonId: session.seasonId },
-        data: { beers: { decrement: 1 } },
-      })
-      await tx.playerStatsLifetime.updateMany({
-        where: { playerId: beerReg.playerId },
-        data: { beers: { decrement: 1 } },
-      })
+    if (beerN > 0) {
+      const beerCredit = 1 / beerN
+      for (const { playerId: beerPlayerId } of beerRegs) {
+        await tx.playerStats.updateMany({
+          where: { playerId: beerPlayerId, seasonId: session.seasonId },
+          data: { beers: { decrement: beerCredit } },
+        })
+        await tx.playerStatsLifetime.updateMany({
+          where: { playerId: beerPlayerId },
+          data: { beers: { decrement: beerCredit } },
+        })
+      }
     }
   })
 
@@ -1684,10 +1688,25 @@ export async function toggleBeerAdmin(sessionId: string, playerId: string) {
   })
   if (!reg || reg.status !== "REGISTERED") throw new Error("Spieler ist nicht angemeldet.")
 
+  const oldBringers = await db.sessionRegistration.findMany({
+    where: { sessionId, beerBringer: true, status: "REGISTERED" },
+    select: { playerId: true },
+  })
+
   await db.sessionRegistration.update({
     where: { id: reg.id },
     data: { beerBringer: !reg.beerBringer },
   })
+
+  const session = await db.session.findUnique({ where: { id: sessionId }, select: { status: true } })
+  if (session?.status === "COMPLETED") {
+    const newBringers = await db.sessionRegistration.findMany({
+      where: { sessionId, beerBringer: true, status: "REGISTERED" },
+      select: { playerId: true },
+    })
+    const affectedIds = [...new Set([...oldBringers.map((b) => b.playerId), ...newBringers.map((b) => b.playerId)])]
+    if (affectedIds.length > 0) await rebuildBeerStatsForPlayers(affectedIds)
+  }
 
   revalidate(sessionId)
 }

@@ -279,7 +279,7 @@ export type PlayerStatsWhereInput = {
   assists?: Prisma.IntFilter<"PlayerStats"> | number
   score?: Prisma.IntFilter<"PlayerStats"> | number
   points?: Prisma.IntFilter<"PlayerStats"> | number
-  beers?: Prisma.IntFilter<"PlayerStats"> | number
+  beers?: Prisma.FloatFilter<"PlayerStats"> | number
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   season?: Prisma.XOR<Prisma.SeasonScalarRelationFilter, Prisma.SeasonWhereInput>
 }
@@ -313,7 +313,7 @@ export type PlayerStatsWhereUniqueInput = Prisma.AtLeast<{
   assists?: Prisma.IntFilter<"PlayerStats"> | number
   score?: Prisma.IntFilter<"PlayerStats"> | number
   points?: Prisma.IntFilter<"PlayerStats"> | number
-  beers?: Prisma.IntFilter<"PlayerStats"> | number
+  beers?: Prisma.FloatFilter<"PlayerStats"> | number
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   season?: Prisma.XOR<Prisma.SeasonScalarRelationFilter, Prisma.SeasonWhereInput>
 }, "id" | "playerId_seasonId">
@@ -349,7 +349,7 @@ export type PlayerStatsScalarWhereWithAggregatesInput = {
   assists?: Prisma.IntWithAggregatesFilter<"PlayerStats"> | number
   score?: Prisma.IntWithAggregatesFilter<"PlayerStats"> | number
   points?: Prisma.IntWithAggregatesFilter<"PlayerStats"> | number
-  beers?: Prisma.IntWithAggregatesFilter<"PlayerStats"> | number
+  beers?: Prisma.FloatWithAggregatesFilter<"PlayerStats"> | number
 }
 
 export type PlayerStatsCreateInput = {
@@ -386,7 +386,7 @@ export type PlayerStatsUpdateInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
   player?: Prisma.PlayerUpdateOneRequiredWithoutStatsPerSeasonNestedInput
   season?: Prisma.SeasonUpdateOneRequiredWithoutPlayerStatsNestedInput
 }
@@ -401,7 +401,7 @@ export type PlayerStatsUncheckedUpdateInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsCreateManyInput = {
@@ -425,7 +425,7 @@ export type PlayerStatsUpdateManyMutationInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsUncheckedUpdateManyInput = {
@@ -438,7 +438,7 @@ export type PlayerStatsUncheckedUpdateManyInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsListRelationFilter = {
@@ -599,6 +599,14 @@ export type PlayerStatsUncheckedUpdateManyWithoutSeasonNestedInput = {
   deleteMany?: Prisma.PlayerStatsScalarWhereInput | Prisma.PlayerStatsScalarWhereInput[]
 }
 
+export type FloatFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type PlayerStatsCreateWithoutPlayerInput = {
   id?: string
   sessionsPlayed?: number
@@ -662,7 +670,7 @@ export type PlayerStatsScalarWhereInput = {
   assists?: Prisma.IntFilter<"PlayerStats"> | number
   score?: Prisma.IntFilter<"PlayerStats"> | number
   points?: Prisma.IntFilter<"PlayerStats"> | number
-  beers?: Prisma.IntFilter<"PlayerStats"> | number
+  beers?: Prisma.FloatFilter<"PlayerStats"> | number
 }
 
 export type PlayerStatsCreateWithoutSeasonInput = {
@@ -735,7 +743,7 @@ export type PlayerStatsUpdateWithoutPlayerInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
   season?: Prisma.SeasonUpdateOneRequiredWithoutPlayerStatsNestedInput
 }
 
@@ -748,7 +756,7 @@ export type PlayerStatsUncheckedUpdateWithoutPlayerInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsUncheckedUpdateManyWithoutPlayerInput = {
@@ -760,7 +768,7 @@ export type PlayerStatsUncheckedUpdateManyWithoutPlayerInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsCreateManySeasonInput = {
@@ -783,7 +791,7 @@ export type PlayerStatsUpdateWithoutSeasonInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
   player?: Prisma.PlayerUpdateOneRequiredWithoutStatsPerSeasonNestedInput
 }
 
@@ -796,7 +804,7 @@ export type PlayerStatsUncheckedUpdateWithoutSeasonInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsUncheckedUpdateManyWithoutSeasonInput = {
@@ -808,7 +816,7 @@ export type PlayerStatsUncheckedUpdateManyWithoutSeasonInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 
@@ -1336,7 +1344,7 @@ export interface PlayerStatsFieldRefs {
   readonly assists: Prisma.FieldRef<"PlayerStats", 'Int'>
   readonly score: Prisma.FieldRef<"PlayerStats", 'Int'>
   readonly points: Prisma.FieldRef<"PlayerStats", 'Int'>
-  readonly beers: Prisma.FieldRef<"PlayerStats", 'Int'>
+  readonly beers: Prisma.FieldRef<"PlayerStats", 'Float'>
 }
     
 
