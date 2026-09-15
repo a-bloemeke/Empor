@@ -218,36 +218,18 @@ export async function rebuildBeerStatsForPlayers(playerIds: string[]) {
         update: { beers },
       })
     }
-
-    const seasonIdsWithBeers = [...seasonBeers.keys()]
-    await db.playerStats.updateMany({
-      where: {
-        playerId,
-        ...(seasonIdsWithBeers.length > 0 ? { seasonId: { notIn: seasonIdsWithBeers } } : {}),
-      },
-      data: { beers: 0 },
-    })
   }
 }
 
-// Rebuilds beer stats for ALL players from all completed sessions (admin repair).
+// Rebuilds beer stats for all players who have beerBringer=true registrations on completed sessions.
+// Only touches players with registration-backed beer credit — does NOT zero out stats
+// that were set via data import (historical data without registration records).
 export async function rebuildAllBeerStats() {
   const allBeerRegs = await db.sessionRegistration.findMany({
-    where: { beerBringer: true, session: { status: "COMPLETED" } },
+    where: { beerBringer: true, status: "REGISTERED", session: { status: "COMPLETED" } },
     select: { playerId: true },
     distinct: ["playerId"],
   })
   const playerIds = allBeerRegs.map((r) => r.playerId)
-
-  // Also reset any player who currently has beers > 0 but no longer has beerBringer flag
-  const allWithBeers = await db.playerStatsLifetime.findMany({
-    where: { beers: { gt: 0 } },
-    select: { playerId: true },
-  })
-  const toReset = allWithBeers.filter((r) => !playerIds.includes(r.playerId)).map((r) => r.playerId)
-
-  await db.playerStatsLifetime.updateMany({ where: { playerId: { in: toReset } }, data: { beers: 0 } })
-  await db.playerStats.updateMany({ where: { playerId: { in: toReset } }, data: { beers: 0 } })
-
   if (playerIds.length > 0) await rebuildBeerStatsForPlayers(playerIds)
 }
