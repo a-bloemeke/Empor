@@ -161,21 +161,75 @@ export async function computeAndSaveStats(sessionId: string, pointsScope: Points
     })
   }
 
-  // Increment beer counter for the player who brought beer to this session
-  const beerReg = await db.sessionRegistration.findFirst({
+  // Increment beer counter for each player who brought beer, split equally
+  const beerRegs = await db.sessionRegistration.findMany({
     where: { sessionId, beerBringer: true, status: "REGISTERED" },
     select: { playerId: true },
   })
-  if (beerReg) {
-    await db.playerStats.upsert({
-      where: { playerId_seasonId: { playerId: beerReg.playerId, seasonId: session.seasonId } },
-      create: { playerId: beerReg.playerId, seasonId: session.seasonId, sessionsPlayed: 0, beers: 1 },
-      update: { beers: { increment: 1 } },
-    })
-    await db.playerStatsLifetime.upsert({
-      where: { playerId: beerReg.playerId },
-      create: { playerId: beerReg.playerId, beers: 1 },
-      update: { beers: { increment: 1 } },
-    })
+  const N = beerRegs.length
+  if (N > 0) {
+    const credit = 1 / N
+    for (const { playerId: beerPlayerId } of beerRegs) {
+      await db.playerStats.upsert({
+        where: { playerId_seasonId: { playerId: beerPlayerId, seasonId: session.seasonId } },
+        create: { playerId: beerPlayerId, seasonId: session.seasonId, sessionsPlayed: 0, beers: credit },
+        update: { beers: { increment: credit } },
+      })
+      await db.playerStatsLifetime.upsert({
+        where: { playerId: beerPlayerId },
+        create: { playerId: beerPlayerId, beers: credit },
+        update: { beers: { increment: credit } },
+      })
+    }
   }
+}
+
+// Recomputes beer stats from scratch for the given players across all completed sessions.
+// Use after admin toggles beer on an already-completed session, or as a global repair.
+export async function rebuildBeerStatsForPlayers(playerIds: string[]) {
+  for (const playerId of playerIds) {
+    const beerRegs = await db.sessionRegistration.findMany({
+      where: { playerId, beerBringer: true, status: "REGISTERED", session: { status: "COMPLETED" } },
+      select: { sessionId: true, session: { select: { seasonId: true } } },
+    })
+
+    const seasonBeers = new Map<string, number>()
+    let lifetimeBeers = 0
+
+    for (const reg of beerRegs) {
+      const bringerCount = await db.sessionRegistration.count({
+        where: { sessionId: reg.sessionId, beerBringer: true, status: "REGISTERED" },
+      })
+      const credit = 1 / bringerCount
+      lifetimeBeers += credit
+      seasonBeers.set(reg.session.seasonId, (seasonBeers.get(reg.session.seasonId) ?? 0) + credit)
+    }
+
+    await db.playerStatsLifetime.upsert({
+      where: { playerId },
+      create: { playerId, beers: lifetimeBeers },
+      update: { beers: lifetimeBeers },
+    })
+
+    for (const [seasonId, beers] of seasonBeers) {
+      await db.playerStats.upsert({
+        where: { playerId_seasonId: { playerId, seasonId } },
+        create: { playerId, seasonId, sessionsPlayed: 0, beers },
+        update: { beers },
+      })
+    }
+  }
+}
+
+// Rebuilds beer stats for all players who have beerBringer=true registrations on completed sessions.
+// Only touches players with registration-backed beer credit — does NOT zero out stats
+// that were set via data import (historical data without registration records).
+export async function rebuildAllBeerStats() {
+  const allBeerRegs = await db.sessionRegistration.findMany({
+    where: { beerBringer: true, status: "REGISTERED", session: { status: "COMPLETED" } },
+    select: { playerId: true },
+    distinct: ["playerId"],
+  })
+  const playerIds = allBeerRegs.map((r) => r.playerId)
+  if (playerIds.length > 0) await rebuildBeerStatsForPlayers(playerIds)
 }

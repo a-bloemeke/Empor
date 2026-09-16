@@ -128,7 +128,7 @@ function BeerKingTable({ rows, isLoggedIn }: { rows: StatsRow[], isLoggedIn: boo
                     : <span className="font-medium">{row.playerName}</span>
                   }
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{row.beers} 🍺</TableCell>
+                <TableCell className="text-right tabular-nums">{Number.isInteger(row.beers) ? row.beers : row.beers.toFixed(1)} 🍺</TableCell>
               </TableRow>
             ))}
           </TableBody>

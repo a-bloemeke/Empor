@@ -1,5 +1,11 @@
 # Empor — project instructions
 
+## Security: No credentials in committed files
+
+**Never hardcode connection strings, passwords, tokens, or any secret in source files or scripts.**
+Use environment variables. Real secrets live only in `.env` and `.env.local` (both gitignored).
+If a secret ends up committed, rotate it immediately before anything else.
+
 ## Deployment
 
 After every code change (new feature, fix, refactor), immediately commit and push to the `dev` branch.

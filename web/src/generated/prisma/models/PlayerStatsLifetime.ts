@@ -263,7 +263,7 @@ export type PlayerStatsLifetimeWhereInput = {
   assists?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   score?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   points?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
-  beers?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
+  beers?: Prisma.FloatFilter<"PlayerStatsLifetime"> | number
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
 }
 
@@ -290,7 +290,7 @@ export type PlayerStatsLifetimeWhereUniqueInput = Prisma.AtLeast<{
   assists?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   score?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   points?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
-  beers?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
+  beers?: Prisma.FloatFilter<"PlayerStatsLifetime"> | number
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
 }, "playerId">
 
@@ -321,7 +321,7 @@ export type PlayerStatsLifetimeScalarWhereWithAggregatesInput = {
   assists?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
   score?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
   points?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
-  beers?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
+  beers?: Prisma.FloatWithAggregatesFilter<"PlayerStatsLifetime"> | number
 }
 
 export type PlayerStatsLifetimeCreateInput = {
@@ -353,7 +353,7 @@ export type PlayerStatsLifetimeUpdateInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
   player?: Prisma.PlayerUpdateOneRequiredWithoutStatsLifetimeNestedInput
 }
 
@@ -365,7 +365,7 @@ export type PlayerStatsLifetimeUncheckedUpdateInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeCreateManyInput = {
@@ -386,7 +386,7 @@ export type PlayerStatsLifetimeUpdateManyMutationInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeUncheckedUpdateManyInput = {
@@ -397,7 +397,7 @@ export type PlayerStatsLifetimeUncheckedUpdateManyInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeNullableScalarRelationFilter = {
@@ -533,7 +533,7 @@ export type PlayerStatsLifetimeUpdateWithoutPlayerInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeUncheckedUpdateWithoutPlayerInput = {
@@ -543,7 +543,7 @@ export type PlayerStatsLifetimeUncheckedUpdateWithoutPlayerInput = {
   assists?: Prisma.IntFieldUpdateOperationsInput | number
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
-  beers?: Prisma.IntFieldUpdateOperationsInput | number
+  beers?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 
@@ -1051,7 +1051,7 @@ export interface PlayerStatsLifetimeFieldRefs {
   readonly assists: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
   readonly score: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
   readonly points: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
-  readonly beers: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
+  readonly beers: Prisma.FieldRef<"PlayerStatsLifetime", 'Float'>
 }
     
 

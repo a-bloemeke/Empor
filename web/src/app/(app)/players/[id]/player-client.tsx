@@ -114,7 +114,7 @@ function StatsCard({ data }: { data: NonNullable<LifetimeStat> }) {
           value={data.sessionsPlayed > 0 ? (data.points / data.sessionsPlayed).toFixed(1) : "—"}
         />
         {data.beers > 0 && (
-          <StatRow label={t("beers")} value={`${data.beers} 🍺`} />
+          <StatRow label={t("beers")} value={`${Number.isInteger(data.beers) ? data.beers : data.beers.toFixed(1)} 🍺`} />
         )}
       </CardContent>
     </Card>

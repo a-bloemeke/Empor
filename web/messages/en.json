@@ -11,7 +11,8 @@
     "data": "Data",
     "signOut": "Sign out",
     "switchToDe": "Deutsch",
-    "switchToEn": "English"
+    "switchToEn": "English",
+    "stats": "Statistics"
   },
   "home": {
     "seasonLive": "Season {year} is live",
@@ -550,5 +551,16 @@
     "roundComplete": "Round {round} complete",
     "nextRound": "Round {round}",
     "startNextRound": "Start round {round}"
+  },
+  "stats": {
+    "title": "Statistics",
+    "season": "Season",
+    "gameDays": "Game Days",
+    "matches": "Matches",
+    "teams": "Teams",
+    "goals": "Goals",
+    "assists": "Assists",
+    "total": "Total",
+    "active": "active"
   }
 }

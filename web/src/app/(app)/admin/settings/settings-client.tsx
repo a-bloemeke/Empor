@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { saveEmailFrom, saveRequireApproval } from "./actions"
+import { saveEmailFrom, saveRequireApproval, recomputeBeerStats } from "./actions"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
 
@@ -90,6 +90,35 @@ export function SettingsClient({ emailFrom, requireApproval }: { emailFrom: stri
                 approvalEnabled ? "translate-x-6" : "translate-x-1"
               }`} />
             </button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">🍺 Bierstatistiken</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Bierstatistiken neu berechnen</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Berechnet die Bier-Punkte aller Spieler aus allen abgeschlossenen Spieltagen neu. Verwenden, wenn Bierbringer nachträglich geändert wurden.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => startTransition(async () => {
+                try {
+                  await recomputeBeerStats()
+                  toast.success("Bierstatistiken neu berechnet.")
+                } catch (e) {
+                  toast.error((e as Error).message)
+                }
+              })}
+            >
+              {pending ? "Berechne..." : "Neu berechnen"}
+            </Button>
           </div>
         </CardContent>
       </Card>
