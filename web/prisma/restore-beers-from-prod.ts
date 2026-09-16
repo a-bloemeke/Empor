@@ -14,7 +14,8 @@ config({ path: ".env.local", override: true })
 config({ path: ".env" })
 
 const DEV_URL = process.env.DATABASE_URL!
-const PROD_URL = "postgresql://neondb_owner:npg_c1PZJa6RNheu@ep-autumn-base-asjrypjf-pooler.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+const PROD_URL = process.env.PROD_DATABASE_URL
+if (!PROD_URL) { console.error("Set PROD_DATABASE_URL to the prod connection string before running."); process.exit(1) }
 
 const devDb = new PrismaClient({ adapter: new PrismaPg({ connectionString: DEV_URL }) })
 const prodDb = new PrismaClient({ adapter: new PrismaPg({ connectionString: PROD_URL }) })
