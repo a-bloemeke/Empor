@@ -36,6 +36,9 @@ export async function createSession(dateIso: string, maxPlayers?: number): Promi
   if (!season) return { error: `Für ${year} existiert keine Saison. Lege zuerst unter Admin → Saisons eine an.` }
   if (season.status === "COMPLETED") return { error: `Die Saison ${year} ist bereits abgeschlossen.` }
 
+  const existing = await db.session.findFirst({ where: { date, seasonId: season.id } })
+  if (existing) return { error: `Am ${format(date, "d. MMMM yyyy", { locale: de })} gibt es bereits einen Spieltag.` }
+
   await db.session.create({
     data: {
       date,
