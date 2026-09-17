@@ -9,6 +9,7 @@ If a secret ends up committed, rotate it immediately before anything else.
 ## Deployment
 
 After every code change (new feature, fix, refactor), immediately commit and push to the `dev` branch.
+**Never commit directly to `main`.** Main is only updated by merging `dev` → `main` when releasing to production.
 Vercel auto-deploys `dev` to https://web-git-dev-empor-team.vercel.app — pushing is how changes become visible.
 
 Do not wait to be asked. Commit + push is part of completing any task.
