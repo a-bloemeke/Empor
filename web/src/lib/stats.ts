@@ -161,9 +161,9 @@ export async function computeAndSaveStats(sessionId: string, pointsScope: Points
     })
   }
 
-  // Response speed points — rank REGISTERED players by registeredAt, award N to 1 pts
+  // Response speed points — rank REGISTERED non-organizer players by registeredAt, award N to 1 pts
   const registeredRegs = await db.sessionRegistration.findMany({
-    where: { sessionId, status: "REGISTERED" },
+    where: { sessionId, status: "REGISTERED", playerId: { not: session.organizerId } },
     select: { playerId: true },
     orderBy: { registeredAt: "asc" },
   })
@@ -264,7 +264,7 @@ export async function rebuildResponseStatsForPlayers(playerIds: string[]) {
       select: {
         registeredAt: true,
         sessionId: true,
-        session: { select: { seasonId: true } },
+        session: { select: { seasonId: true, organizerId: true } },
       },
     })
 
@@ -272,9 +272,12 @@ export async function rebuildResponseStatsForPlayers(playerIds: string[]) {
     let lifetimePoints = 0
 
     for (const reg of regs) {
-      // Count total registered players in this session and find this player's rank
+      // Organizer is excluded from response speed ranking
+      if (reg.session.organizerId === playerId) continue
+
+      // Rank among non-organizer REGISTERED players in this session
       const allInSession = await db.sessionRegistration.findMany({
-        where: { sessionId: reg.sessionId, status: "REGISTERED" },
+        where: { sessionId: reg.sessionId, status: "REGISTERED", playerId: { not: reg.session.organizerId } },
         select: { playerId: true, registeredAt: true },
         orderBy: { registeredAt: "asc" },
       })
@@ -302,13 +305,14 @@ export async function rebuildResponseStatsForPlayers(playerIds: string[]) {
   }
 }
 
-// Rebuilds response points for all players who have REGISTERED registrations on completed sessions.
+// Rebuilds response points for all non-organizer players with REGISTERED registrations on completed sessions.
 export async function rebuildAllResponseStats() {
   const regs = await db.sessionRegistration.findMany({
     where: { status: "REGISTERED", session: { status: "COMPLETED" } },
-    select: { playerId: true },
-    distinct: ["playerId"],
+    select: { playerId: true, session: { select: { organizerId: true } } },
   })
-  const playerIds = regs.map((r) => r.playerId)
+  const playerIds = [...new Set(
+    regs.filter((r) => r.playerId !== r.session.organizerId).map((r) => r.playerId)
+  )]
   if (playerIds.length > 0) await rebuildResponseStatsForPlayers(playerIds)
 }
