@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { rebuildAllBeerStats } from "@/lib/stats"
+import { rebuildAllBeerStats, rebuildAllResponseStats } from "@/lib/stats"
 
 export async function saveEmailFrom(email: string) {
   const session = await auth()
@@ -39,4 +39,11 @@ export async function recomputeBeerStats() {
   if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
   await rebuildAllBeerStats()
   revalidatePath("/leaderboard")
+}
+
+export async function recomputeResponseStats() {
+  const session = await auth()
+  if (session?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  await rebuildAllResponseStats()
+  revalidatePath("/stats")
 }

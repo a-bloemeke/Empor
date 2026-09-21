@@ -561,6 +561,18 @@
     "goals": "Goals",
     "assists": "Assists",
     "total": "Total",
-    "active": "active"
+    "active": "active",
+    "rank": "Rank",
+    "player": "Player",
+    "responseSpeed": "Response Speed",
+    "responsePoints": "Response Points",
+    "responseSpeedDesc": "The first to register for a game day gets the most points (rank 1 = N points, last = 1 point).",
+    "ageAdjusted": "Age-Adjusted Performance",
+    "ageAdjustedDesc": "Raw points (goals + assists + match points) weighted by age factor. Older players receive a bonus.",
+    "age": "Age",
+    "ageFactor": "Factor",
+    "adjustedScore": "Adjusted Score",
+    "rawScore": "Raw Score",
+    "noData": "No data available"
   }
 }

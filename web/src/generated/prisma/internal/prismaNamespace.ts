@@ -2117,7 +2117,8 @@ export const PlayerStatsScalarFieldEnum = {
   assists: 'assists',
   score: 'score',
   points: 'points',
-  beers: 'beers'
+  beers: 'beers',
+  responsePoints: 'responsePoints'
 } as const
 
 export type PlayerStatsScalarFieldEnum = (typeof PlayerStatsScalarFieldEnum)[keyof typeof PlayerStatsScalarFieldEnum]
@@ -2131,7 +2132,8 @@ export const PlayerStatsLifetimeScalarFieldEnum = {
   assists: 'assists',
   score: 'score',
   points: 'points',
-  beers: 'beers'
+  beers: 'beers',
+  responsePoints: 'responsePoints'
 } as const
 
 export type PlayerStatsLifetimeScalarFieldEnum = (typeof PlayerStatsLifetimeScalarFieldEnum)[keyof typeof PlayerStatsLifetimeScalarFieldEnum]

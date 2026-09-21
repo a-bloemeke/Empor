@@ -561,6 +561,18 @@
     "goals": "Tore",
     "assists": "Vorlagen",
     "total": "Gesamt",
-    "active": "aktiv"
+    "active": "aktiv",
+    "rank": "Rang",
+    "player": "Spieler",
+    "responseSpeed": "Reaktionsschnelligkeit",
+    "responsePoints": "Reaktionspunkte",
+    "responseSpeedDesc": "Wer zuerst für einen Spieltag anmeldet, bekommt die meisten Punkte (Rang 1 = N Punkte, letzter = 1 Punkt).",
+    "ageAdjusted": "Altersgewichtete Leistung",
+    "ageAdjustedDesc": "Rohpunkte (Tore + Vorlagen + Spielpunkte) gewichtet mit dem Altersfaktor. Ältere Spieler erhalten einen Bonus.",
+    "age": "Alter",
+    "ageFactor": "Faktor",
+    "adjustedScore": "Gewertete Punkte",
+    "rawScore": "Rohpunkte",
+    "noData": "Keine Daten vorhanden"
   }
 }

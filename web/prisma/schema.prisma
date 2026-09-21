@@ -257,6 +257,7 @@ model PlayerStats {
   score          Int    @default(0)
   points         Int    @default(0)
   beers          Float  @default(0)
+  responsePoints Int    @default(0)
 
   player Player @relation(fields: [playerId], references: [id])
   season Season @relation(fields: [seasonId], references: [id])
@@ -273,6 +274,7 @@ model PlayerStatsLifetime {
   score          Int    @default(0)
   points         Int    @default(0)
   beers          Float  @default(0)
+  responsePoints Int    @default(0)
 
   player Player @relation(fields: [playerId], references: [id])
 }

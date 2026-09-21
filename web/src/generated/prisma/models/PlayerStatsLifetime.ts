@@ -34,6 +34,7 @@ export type PlayerStatsLifetimeAvgAggregateOutputType = {
   score: number | null
   points: number | null
   beers: number | null
+  responsePoints: number | null
 }
 
 export type PlayerStatsLifetimeSumAggregateOutputType = {
@@ -44,6 +45,7 @@ export type PlayerStatsLifetimeSumAggregateOutputType = {
   score: number | null
   points: number | null
   beers: number | null
+  responsePoints: number | null
 }
 
 export type PlayerStatsLifetimeMinAggregateOutputType = {
@@ -55,6 +57,7 @@ export type PlayerStatsLifetimeMinAggregateOutputType = {
   score: number | null
   points: number | null
   beers: number | null
+  responsePoints: number | null
 }
 
 export type PlayerStatsLifetimeMaxAggregateOutputType = {
@@ -66,6 +69,7 @@ export type PlayerStatsLifetimeMaxAggregateOutputType = {
   score: number | null
   points: number | null
   beers: number | null
+  responsePoints: number | null
 }
 
 export type PlayerStatsLifetimeCountAggregateOutputType = {
@@ -77,6 +81,7 @@ export type PlayerStatsLifetimeCountAggregateOutputType = {
   score: number
   points: number
   beers: number
+  responsePoints: number
   _all: number
 }
 
@@ -89,6 +94,7 @@ export type PlayerStatsLifetimeAvgAggregateInputType = {
   score?: true
   points?: true
   beers?: true
+  responsePoints?: true
 }
 
 export type PlayerStatsLifetimeSumAggregateInputType = {
@@ -99,6 +105,7 @@ export type PlayerStatsLifetimeSumAggregateInputType = {
   score?: true
   points?: true
   beers?: true
+  responsePoints?: true
 }
 
 export type PlayerStatsLifetimeMinAggregateInputType = {
@@ -110,6 +117,7 @@ export type PlayerStatsLifetimeMinAggregateInputType = {
   score?: true
   points?: true
   beers?: true
+  responsePoints?: true
 }
 
 export type PlayerStatsLifetimeMaxAggregateInputType = {
@@ -121,6 +129,7 @@ export type PlayerStatsLifetimeMaxAggregateInputType = {
   score?: true
   points?: true
   beers?: true
+  responsePoints?: true
 }
 
 export type PlayerStatsLifetimeCountAggregateInputType = {
@@ -132,6 +141,7 @@ export type PlayerStatsLifetimeCountAggregateInputType = {
   score?: true
   points?: true
   beers?: true
+  responsePoints?: true
   _all?: true
 }
 
@@ -230,6 +240,7 @@ export type PlayerStatsLifetimeGroupByOutputType = {
   score: number
   points: number
   beers: number
+  responsePoints: number
   _count: PlayerStatsLifetimeCountAggregateOutputType | null
   _avg: PlayerStatsLifetimeAvgAggregateOutputType | null
   _sum: PlayerStatsLifetimeSumAggregateOutputType | null
@@ -264,6 +275,7 @@ export type PlayerStatsLifetimeWhereInput = {
   score?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   points?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   beers?: Prisma.FloatFilter<"PlayerStatsLifetime"> | number
+  responsePoints?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
 }
 
@@ -276,6 +288,7 @@ export type PlayerStatsLifetimeOrderByWithRelationInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
   player?: Prisma.PlayerOrderByWithRelationInput
 }
 
@@ -291,6 +304,7 @@ export type PlayerStatsLifetimeWhereUniqueInput = Prisma.AtLeast<{
   score?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   points?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   beers?: Prisma.FloatFilter<"PlayerStatsLifetime"> | number
+  responsePoints?: Prisma.IntFilter<"PlayerStatsLifetime"> | number
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
 }, "playerId">
 
@@ -303,6 +317,7 @@ export type PlayerStatsLifetimeOrderByWithAggregationInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
   _count?: Prisma.PlayerStatsLifetimeCountOrderByAggregateInput
   _avg?: Prisma.PlayerStatsLifetimeAvgOrderByAggregateInput
   _max?: Prisma.PlayerStatsLifetimeMaxOrderByAggregateInput
@@ -322,6 +337,7 @@ export type PlayerStatsLifetimeScalarWhereWithAggregatesInput = {
   score?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
   points?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
   beers?: Prisma.FloatWithAggregatesFilter<"PlayerStatsLifetime"> | number
+  responsePoints?: Prisma.IntWithAggregatesFilter<"PlayerStatsLifetime"> | number
 }
 
 export type PlayerStatsLifetimeCreateInput = {
@@ -332,6 +348,7 @@ export type PlayerStatsLifetimeCreateInput = {
   score?: number
   points?: number
   beers?: number
+  responsePoints?: number
   player: Prisma.PlayerCreateNestedOneWithoutStatsLifetimeInput
 }
 
@@ -344,6 +361,7 @@ export type PlayerStatsLifetimeUncheckedCreateInput = {
   score?: number
   points?: number
   beers?: number
+  responsePoints?: number
 }
 
 export type PlayerStatsLifetimeUpdateInput = {
@@ -354,6 +372,7 @@ export type PlayerStatsLifetimeUpdateInput = {
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
   beers?: Prisma.FloatFieldUpdateOperationsInput | number
+  responsePoints?: Prisma.IntFieldUpdateOperationsInput | number
   player?: Prisma.PlayerUpdateOneRequiredWithoutStatsLifetimeNestedInput
 }
 
@@ -366,6 +385,7 @@ export type PlayerStatsLifetimeUncheckedUpdateInput = {
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
   beers?: Prisma.FloatFieldUpdateOperationsInput | number
+  responsePoints?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeCreateManyInput = {
@@ -377,6 +397,7 @@ export type PlayerStatsLifetimeCreateManyInput = {
   score?: number
   points?: number
   beers?: number
+  responsePoints?: number
 }
 
 export type PlayerStatsLifetimeUpdateManyMutationInput = {
@@ -387,6 +408,7 @@ export type PlayerStatsLifetimeUpdateManyMutationInput = {
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
   beers?: Prisma.FloatFieldUpdateOperationsInput | number
+  responsePoints?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeUncheckedUpdateManyInput = {
@@ -398,6 +420,7 @@ export type PlayerStatsLifetimeUncheckedUpdateManyInput = {
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
   beers?: Prisma.FloatFieldUpdateOperationsInput | number
+  responsePoints?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeNullableScalarRelationFilter = {
@@ -414,6 +437,7 @@ export type PlayerStatsLifetimeCountOrderByAggregateInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
 }
 
 export type PlayerStatsLifetimeAvgOrderByAggregateInput = {
@@ -424,6 +448,7 @@ export type PlayerStatsLifetimeAvgOrderByAggregateInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
 }
 
 export type PlayerStatsLifetimeMaxOrderByAggregateInput = {
@@ -435,6 +460,7 @@ export type PlayerStatsLifetimeMaxOrderByAggregateInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
 }
 
 export type PlayerStatsLifetimeMinOrderByAggregateInput = {
@@ -446,6 +472,7 @@ export type PlayerStatsLifetimeMinOrderByAggregateInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
 }
 
 export type PlayerStatsLifetimeSumOrderByAggregateInput = {
@@ -456,6 +483,7 @@ export type PlayerStatsLifetimeSumOrderByAggregateInput = {
   score?: Prisma.SortOrder
   points?: Prisma.SortOrder
   beers?: Prisma.SortOrder
+  responsePoints?: Prisma.SortOrder
 }
 
 export type PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput = {
@@ -498,6 +526,7 @@ export type PlayerStatsLifetimeCreateWithoutPlayerInput = {
   score?: number
   points?: number
   beers?: number
+  responsePoints?: number
 }
 
 export type PlayerStatsLifetimeUncheckedCreateWithoutPlayerInput = {
@@ -508,6 +537,7 @@ export type PlayerStatsLifetimeUncheckedCreateWithoutPlayerInput = {
   score?: number
   points?: number
   beers?: number
+  responsePoints?: number
 }
 
 export type PlayerStatsLifetimeCreateOrConnectWithoutPlayerInput = {
@@ -534,6 +564,7 @@ export type PlayerStatsLifetimeUpdateWithoutPlayerInput = {
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
   beers?: Prisma.FloatFieldUpdateOperationsInput | number
+  responsePoints?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type PlayerStatsLifetimeUncheckedUpdateWithoutPlayerInput = {
@@ -544,6 +575,7 @@ export type PlayerStatsLifetimeUncheckedUpdateWithoutPlayerInput = {
   score?: Prisma.IntFieldUpdateOperationsInput | number
   points?: Prisma.IntFieldUpdateOperationsInput | number
   beers?: Prisma.FloatFieldUpdateOperationsInput | number
+  responsePoints?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -557,6 +589,7 @@ export type PlayerStatsLifetimeSelect<ExtArgs extends runtime.Types.Extensions.I
   score?: boolean
   points?: boolean
   beers?: boolean
+  responsePoints?: boolean
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["playerStatsLifetime"]>
 
@@ -569,6 +602,7 @@ export type PlayerStatsLifetimeSelectCreateManyAndReturn<ExtArgs extends runtime
   score?: boolean
   points?: boolean
   beers?: boolean
+  responsePoints?: boolean
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["playerStatsLifetime"]>
 
@@ -581,6 +615,7 @@ export type PlayerStatsLifetimeSelectUpdateManyAndReturn<ExtArgs extends runtime
   score?: boolean
   points?: boolean
   beers?: boolean
+  responsePoints?: boolean
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["playerStatsLifetime"]>
 
@@ -593,9 +628,10 @@ export type PlayerStatsLifetimeSelectScalar = {
   score?: boolean
   points?: boolean
   beers?: boolean
+  responsePoints?: boolean
 }
 
-export type PlayerStatsLifetimeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"playerId" | "sessionsPlayed" | "matchesPlayed" | "goals" | "assists" | "score" | "points" | "beers", ExtArgs["result"]["playerStatsLifetime"]>
+export type PlayerStatsLifetimeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"playerId" | "sessionsPlayed" | "matchesPlayed" | "goals" | "assists" | "score" | "points" | "beers" | "responsePoints", ExtArgs["result"]["playerStatsLifetime"]>
 export type PlayerStatsLifetimeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }
@@ -620,6 +656,7 @@ export type $PlayerStatsLifetimePayload<ExtArgs extends runtime.Types.Extensions
     score: number
     points: number
     beers: number
+    responsePoints: number
   }, ExtArgs["result"]["playerStatsLifetime"]>
   composites: {}
 }
@@ -1052,6 +1089,7 @@ export interface PlayerStatsLifetimeFieldRefs {
   readonly score: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
   readonly points: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
   readonly beers: Prisma.FieldRef<"PlayerStatsLifetime", 'Float'>
+  readonly responsePoints: Prisma.FieldRef<"PlayerStatsLifetime", 'Int'>
 }
     
 
