@@ -57,6 +57,7 @@ import {
   addRematch,
   addNewMatch,
   deleteTeam,
+  deleteMatch,
   getDefaultInvitation,
   sendInvitation,
   getSummaryEmailDefaults,
@@ -2475,7 +2476,7 @@ function StandingsTable({ teams, matches }: { teams: Team[]; matches: Match[] })
   )
 }
 
-function MatchSummary({ match, onReopen, onDeleteGoal }: { match: Match; onReopen?: () => void; onDeleteGoal?: (id: string) => void }) {
+function MatchSummary({ match, onReopen, onDeleteGoal, onDelete }: { match: Match; onReopen?: () => void; onDeleteGoal?: (id: string) => void; onDelete?: () => void }) {
   const t = useTranslations("session")
   const goals = match.goals.reduce<{ home: number; away: number; els: React.ReactNode[] }>(
     (acc, g) => {
@@ -2533,12 +2534,19 @@ function MatchSummary({ match, onReopen, onDeleteGoal }: { match: Match; onReope
         </div>
       )}
 
-      {/* Reopen */}
-      {onReopen && (
-        <div className="px-4 pb-2 border-t border-border/40 pt-2">
-          <Button size="sm" variant="ghost" className="h-6 text-xs text-muted-foreground" onClick={onReopen}>
-            {t("reopenMatch")}
-          </Button>
+      {/* Reopen / Delete */}
+      {(onReopen || (onDelete && match.goals.length === 0)) && (
+        <div className="px-4 pb-2 border-t border-border/40 pt-2 flex items-center gap-2">
+          {onReopen && (
+            <Button size="sm" variant="ghost" className="h-6 text-xs text-muted-foreground" onClick={onReopen}>
+              {t("reopenMatch")}
+            </Button>
+          )}
+          {onDelete && match.goals.length === 0 && (
+            <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive hover:text-destructive" onClick={onDelete}>
+              {t("deleteMatch")}
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -2695,6 +2703,14 @@ export function SessionClient({
     startTransition(async () => {
       try { await reopenMatch(matchId); toast.success("Match re-opened."); router.refresh() }
       catch (e) { toast.error((e as Error).message) }
+    })
+  }
+
+  function handleDeleteMatch(matchId: string) {
+    startTransition(async () => {
+      const res = await deleteMatch(matchId)
+      if (res && "error" in res) { toast.error(res.error); return }
+      router.refresh()
     })
   }
 
@@ -2865,12 +2881,20 @@ export function SessionClient({
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{pendingMatches[0].homeTeamName} vs {pendingMatches[0].awayTeamName}</span>
                     {isOrganizer && (
-                      <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}
-                        className="border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                        variant="outline"
-                      >
-                        {t("startMatch")}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" disabled={pending} onClick={() => handleStartMatch(pendingMatches[0].id)}
+                          className="border-amber-400 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                          variant="outline"
+                        >
+                          {t("startMatch")}
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={pending}
+                          className="text-destructive hover:text-destructive h-8 text-xs"
+                          onClick={() => handleDeleteMatch(pendingMatches[0].id)}
+                        >
+                          {t("deleteMatch")}
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -2925,7 +2949,7 @@ export function SessionClient({
                   <div className="space-y-3">
                     {completedMatches
                       .filter((m) => m.roundNumber === currentRound)
-                      .map((m) => <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} />)}
+                      .map((m) => <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} onDelete={isOrganizer ? () => handleDeleteMatch(m.id) : undefined} />)}
                   </div>
                   {/* Previous rounds collapsed */}
                   {(currentRound ?? 0) > 1 && (
@@ -2938,7 +2962,7 @@ export function SessionClient({
                           <div key={r} className="space-y-2">
                             <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Round {r}</div>
                             {completedMatches.filter((m) => m.roundNumber === r).map((m) => (
-                              <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} />
+                              <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} onDelete={isOrganizer ? () => handleDeleteMatch(m.id) : undefined} />
                             ))}
                           </div>
                         ))}
@@ -2950,7 +2974,7 @@ export function SessionClient({
                 <>
                   <SectionHeader title="Match Results" />
                   <div className="space-y-3">
-                    {completedMatches.map((m) => <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} />)}
+                    {completedMatches.map((m) => <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} onDelete={isOrganizer ? () => handleDeleteMatch(m.id) : undefined} />)}
                   </div>
                 </>
               )}
@@ -3024,7 +3048,7 @@ export function SessionClient({
                       >Round {round}</span>
                     </div>
                     {roundMatches.map((m) => (
-                      <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} />
+                      <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} onDelete={isOrganizer ? () => handleDeleteMatch(m.id) : undefined} />
                     ))}
                   </div>
                 )
@@ -3042,7 +3066,7 @@ export function SessionClient({
                     </span>
                   </div>
                   {session.matches.filter((m) => m.roundNumber == null && m.status === "COMPLETED").map((m) => (
-                    <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} />
+                    <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} onDelete={isOrganizer ? () => handleDeleteMatch(m.id) : undefined} />
                   ))}
                 </div>
               )}
@@ -3052,7 +3076,7 @@ export function SessionClient({
             <div className="space-y-3">
               <SectionHeader title="Results" />
               {session.matches.filter((m) => m.status === "COMPLETED").map((m) => (
-                <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} />
+                <MatchSummary key={m.id} match={m} onReopen={isOrganizer ? () => handleReopenMatch(m.id) : undefined} onDeleteGoal={isOrganizer ? handleDeleteGoal : undefined} onDelete={isOrganizer ? () => handleDeleteMatch(m.id) : undefined} />
               ))}
             </div>
           )}

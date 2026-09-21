@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { saveEmailFrom, saveRequireApproval, recomputeBeerStats } from "./actions"
+import { saveEmailFrom, saveRequireApproval, recomputeBeerStats, recomputeResponseStats } from "./actions"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
 
@@ -112,6 +112,35 @@ export function SettingsClient({ emailFrom, requireApproval }: { emailFrom: stri
                 try {
                   await recomputeBeerStats()
                   toast.success("Bierstatistiken neu berechnet.")
+                } catch (e) {
+                  toast.error((e as Error).message)
+                }
+              })}
+            >
+              {pending ? "Berechne..." : "Neu berechnen"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">⚡ Reaktionsstatistiken</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Reaktionspunkte neu berechnen</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Berechnet die Reaktionspunkte aller Spieler aus allen abgeschlossenen Spieltagen neu. Verwenden, wenn historische Daten fehlen.</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => startTransition(async () => {
+                try {
+                  await recomputeResponseStats()
+                  toast.success("Reaktionspunkte neu berechnet.")
                 } catch (e) {
                   toast.error((e as Error).message)
                 }

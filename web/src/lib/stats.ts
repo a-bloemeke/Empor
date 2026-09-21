@@ -161,6 +161,28 @@ export async function computeAndSaveStats(sessionId: string, pointsScope: Points
     })
   }
 
+  // Response speed points — rank REGISTERED non-organizer players by registeredAt, award N to 1 pts
+  const registeredRegs = await db.sessionRegistration.findMany({
+    where: { sessionId, status: "REGISTERED", playerId: { not: session.organizerId } },
+    select: { playerId: true },
+    orderBy: { registeredAt: "asc" },
+  })
+  const regCount = registeredRegs.length
+  for (let i = 0; i < regCount; i++) {
+    const rp = registeredRegs[i].playerId
+    const rpts = regCount - i
+    await db.playerStats.upsert({
+      where: { playerId_seasonId: { playerId: rp, seasonId: session.seasonId } },
+      create: { playerId: rp, seasonId: session.seasonId, sessionsPlayed: 0, responsePoints: rpts },
+      update: { responsePoints: { increment: rpts } },
+    })
+    await db.playerStatsLifetime.upsert({
+      where: { playerId: rp },
+      create: { playerId: rp, responsePoints: rpts },
+      update: { responsePoints: { increment: rpts } },
+    })
+  }
+
   // Increment beer counter for each player who brought beer, split equally
   const beerRegs = await db.sessionRegistration.findMany({
     where: { sessionId, beerBringer: true, status: "REGISTERED" },
@@ -232,4 +254,65 @@ export async function rebuildAllBeerStats() {
   })
   const playerIds = allBeerRegs.map((r) => r.playerId)
   if (playerIds.length > 0) await rebuildBeerStatsForPlayers(playerIds)
+}
+
+// Recomputes response speed points from scratch for given players across all completed sessions.
+export async function rebuildResponseStatsForPlayers(playerIds: string[]) {
+  for (const playerId of playerIds) {
+    const regs = await db.sessionRegistration.findMany({
+      where: { playerId, status: "REGISTERED", session: { status: "COMPLETED" } },
+      select: {
+        registeredAt: true,
+        sessionId: true,
+        session: { select: { seasonId: true, organizerId: true } },
+      },
+    })
+
+    const seasonPoints = new Map<string, number>()
+    let lifetimePoints = 0
+
+    for (const reg of regs) {
+      // Organizer is excluded from response speed ranking
+      if (reg.session.organizerId === playerId) continue
+
+      // Rank among non-organizer REGISTERED players in this session
+      const allInSession = await db.sessionRegistration.findMany({
+        where: { sessionId: reg.sessionId, status: "REGISTERED", playerId: { not: reg.session.organizerId } },
+        select: { playerId: true, registeredAt: true },
+        orderBy: { registeredAt: "asc" },
+      })
+      const total = allInSession.length
+      const rank = allInSession.findIndex((r) => r.playerId === playerId)
+      if (rank === -1) continue
+      const pts = total - rank
+      lifetimePoints += pts
+      seasonPoints.set(reg.session.seasonId, (seasonPoints.get(reg.session.seasonId) ?? 0) + pts)
+    }
+
+    await db.playerStatsLifetime.upsert({
+      where: { playerId },
+      create: { playerId, responsePoints: lifetimePoints },
+      update: { responsePoints: lifetimePoints },
+    })
+
+    for (const [seasonId, pts] of seasonPoints) {
+      await db.playerStats.upsert({
+        where: { playerId_seasonId: { playerId, seasonId } },
+        create: { playerId, seasonId, sessionsPlayed: 0, responsePoints: pts },
+        update: { responsePoints: pts },
+      })
+    }
+  }
+}
+
+// Rebuilds response points for all non-organizer players with REGISTERED registrations on completed sessions.
+export async function rebuildAllResponseStats() {
+  const regs = await db.sessionRegistration.findMany({
+    where: { status: "REGISTERED", session: { status: "COMPLETED" } },
+    select: { playerId: true, session: { select: { organizerId: true } } },
+  })
+  const playerIds = [...new Set(
+    regs.filter((r) => r.playerId !== r.session.organizerId).map((r) => r.playerId)
+  )]
+  if (playerIds.length > 0) await rebuildResponseStatsForPlayers(playerIds)
 }

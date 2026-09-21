@@ -1277,6 +1277,23 @@ export async function recordGoal(
   revalidate(match.sessionId)
 }
 
+export async function deleteMatch(matchId: string): Promise<{ error: string } | { ok: true }> {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
+
+  const match = await db.match.findUnique({
+    where: { id: matchId },
+    include: { _count: { select: { goals: true } } },
+  })
+  if (!match) return { error: "Spiel nicht gefunden." }
+  if (match.status === "IN_PROGRESS") return { error: "Laufende Spiele können nicht gelöscht werden." }
+  if (match._count.goals > 0) return { error: "Erst alle Tore entfernen, bevor das Spiel gelöscht werden kann." }
+
+  await db.match.delete({ where: { id: matchId } })
+  revalidate(match.sessionId)
+  return { ok: true }
+}
+
 export async function undoLastGoal(matchId: string) {
   const authSession = await auth()
   if (!authSession?.user?.id) throw new Error("Unauthorized")
