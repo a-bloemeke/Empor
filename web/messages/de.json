@@ -210,6 +210,7 @@
     "ga": "GE",
     "gd": "TD",
     "reopenMatch": "Spiel wieder öffnen",
+    "deleteMatch": "Spiel löschen",
     "endGameDay": "Spieltag beenden",
     "endGameDayTitle": "Spieltag beenden — Wertung wählen",
     "endGameDayDesc": "Dieser Spieltag hatte Turnierrun­den und normale Spiele. Welche Ergebnisse sollen für Punkte zählen?",

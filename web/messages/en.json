@@ -210,6 +210,7 @@
     "ga": "GA",
     "gd": "GD",
     "reopenMatch": "Re-open match",
+    "deleteMatch": "Delete match",
     "endGameDay": "End Game Day",
     "endGameDayTitle": "End Game Day — choose scoring",
     "endGameDayDesc": "This game day had both tournament rounds and normal matches. Which results should count for points?",
