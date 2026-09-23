@@ -3,6 +3,10 @@ import { db } from "@/lib/db"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
+function quoteTeaser(text: string) {
+  return text.split(/\s+/).slice(0, 3).join(" ") + "..."
+}
+
 function createTransport() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -52,6 +56,7 @@ export async function sendGameDayInvitation(
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const link = `${appUrl}/sessions/${session.id}`
+  const finalSubject = quote?.text ? `${quoteTeaser(quote.text)} | ${subject}` : subject
 
   const htmlBody = plainTextBody
     .replace(/&/g, "&amp;")
@@ -73,7 +78,7 @@ export async function sendGameDayInvitation(
   await transporter.sendMail({
     from,
     to: recipientEmails,
-    subject,
+    subject: finalSubject,
     text: plainTextBody + quotePlain,
     html: `
 <!DOCTYPE html>
@@ -124,6 +129,10 @@ export async function sendStatusUpdateEmail(
   const from = config?.value ?? process.env.SMTP_USER!
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const link = `${appUrl}/sessions/${session.id}`
+
+  const allQuotes = await db.quoteCollection.findMany({ select: { quote: true } })
+  const rndQuote = allQuotes.length > 0 ? allQuotes[Math.floor(Math.random() * allQuotes.length)] : null
+  const finalSubject = rndQuote ? `${quoteTeaser(rndQuote.quote)} | ${subject}` : subject
 
   const introHtml = plainTextBody
     .split("\n\n")[0]
@@ -182,7 +191,7 @@ export async function sendStatusUpdateEmail(
 </html>`
 
   const transporter = createTransport()
-  await transporter.sendMail({ from, to: recipientEmails, subject, text: plainTextBody, html })
+  await transporter.sendMail({ from, to: recipientEmails, subject: finalSubject, text: plainTextBody, html })
   return recipientEmails.length
 }
 
