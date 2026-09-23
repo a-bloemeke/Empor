@@ -1184,14 +1184,13 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
       : undefined
 
     startTransition(async () => {
-      try {
-        const count = await sendInvitation(sessionId, subject.trim(), body.trim(), [...selectedIds], quote)
-        toast.success(`Invitation sent to ${count} player${count !== 1 ? "s" : ""}.`)
-        setOpen(false)
-        setLoaded(false)
-        setQuoteText("")
-        setQuoteAuthor("")
-      } catch (e) { toast.error((e as Error).message) }
+      const res = await sendInvitation(sessionId, subject.trim(), body.trim(), [...selectedIds], quote)
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Invitation sent to ${res.count} player${res.count !== 1 ? "s" : ""}.`)
+      setOpen(false)
+      setLoaded(false)
+      setQuoteText("")
+      setQuoteAuthor("")
     })
   }
 

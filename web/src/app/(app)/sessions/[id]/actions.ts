@@ -98,12 +98,12 @@ export async function sendInvitation(
   body: string,
   recipientIds: string[],
   quote?: { text: string; author: string },
-) {
+): Promise<{ error: string } | { ok: true; count: number }> {
   const authSession = await auth()
-  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const session = await db.session.findUnique({ where: { id: sessionId } })
-  if (!session) throw new Error("Session not found.")
+  if (!session) return { error: "Spieltag nicht gefunden." }
 
   const players = await db.player.findMany({
     where: { id: { in: recipientIds }, passwordHash: { not: null } },
@@ -111,22 +111,25 @@ export async function sendInvitation(
   })
   const emails = players.map((p) => p.email).filter(Boolean) as string[]
 
-  const count = await sendGameDayInvitation(
-    { id: session.id, date: session.date },
-    subject,
-    body,
-    emails,
-    quote,
-  )
+  try {
+    const count = await sendGameDayInvitation(
+      { id: session.id, date: session.date },
+      subject,
+      body,
+      emails,
+      quote,
+    )
 
-  // If this quote came from the collection, remove it (it's now tracked as used)
-  if (quote) {
-    await db.quoteCollection.deleteMany({
-      where: { quote: quote.text, author: quote.author },
-    })
+    if (quote) {
+      await db.quoteCollection.deleteMany({
+        where: { quote: quote.text, author: quote.author },
+      })
+    }
+
+    return { ok: true, count }
+  } catch (e) {
+    return { error: (e as Error).message }
   }
-
-  return count
 }
 
 // ─── Summary helpers ──────────────────────────────────────────────────────────
@@ -517,7 +520,11 @@ export async function sendStatusUpdate(
   })
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
 
-  await sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists, delta)
+  try {
+    await sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists, delta)
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
 
   await db.session.update({ where: { id: sessionId }, data: { lastStatusEmailSentAt: new Date() } })
 
