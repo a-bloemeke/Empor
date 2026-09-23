@@ -464,9 +464,9 @@ export async function sendStatusUpdate(
   subject: string,
   body: string,
   recipientIds: string[],
-) {
+): Promise<{ error: string } | { ok: true; count: number }> {
   const authSession = await auth()
-  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const session = await db.session.findUnique({
     where: { id: sessionId },
@@ -477,7 +477,7 @@ export async function sendStatusUpdate(
       },
     },
   })
-  if (!session) throw new Error("Session not found.")
+  if (!session) return { error: "Spieltag nicht gefunden." }
 
   const allNonGuests = await db.player.findMany({
     where: { passwordHash: { not: null }, active: true },
@@ -521,7 +521,7 @@ export async function sendStatusUpdate(
 
   await db.session.update({ where: { id: sessionId }, data: { lastStatusEmailSentAt: new Date() } })
 
-  return emails.length
+  return { ok: true as const, count: emails.length }
 }
 
 function revalidate(sessionId: string) {

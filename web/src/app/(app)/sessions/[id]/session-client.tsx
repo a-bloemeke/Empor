@@ -1411,12 +1411,11 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
     if (!subject.trim()) { toast.error("Betreff ist erforderlich."); return }
     if (selectedIds.size === 0) { toast.error("Mindestens einen Empfänger auswählen."); return }
     startTransition(async () => {
-      try {
-        const count = await sendStatusUpdate(sessionId, subject.trim(), body, [...selectedIds])
-        toast.success(`Status-Update an ${count} Spieler gesendet.`)
-        setOpen(false)
-        setLoaded(false)
-      } catch (e) { toast.error((e as Error).message) }
+      const res = await sendStatusUpdate(sessionId, subject.trim(), body, [...selectedIds])
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Status-Update an ${res.count} Spieler gesendet.`)
+      setOpen(false)
+      setLoaded(false)
     })
   }
 
