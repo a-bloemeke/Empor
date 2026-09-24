@@ -1396,6 +1396,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
   const [loaded, setLoaded] = useState(false)
   const [lastSentAt, setLastSentAt] = useState<string | null>(null)
   const [delta, setDelta] = useState<{ newRegistrations: string[]; newCancellations: string[] } | null>(null)
+  const [subjectPrefix, setSubjectPrefix] = useState<string | null>(null)
 
   function handleOpen(isOpen: boolean) {
     setOpen(isOpen)
@@ -1410,6 +1411,7 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
           setSelectedIds(new Set(data.players.filter((p) => p.emailNotifications).map((p) => p.id)))
           setLastSentAt(data.lastSentAt)
           setDelta(data.delta)
+          setSubjectPrefix(data.subjectPrefix ?? null)
           setLoaded(true)
         } catch (e) { toast.error((e as Error).message) }
       })
@@ -1556,6 +1558,11 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
             <div className="space-y-1.5">
               <Label htmlFor="su-subject">Betreff</Label>
               <Input id="su-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+              {subjectPrefix && (
+                <p className="text-xs text-muted-foreground">
+                  Betreff: <span className="font-medium text-foreground">{subjectPrefix}... | {subject}</span>
+                </p>
+              )}
             </div>
 
             {/* Body */}

@@ -424,8 +424,6 @@ export async function getStatusUpdateDefaults(sessionId: string) {
   const beerBringerName = beerBringerReg ? pn(beerBringerReg.player) : null
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
-  const link = `${appUrl}/sessions/${session.id}`
 
   const subject = `${trafficLight} Spieltag ${dateStr} – ${count} von ${MIN_PLAYERS} Spielern`
 
@@ -439,8 +437,6 @@ ${statusText}
 ✅ Zugesagt (${count}):
 ${registeredList}
 ${maybeList ? `\n❓ Vielleicht (${maybe.length}):\n${maybeList}\n` : ""}${waitlistedList ? `\n⏳ Warteliste (${waitlisted.length}):\n${waitlistedList}\n` : ""}${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}${beerBringerName ? `\n🍺 Bringt Bier: ${beerBringerName}\n` : ""}
-${link}
-
 Empor Lichtenberg`
 
   // Compute delta since last status email
@@ -462,6 +458,7 @@ Empor Lichtenberg`
     registeredCount: count,
     minPlayers: MIN_PLAYERS,
     lastSentAt: session.lastStatusEmailSentAt?.toISOString() ?? null,
+    subjectPrefix: session.subjectPrefix ?? null,
     delta: { newRegistrations, newCancellations },
     lists: {
       registered: registered.map(pn),
