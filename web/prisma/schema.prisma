@@ -139,6 +139,7 @@ model Session {
   status                SessionStatus @default(SCHEDULED)
   organizerId           String
   lastStatusEmailSentAt DateTime?
+  subjectPrefix         String?
   maxPlayers            Int?
 
   season        Season                @relation(fields: [seasonId], references: [id])

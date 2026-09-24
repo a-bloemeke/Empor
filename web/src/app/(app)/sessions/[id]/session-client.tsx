@@ -1130,6 +1130,7 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
   const [body, setBody] = useState("")
   const [quoteText, setQuoteText] = useState("")
   const [quoteAuthor, setQuoteAuthor] = useState("")
+  const [subjectPrefix, setSubjectPrefix] = useState("")
   const [players, setPlayers] = useState<InvitationPlayer[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [usedQuotes, setUsedQuotes] = useState<UsedQuote[]>([])
@@ -1184,14 +1185,14 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
       : undefined
 
     startTransition(async () => {
-      try {
-        const count = await sendInvitation(sessionId, subject.trim(), body.trim(), [...selectedIds], quote)
-        toast.success(`Invitation sent to ${count} player${count !== 1 ? "s" : ""}.`)
-        setOpen(false)
-        setLoaded(false)
-        setQuoteText("")
-        setQuoteAuthor("")
-      } catch (e) { toast.error((e as Error).message) }
+      const res = await sendInvitation(sessionId, subject.trim(), body.trim(), [...selectedIds], quote, subjectPrefix.trim() || undefined)
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Invitation sent to ${res.count} player${res.count !== 1 ? "s" : ""}.`)
+      setOpen(false)
+      setLoaded(false)
+      setQuoteText("")
+      setQuoteAuthor("")
+      setSubjectPrefix("")
     })
   }
 
@@ -1268,7 +1269,11 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
                       <button
                         key={q.id}
                         type="button"
-                        onClick={() => { setQuoteText(q.quote); setQuoteAuthor(q.author) }}
+                        onClick={() => {
+                          setQuoteText(q.quote)
+                          setQuoteAuthor(q.author)
+                          setSubjectPrefix(q.quote.split(/\s+/).slice(0, 5).join(" "))
+                        }}
                         className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors${quoteText === q.quote && quoteAuthor === q.author ? " bg-muted font-medium" : ""}`}
                       >
                         <span className="italic">„{q.quote}"</span>
@@ -1298,9 +1303,27 @@ function SendInvitationDialog({ sessionId }: { sessionId: string }) {
                   onChange={(e) => setQuoteAuthor(e.target.value)}
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="inv-prefix" className="text-sm">Betreff-Vorschau <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    id="inv-prefix"
+                    placeholder="z.B. Man muss auch mal"
+                    value={subjectPrefix}
+                    onChange={(e) => setSubjectPrefix(e.target.value)}
+                    className="text-sm"
+                  />
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">...</span>
+                </div>
+                {subjectPrefix.trim() && (
+                  <p className="text-xs text-muted-foreground">
+                    Betreff: <span className="font-medium text-foreground">{subjectPrefix.trim()}... | {subject}</span>
+                  </p>
+                )}
+              </div>
               {quoteText.trim() && quoteAuthor.trim() && (
                 <button
-                  onClick={() => { setQuoteText(""); setQuoteAuthor("") }}
+                  onClick={() => { setQuoteText(""); setQuoteAuthor(""); setSubjectPrefix("") }}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   ✕ Clear quote
@@ -1411,12 +1434,11 @@ function SendStatusUpdateDialog({ sessionId, registeredCount, sessionDate }: { s
     if (!subject.trim()) { toast.error("Betreff ist erforderlich."); return }
     if (selectedIds.size === 0) { toast.error("Mindestens einen Empfänger auswählen."); return }
     startTransition(async () => {
-      try {
-        const count = await sendStatusUpdate(sessionId, subject.trim(), body, [...selectedIds])
-        toast.success(`Status-Update an ${count} Spieler gesendet.`)
-        setOpen(false)
-        setLoaded(false)
-      } catch (e) { toast.error((e as Error).message) }
+      const res = await sendStatusUpdate(sessionId, subject.trim(), body, [...selectedIds])
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Status-Update an ${res.count} Spieler gesendet.`)
+      setOpen(false)
+      setLoaded(false)
     })
   }
 
@@ -1619,12 +1641,11 @@ function SendSummaryDialog({ sessionId }: { sessionId: string }) {
     if (!subject.trim() || !body.trim()) { toast.error("Subject and message are required."); return }
     if (selectedIds.size === 0) { toast.error("Select at least one recipient."); return }
     startTransition(async () => {
-      try {
-        const count = await sendSummaryEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
-        toast.success(`Summary sent to ${count} player${count !== 1 ? "s" : ""}.`)
-        setOpen(false)
-        setLoaded(false)
-      } catch (e) { toast.error((e as Error).message) }
+      const res = await sendSummaryEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Summary sent to ${res.count} player${res.count !== 1 ? "s" : ""}.`)
+      setOpen(false)
+      setLoaded(false)
     })
   }
 

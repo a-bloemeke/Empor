@@ -134,21 +134,27 @@ export async function sendCancelEmail(
   subject: string,
   body: string,
   recipientIds: string[],
-) {
+): Promise<{ error: string } | { ok: true; count: number }> {
   const authSession = await auth()
-  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const s = await db.session.findUnique({ where: { id: sessionId } })
-  if (!s) throw new Error("Session not found.")
-  if (s.status !== "CANCELLED") throw new Error("Session is not cancelled.")
+  if (!s) return { error: "Spieltag nicht gefunden." }
+  if (s.status !== "CANCELLED") return { error: "Spieltag ist nicht abgesagt." }
 
   const players = await db.player.findMany({
     where: { id: { in: recipientIds }, emailNotifications: true },
     select: { email: true },
   })
   const emails = players.map((p) => p.email).filter(Boolean) as string[]
+  const finalSubject = s.subjectPrefix ? `${s.subjectPrefix}... | ${subject}` : subject
 
-  return sendGameDayCancellation({ id: s.id, date: s.date }, subject, body, emails)
+  try {
+    const count = await sendGameDayCancellation({ id: s.id, date: s.date }, finalSubject, body, emails)
+    return { ok: true, count }
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
 }
 
 export async function reopenCancelledSession(sessionId: string) {

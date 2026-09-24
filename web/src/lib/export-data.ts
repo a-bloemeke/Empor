@@ -25,6 +25,7 @@ export type ExportSession = {
   status: string
   organizerEmail: string
   maxPlayers: number | null
+  subjectPrefix?: string | null
 }
 
 export type ExportRegistration = {
@@ -253,6 +254,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     status: s.status,
     organizerEmail: emailById.get(s.organizerId)!,
     maxPlayers: s.maxPlayers ?? null,
+    subjectPrefix: s.subjectPrefix ?? null,
   }))
 
   const exportRegistrations: ExportRegistration[] = sessions.flatMap((s) =>
@@ -494,7 +496,7 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
       if (existing) { sessionIdByDate.set(s.date, existing.id); continue }
     }
     const row = await db.session.create({
-      data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId, maxPlayers: s.maxPlayers != null ? Number(s.maxPlayers) : 12 },
+      data: { seasonId, date: new Date(s.date), status: s.status as any, organizerId, maxPlayers: s.maxPlayers != null ? Number(s.maxPlayers) : 12, subjectPrefix: s.subjectPrefix ?? null },
     })
     sessionIdByDate.set(s.date, row.id)
     newSessionDates.add(s.date)

@@ -179,14 +179,11 @@ function CancelGameDayDialog({
 
   function handleSendEmail() {
     startTransition(async () => {
-      try {
-        const count = await sendCancelEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
-        toast.success(t("cancelEmailSent", { count }))
-        setOpen(false)
-        await revalidateSchedule()
-      } catch (e) {
-        toast.error((e as Error).message)
-      }
+      const res = await sendCancelEmail(sessionId, subject.trim(), body.trim(), [...selectedIds])
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(t("cancelEmailSent", { count: res.count }))
+      setOpen(false)
+      await revalidateSchedule()
     })
   }
 
