@@ -16,19 +16,15 @@ function createTransport() {
 }
 
 export function buildDefaultInvitation(session: { id: string; date: Date }): { subject: string; body: string } {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const link = `${appUrl}/sessions/${session.id}`
 
   const subject = `📅 Neuer Spieltag – ${dateStr} · 20:00 Uhr`
   const body = `Hey Kicker,
 
-ein neuer Spieltag wurde angelegt. Wenn du kommen kannst / willst, dann registriere dich auf unserer Webseite.
+ein neuer Spieltag wurde angelegt. Wenn du kommen kannst / willst, dann registriere dich in der Empor-App.
 
 Datum: ${dateStr}
 Uhrzeit: 20:00 Uhr
-
-${link}
 
 Empor Lichtenberg`
 
@@ -49,9 +45,6 @@ export async function sendGameDayInvitation(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
-  const link = `${appUrl}/sessions/${session.id}`
 
   const htmlBody = plainTextBody
     .replace(/&/g, "&amp;")
@@ -80,9 +73,6 @@ export async function sendGameDayInvitation(
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${htmlBody}</p>
-  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">
-    Jetzt anmelden →
-  </a>
   ${quoteHtml}
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
@@ -122,8 +112,6 @@ export async function sendStatusUpdateEmail(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
-  const link = `${appUrl}/sessions/${session.id}`
 
   const introHtml = plainTextBody
     .split("\n\n")[0]
@@ -175,7 +163,6 @@ export async function sendStatusUpdateEmail(
   <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${introHtml}</p>
   ${deltaHtml}
   ${tablesHtml}
-  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -236,10 +223,8 @@ export async function notifyOrganizersCancellation(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const link = `${appUrl}/sessions/${session.id}`
   const name = `${player.firstName} ${player.lastName}`
 
   const subject = wasRegistered
@@ -247,8 +232,8 @@ export async function notifyOrganizersCancellation(
     : `Abgesagt (nie angemeldet): ${name} – ${dateStr}`
 
   const bodyText = wasRegistered
-    ? `${name} hat sich vom Spieltag am ${dateStr} abgemeldet.\n\nDer Spieler war zuvor angemeldet.\n\n${link}`
-    : `${name} hat für den Spieltag am ${dateStr} abgesagt, ohne vorher angemeldet zu sein.\n\n${link}`
+    ? `${name} hat sich vom Spieltag am ${dateStr} abgemeldet.\n\nDer Spieler war zuvor angemeldet.`
+    : `${name} hat für den Spieltag am ${dateStr} abgesagt, ohne vorher angemeldet zu sein.`
 
   const bodyHtml = wasRegistered
     ? `<p style="margin:0 0 16px"><strong>${name}</strong> hat sich vom Spieltag am <strong>${dateStr}</strong> <span style="color:#991b1b">abgemeldet</span>.</p>
@@ -259,7 +244,6 @@ export async function notifyOrganizersCancellation(
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   ${bodyHtml}
-  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -280,10 +264,9 @@ export async function notifyOrganizersNewPlayer(player: { firstName: string; las
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
 
   const subject = `Neue Registrierung – Freischaltung erforderlich: ${player.firstName} ${player.lastName}`
-  const text = `Ein neuer Spieler hat sich registriert und wartet auf Freischaltung.\n\nName: ${player.firstName} ${player.lastName}\nE-Mail: ${player.email}\n\nBitte das Konto in der Spielerverwaltung freischalten: ${appUrl}/admin/players`
+  const text = `Ein neuer Spieler hat sich registriert und wartet auf Freischaltung.\n\nName: ${player.firstName} ${player.lastName}\nE-Mail: ${player.email}\n\nBitte das Konto in der Empor-App unter Admin → Spieler freischalten.`
   const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -293,8 +276,7 @@ export async function notifyOrganizersNewPlayer(player: { firstName: string; las
     <tr><td style="padding:4px 16px 4px 0;color:#555">Name</td><td><strong>${player.firstName} ${player.lastName}</strong></td></tr>
     <tr><td style="padding:4px 16px 4px 0;color:#555">E-Mail</td><td>${player.email}</td></tr>
   </table>
-  <p style="margin:0 0 16px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:13px">⏳ Das Konto ist noch nicht aktiv. Der Spieler kann sich erst anmelden, nachdem du es freigeschaltet hast.</p>
-  <a href="${appUrl}/admin/players" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Konto freischalten →</a>
+  <p style="margin:0 0 16px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;font-size:13px">⏳ Das Konto ist noch nicht aktiv. Bitte unter Admin → Spieler freischalten.</p>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -313,20 +295,17 @@ export async function sendRsvpConfirmation(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const scheduleLink = `${appUrl}/schedule`
 
   const subject = `✅ Anmeldung bestätigt – ${dateStr}`
-  const text = `Hey ${player.firstName},\n\ndeine Anmeldung für den Spieltag am ${dateStr} um 20:00 Uhr wurde bestätigt.\n\nUm abzusagen, besuche die Spielplan-Seite: ${scheduleLink}\n\nEmpor Lichtenberg`
+  const text = `Hey ${player.firstName},\n\ndeine Anmeldung für den Spieltag am ${dateStr} um 20:00 Uhr wurde bestätigt.\n\nUm abzusagen, öffne die Empor-App und klicke auf "Absagen" neben dem Spieltag.\n\nEmpor Lichtenberg`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="margin:0 0 8px">Hey ${player.firstName},</p>
   <p style="margin:0 0 16px">deine Anmeldung für den Spieltag am <strong>${dateStr}</strong> um <strong>20:00 Uhr</strong> wurde bestätigt. ✅</p>
-  <a href="${scheduleLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
-  <p style="margin:24px 0 0;color:#555;font-size:13px">Um abzusagen, öffne den Spielplan und klicke auf "Absagen" neben dem Spieltag.</p>
+  <p style="margin:0 0 0;color:#555;font-size:13px">Um abzusagen, öffne die Empor-App und klicke auf "Absagen" neben dem Spieltag.</p>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -350,19 +329,16 @@ export async function notifyOrganizersSessionRegistration(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
 
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const link = `${appUrl}/sessions/${session.id}`
 
   const subject = `Anmeldung: ${player.firstName} ${player.lastName} – ${dateStr}`
-  const text = `${player.firstName} ${player.lastName} hat sich für den Spieltag am ${dateStr} angemeldet.\n\n${link}`
+  const text = `${player.firstName} ${player.lastName} hat sich für den Spieltag am ${dateStr} angemeldet.`
   const html = `
 <!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="margin:0 0 16px"><strong>${player.firstName} ${player.lastName}</strong> hat sich für den Spieltag am <strong>${dateStr}</strong> angemeldet.</p>
-  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -378,17 +354,14 @@ export async function sendWelcomeEmail(player: { email: string; firstName: strin
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
-  const loginLink = `${appUrl}/login`
 
   const subject = `Willkommen bei Empor! 🎉`
-  const text = `Hey ${player.firstName},\n\ndein Konto bei Empor Lichtenberg ist jetzt aktiv. Du kannst dich ab sofort einloggen:\n${loginLink}\n\nEmpor Lichtenberg`
+  const text = `Hey ${player.firstName},\n\ndein Konto bei Empor Lichtenberg ist jetzt aktiv. Du kannst dich ab sofort in der Empor-App einloggen.\n\nEmpor Lichtenberg`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="margin:0 0 8px">Hey ${player.firstName},</p>
   <p style="margin:0 0 16px">dein Konto bei <strong>Empor Lichtenberg</strong> ist jetzt aktiv. Du kannst dich ab sofort einloggen und deine Anmeldungen selbst verwalten.</p>
-  <a href="${loginLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Jetzt einloggen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -408,18 +381,15 @@ export async function sendWaitlistConfirmation(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const scheduleLink = `${appUrl}/schedule`
 
   const subject = `⏳ Warteliste – Spieltag ${dateStr}`
-  const text = `Hey ${player.firstName},\n\nder Spieltag am ${dateStr} ist bereits voll. Du stehst jetzt auf der Warteliste und wirst automatisch angemeldet, wenn ein Platz frei wird.\n\n${scheduleLink}\n\nEmpor Lichtenberg`
+  const text = `Hey ${player.firstName},\n\nder Spieltag am ${dateStr} ist bereits voll. Du stehst jetzt auf der Warteliste und wirst automatisch angemeldet, wenn ein Platz frei wird.\n\nEmpor Lichtenberg`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="margin:0 0 8px">Hey ${player.firstName},</p>
   <p style="margin:0 0 16px">der Spieltag am <strong>${dateStr}</strong> ist bereits voll. Du stehst jetzt auf der <strong>Warteliste</strong> und wirst automatisch angemeldet, sobald ein Platz frei wird.</p>
-  <a href="${scheduleLink}" style="display:inline-block;background:#1e40af;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -438,18 +408,15 @@ export async function sendWaitlistPromotion(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
-  const scheduleLink = `${appUrl}/schedule`
 
   const subject = `✅ Platz frei! Spieltag ${dateStr}`
-  const text = `Hey ${player.firstName},\n\nein Platz ist frei geworden! Du bist jetzt für den Spieltag am ${dateStr} angemeldet.\n\n${scheduleLink}\n\nEmpor Lichtenberg`
+  const text = `Hey ${player.firstName},\n\nein Platz ist frei geworden! Du bist jetzt für den Spieltag am ${dateStr} angemeldet.\n\nEmpor Lichtenberg`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="margin:0 0 8px">Hey ${player.firstName},</p>
   <p style="margin:0 0 16px">🎉 Ein Platz ist frei geworden! Du bist jetzt für den Spieltag am <strong>${dateStr}</strong> angemeldet.</p>
-  <a href="${scheduleLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
   <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
 </body>
@@ -469,7 +436,6 @@ export async function sendHallClosureConflictEmail(
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
 
   const startStr = format(closure.startDate, "d. MMMM yyyy", { locale: de })
   const endStr = format(closure.endDate, "d. MMMM yyyy", { locale: de })
@@ -488,9 +454,7 @@ Folgende bereits geplante Spieltage fallen in diesen Zeitraum:
 
 ${conflictList}
 
-Bitte prüfe, ob diese Spieltage abgesagt werden müssen.
-
-${appUrl}/schedule`
+Bitte prüfe, ob diese Spieltage abgesagt werden müssen.`
 
   const transporter = createTransport()
   await transporter.sendMail({ from, to: organizerEmails, subject, text })
