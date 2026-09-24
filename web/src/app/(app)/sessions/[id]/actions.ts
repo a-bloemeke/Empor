@@ -98,6 +98,7 @@ export async function sendInvitation(
   body: string,
   recipientIds: string[],
   quote?: { text: string; author: string },
+  subjectPrefix?: string,
 ): Promise<{ error: string } | { ok: true; count: number }> {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
@@ -111,14 +112,22 @@ export async function sendInvitation(
   })
   const emails = players.map((p) => p.email).filter(Boolean) as string[]
 
+  const trimmedPrefix = subjectPrefix?.trim() || null
+  const finalSubject = trimmedPrefix ? `${trimmedPrefix}... | ${subject}` : subject
+
   try {
     const count = await sendGameDayInvitation(
       { id: session.id, date: session.date },
-      subject,
+      finalSubject,
       body,
       emails,
       quote,
     )
+
+    await db.session.update({
+      where: { id: sessionId },
+      data: { subjectPrefix: trimmedPrefix },
+    })
 
     if (quote) {
       await db.quoteCollection.deleteMany({
@@ -333,12 +342,12 @@ export async function sendSummaryEmail(
   subject: string,
   body: string,
   recipientIds: string[],
-) {
+): Promise<{ error: string } | { ok: true; count: number }> {
   const authSession = await auth()
-  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const session = await db.session.findUnique({ where: { id: sessionId } })
-  if (!session) throw new Error("Session not found.")
+  if (!session) return { error: "Spieltag nicht gefunden." }
 
   const players = await db.player.findMany({
     where: { id: { in: recipientIds }, passwordHash: { not: null } },
@@ -346,7 +355,14 @@ export async function sendSummaryEmail(
   })
   const emails = players.map((p) => p.email).filter(Boolean) as string[]
 
-  return sendGameDayInvitation({ id: session.id, date: session.date }, subject, body, emails)
+  const finalSubject = session.subjectPrefix ? `${session.subjectPrefix}... | ${subject}` : subject
+
+  try {
+    const count = await sendGameDayInvitation({ id: session.id, date: session.date }, finalSubject, body, emails)
+    return { ok: true, count }
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
 }
 
 // ─── Status-Update Email ──────────────────────────────────────────────────────
@@ -519,9 +535,10 @@ export async function sendStatusUpdate(
     select: { email: true },
   })
   const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
+  const finalSubject = session.subjectPrefix ? `${session.subjectPrefix}... | ${subject}` : subject
 
   try {
-    await sendStatusUpdateEmail({ id: session.id, date: session.date }, subject, body, emails, lists, delta)
+    await sendStatusUpdateEmail({ id: session.id, date: session.date }, finalSubject, body, emails, lists, delta)
   } catch (e) {
     return { error: (e as Error).message }
   }
