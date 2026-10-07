@@ -1689,24 +1689,30 @@ export async function renameGuest(sessionId: string, playerId: string, newName: 
   revalidate(sessionId)
 }
 
-export async function convertGuestToPlayer(playerId: string, firstName: string, lastName: string, email: string, password: string) {
+export async function convertGuestToPlayer(
+  playerId: string,
+  firstName: string,
+  lastName: string,
+  email: string,
+  password: string,
+): Promise<{ error: string } | { ok: true; emailSent: boolean }> {
   const authSession = await auth()
-  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
 
   const trimmedFirst = firstName.trim()
   const trimmedLast = lastName.trim()
   const trimmedEmail = email.trim().toLowerCase()
-  if (!trimmedFirst) throw new Error("Vorname ist erforderlich.")
-  if (!trimmedLast) throw new Error("Nachname ist erforderlich.")
-  if (!trimmedEmail) throw new Error("E-Mail-Adresse ist erforderlich.")
-  if (password.length < 6) throw new Error("Passwort muss mindestens 6 Zeichen haben.")
+  if (!trimmedFirst) return { error: "Vorname ist erforderlich." }
+  if (!trimmedLast) return { error: "Nachname ist erforderlich." }
+  if (!trimmedEmail) return { error: "E-Mail-Adresse ist erforderlich." }
+  if (password.length < 6) return { error: "Passwort muss mindestens 6 Zeichen haben." }
 
   const player = await db.player.findUnique({ where: { id: playerId } })
-  if (!player) throw new Error("Spieler nicht gefunden.")
-  if (player.passwordHash) throw new Error("Dieser Spieler hat bereits ein Konto.")
+  if (!player) return { error: "Spieler nicht gefunden." }
+  if (player.passwordHash) return { error: "Dieser Spieler hat bereits ein Konto." }
 
   const existing = await db.player.findFirst({ where: { email: trimmedEmail, id: { not: playerId } } })
-  if (existing) throw new Error("Diese E-Mail-Adresse wird bereits verwendet.")
+  if (existing) return { error: "Diese E-Mail-Adresse wird bereits verwendet." }
 
   const passwordHash = await bcrypt.hash(password, 10)
 
@@ -1715,10 +1721,17 @@ export async function convertGuestToPlayer(playerId: string, firstName: string, 
     data: { firstName: trimmedFirst, lastName: trimmedLast, email: trimmedEmail, passwordHash, active: true },
   })
 
-  await sendWelcomeEmail({ email: trimmedEmail, firstName: trimmedFirst })
-
   revalidatePath("/sessions", "layout")
   revalidatePath("/schedule")
+
+  let emailSent = true
+  try {
+    await sendWelcomeEmail({ email: trimmedEmail, firstName: trimmedFirst })
+  } catch {
+    emailSent = false
+  }
+
+  return { ok: true, emailSent }
 }
 
 export async function toggleBeerAdmin(sessionId: string, playerId: string) {
