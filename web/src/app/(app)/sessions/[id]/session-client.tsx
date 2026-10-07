@@ -206,8 +206,10 @@ function ConvertGuestDialog({ playerId, playerName, sessionId }: { playerId: str
     }
     startTransition(async () => {
       try {
-        await convertGuestToPlayer(playerId, firstName.trim(), lastName.trim(), email.trim(), password)
-        toast.success(`${firstName.trim()} ${lastName.trim()} hat jetzt ein Konto.`)
+        const res = await convertGuestToPlayer(playerId, firstName.trim(), lastName.trim(), email.trim(), password)
+        if (res && "error" in res) { toast.error(res.error); return }
+        if (!res.emailSent) toast.warning(`Konto erstellt, aber Willkommens-E-Mail konnte nicht gesendet werden.`)
+        else toast.success(`${firstName.trim()} ${lastName.trim()} hat jetzt ein Konto.`)
         setOpen(false)
         router.refresh()
       } catch (e) { toast.error((e as Error).message) }
