@@ -283,6 +283,7 @@ export type PlayerWhereInput = {
   statsLifetime?: Prisma.XOR<Prisma.PlayerStatsLifetimeNullableScalarRelationFilter, Prisma.PlayerStatsLifetimeWhereInput> | null
   absences?: Prisma.PlayerAbsenceListRelationFilter
   comments?: Prisma.SessionCommentListRelationFilter
+  eventResponses?: Prisma.EventResponseListRelationFilter
 }
 
 export type PlayerOrderByWithRelationInput = {
@@ -315,6 +316,7 @@ export type PlayerOrderByWithRelationInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeOrderByWithRelationInput
   absences?: Prisma.PlayerAbsenceOrderByRelationAggregateInput
   comments?: Prisma.SessionCommentOrderByRelationAggregateInput
+  eventResponses?: Prisma.EventResponseOrderByRelationAggregateInput
 }
 
 export type PlayerWhereUniqueInput = Prisma.AtLeast<{
@@ -350,6 +352,7 @@ export type PlayerWhereUniqueInput = Prisma.AtLeast<{
   statsLifetime?: Prisma.XOR<Prisma.PlayerStatsLifetimeNullableScalarRelationFilter, Prisma.PlayerStatsLifetimeWhereInput> | null
   absences?: Prisma.PlayerAbsenceListRelationFilter
   comments?: Prisma.SessionCommentListRelationFilter
+  eventResponses?: Prisma.EventResponseListRelationFilter
 }, "id" | "email">
 
 export type PlayerOrderByWithAggregationInput = {
@@ -426,6 +429,7 @@ export type PlayerCreateInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateInput = {
@@ -458,6 +462,7 @@ export type PlayerUncheckedCreateInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUpdateInput = {
@@ -490,6 +495,7 @@ export type PlayerUpdateInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateInput = {
@@ -522,6 +528,7 @@ export type PlayerUncheckedUpdateInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateManyInput = {
@@ -844,6 +851,20 @@ export type PlayerUpdateOneRequiredWithoutAbsencesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.PlayerUpdateToOneWithWhereWithoutAbsencesInput, Prisma.PlayerUpdateWithoutAbsencesInput>, Prisma.PlayerUncheckedUpdateWithoutAbsencesInput>
 }
 
+export type PlayerCreateNestedOneWithoutEventResponsesInput = {
+  create?: Prisma.XOR<Prisma.PlayerCreateWithoutEventResponsesInput, Prisma.PlayerUncheckedCreateWithoutEventResponsesInput>
+  connectOrCreate?: Prisma.PlayerCreateOrConnectWithoutEventResponsesInput
+  connect?: Prisma.PlayerWhereUniqueInput
+}
+
+export type PlayerUpdateOneRequiredWithoutEventResponsesNestedInput = {
+  create?: Prisma.XOR<Prisma.PlayerCreateWithoutEventResponsesInput, Prisma.PlayerUncheckedCreateWithoutEventResponsesInput>
+  connectOrCreate?: Prisma.PlayerCreateOrConnectWithoutEventResponsesInput
+  upsert?: Prisma.PlayerUpsertWithoutEventResponsesInput
+  connect?: Prisma.PlayerWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.PlayerUpdateToOneWithWhereWithoutEventResponsesInput, Prisma.PlayerUpdateWithoutEventResponsesInput>, Prisma.PlayerUncheckedUpdateWithoutEventResponsesInput>
+}
+
 export type PlayerCreateWithoutAccountsInput = {
   id?: string
   email: string
@@ -873,6 +894,7 @@ export type PlayerCreateWithoutAccountsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutAccountsInput = {
@@ -904,6 +926,7 @@ export type PlayerUncheckedCreateWithoutAccountsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutAccountsInput = {
@@ -951,6 +974,7 @@ export type PlayerUpdateWithoutAccountsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutAccountsInput = {
@@ -982,6 +1006,7 @@ export type PlayerUncheckedUpdateWithoutAccountsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutAuthSessionsInput = {
@@ -1013,6 +1038,7 @@ export type PlayerCreateWithoutAuthSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutAuthSessionsInput = {
@@ -1044,6 +1070,7 @@ export type PlayerUncheckedCreateWithoutAuthSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutAuthSessionsInput = {
@@ -1091,6 +1118,7 @@ export type PlayerUpdateWithoutAuthSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutAuthSessionsInput = {
@@ -1122,6 +1150,7 @@ export type PlayerUncheckedUpdateWithoutAuthSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutOrganizedSessionsInput = {
@@ -1153,6 +1182,7 @@ export type PlayerCreateWithoutOrganizedSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutOrganizedSessionsInput = {
@@ -1184,6 +1214,7 @@ export type PlayerUncheckedCreateWithoutOrganizedSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutOrganizedSessionsInput = {
@@ -1231,6 +1262,7 @@ export type PlayerUpdateWithoutOrganizedSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutOrganizedSessionsInput = {
@@ -1262,6 +1294,7 @@ export type PlayerUncheckedUpdateWithoutOrganizedSessionsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutRegistrationsInput = {
@@ -1293,6 +1326,7 @@ export type PlayerCreateWithoutRegistrationsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutRegistrationsInput = {
@@ -1324,6 +1358,7 @@ export type PlayerUncheckedCreateWithoutRegistrationsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutRegistrationsInput = {
@@ -1371,6 +1406,7 @@ export type PlayerUpdateWithoutRegistrationsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutRegistrationsInput = {
@@ -1402,6 +1438,7 @@ export type PlayerUncheckedUpdateWithoutRegistrationsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutCommentsInput = {
@@ -1433,6 +1470,7 @@ export type PlayerCreateWithoutCommentsInput = {
   statsPerSeason?: Prisma.PlayerStatsCreateNestedManyWithoutPlayerInput
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutCommentsInput = {
@@ -1464,6 +1502,7 @@ export type PlayerUncheckedCreateWithoutCommentsInput = {
   statsPerSeason?: Prisma.PlayerStatsUncheckedCreateNestedManyWithoutPlayerInput
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutCommentsInput = {
@@ -1511,6 +1550,7 @@ export type PlayerUpdateWithoutCommentsInput = {
   statsPerSeason?: Prisma.PlayerStatsUpdateManyWithoutPlayerNestedInput
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutCommentsInput = {
@@ -1542,6 +1582,7 @@ export type PlayerUncheckedUpdateWithoutCommentsInput = {
   statsPerSeason?: Prisma.PlayerStatsUncheckedUpdateManyWithoutPlayerNestedInput
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutTeamPlayersInput = {
@@ -1573,6 +1614,7 @@ export type PlayerCreateWithoutTeamPlayersInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutTeamPlayersInput = {
@@ -1604,6 +1646,7 @@ export type PlayerUncheckedCreateWithoutTeamPlayersInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutTeamPlayersInput = {
@@ -1651,6 +1694,7 @@ export type PlayerUpdateWithoutTeamPlayersInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutTeamPlayersInput = {
@@ -1682,6 +1726,7 @@ export type PlayerUncheckedUpdateWithoutTeamPlayersInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutGoalsScoredInput = {
@@ -1713,6 +1758,7 @@ export type PlayerCreateWithoutGoalsScoredInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutGoalsScoredInput = {
@@ -1744,6 +1790,7 @@ export type PlayerUncheckedCreateWithoutGoalsScoredInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutGoalsScoredInput = {
@@ -1780,6 +1827,7 @@ export type PlayerCreateWithoutGoalsAssistedInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutGoalsAssistedInput = {
@@ -1811,6 +1859,7 @@ export type PlayerUncheckedCreateWithoutGoalsAssistedInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutGoalsAssistedInput = {
@@ -1858,6 +1907,7 @@ export type PlayerUpdateWithoutGoalsScoredInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutGoalsScoredInput = {
@@ -1889,6 +1939,7 @@ export type PlayerUncheckedUpdateWithoutGoalsScoredInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUpsertWithoutGoalsAssistedInput = {
@@ -1931,6 +1982,7 @@ export type PlayerUpdateWithoutGoalsAssistedInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutGoalsAssistedInput = {
@@ -1962,6 +2014,7 @@ export type PlayerUncheckedUpdateWithoutGoalsAssistedInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutMembershipFeesInput = {
@@ -1993,6 +2046,7 @@ export type PlayerCreateWithoutMembershipFeesInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutMembershipFeesInput = {
@@ -2024,6 +2078,7 @@ export type PlayerUncheckedCreateWithoutMembershipFeesInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutMembershipFeesInput = {
@@ -2060,6 +2115,7 @@ export type PlayerCreateWithoutFeeRecordingsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutFeeRecordingsInput = {
@@ -2091,6 +2147,7 @@ export type PlayerUncheckedCreateWithoutFeeRecordingsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutFeeRecordingsInput = {
@@ -2138,6 +2195,7 @@ export type PlayerUpdateWithoutMembershipFeesInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutMembershipFeesInput = {
@@ -2169,6 +2227,7 @@ export type PlayerUncheckedUpdateWithoutMembershipFeesInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUpsertWithoutFeeRecordingsInput = {
@@ -2211,6 +2270,7 @@ export type PlayerUpdateWithoutFeeRecordingsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutFeeRecordingsInput = {
@@ -2242,6 +2302,7 @@ export type PlayerUncheckedUpdateWithoutFeeRecordingsInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutStatsPerSeasonInput = {
@@ -2273,6 +2334,7 @@ export type PlayerCreateWithoutStatsPerSeasonInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutStatsPerSeasonInput = {
@@ -2304,6 +2366,7 @@ export type PlayerUncheckedCreateWithoutStatsPerSeasonInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutStatsPerSeasonInput = {
@@ -2351,6 +2414,7 @@ export type PlayerUpdateWithoutStatsPerSeasonInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutStatsPerSeasonInput = {
@@ -2382,6 +2446,7 @@ export type PlayerUncheckedUpdateWithoutStatsPerSeasonInput = {
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutStatsLifetimeInput = {
@@ -2413,6 +2478,7 @@ export type PlayerCreateWithoutStatsLifetimeInput = {
   statsPerSeason?: Prisma.PlayerStatsCreateNestedManyWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutStatsLifetimeInput = {
@@ -2444,6 +2510,7 @@ export type PlayerUncheckedCreateWithoutStatsLifetimeInput = {
   statsPerSeason?: Prisma.PlayerStatsUncheckedCreateNestedManyWithoutPlayerInput
   absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutStatsLifetimeInput = {
@@ -2491,6 +2558,7 @@ export type PlayerUpdateWithoutStatsLifetimeInput = {
   statsPerSeason?: Prisma.PlayerStatsUpdateManyWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutStatsLifetimeInput = {
@@ -2522,6 +2590,7 @@ export type PlayerUncheckedUpdateWithoutStatsLifetimeInput = {
   statsPerSeason?: Prisma.PlayerStatsUncheckedUpdateManyWithoutPlayerNestedInput
   absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerCreateWithoutAbsencesInput = {
@@ -2553,6 +2622,7 @@ export type PlayerCreateWithoutAbsencesInput = {
   statsPerSeason?: Prisma.PlayerStatsCreateNestedManyWithoutPlayerInput
   statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
   comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerUncheckedCreateWithoutAbsencesInput = {
@@ -2584,6 +2654,7 @@ export type PlayerUncheckedCreateWithoutAbsencesInput = {
   statsPerSeason?: Prisma.PlayerStatsUncheckedCreateNestedManyWithoutPlayerInput
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
   comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+  eventResponses?: Prisma.EventResponseUncheckedCreateNestedManyWithoutPlayerInput
 }
 
 export type PlayerCreateOrConnectWithoutAbsencesInput = {
@@ -2631,6 +2702,7 @@ export type PlayerUpdateWithoutAbsencesInput = {
   statsPerSeason?: Prisma.PlayerStatsUpdateManyWithoutPlayerNestedInput
   statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUpdateManyWithoutPlayerNestedInput
 }
 
 export type PlayerUncheckedUpdateWithoutAbsencesInput = {
@@ -2662,6 +2734,151 @@ export type PlayerUncheckedUpdateWithoutAbsencesInput = {
   statsPerSeason?: Prisma.PlayerStatsUncheckedUpdateManyWithoutPlayerNestedInput
   statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
   comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
+  eventResponses?: Prisma.EventResponseUncheckedUpdateManyWithoutPlayerNestedInput
+}
+
+export type PlayerCreateWithoutEventResponsesInput = {
+  id?: string
+  email: string
+  emailVerified?: Date | string | null
+  passwordHash?: string | null
+  firstName?: string
+  lastName?: string
+  nickname?: string | null
+  dateOfBirth?: Date | string | null
+  addressStreet?: string | null
+  addressCity?: string | null
+  addressPostalCode?: string | null
+  avatarUrl?: string | null
+  role?: $Enums.Role
+  emailNotifications?: boolean
+  active?: boolean
+  createdAt?: Date | string
+  accounts?: Prisma.AccountCreateNestedManyWithoutUserInput
+  authSessions?: Prisma.AuthSessionCreateNestedManyWithoutUserInput
+  registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutPlayerInput
+  teamPlayers?: Prisma.TeamPlayerCreateNestedManyWithoutPlayerInput
+  organizedSessions?: Prisma.SessionCreateNestedManyWithoutOrganizerInput
+  goalsScored?: Prisma.GoalCreateNestedManyWithoutScoredByInput
+  goalsAssisted?: Prisma.GoalCreateNestedManyWithoutAssistedByInput
+  membershipFees?: Prisma.MembershipFeeCreateNestedManyWithoutPlayerInput
+  feeRecordings?: Prisma.MembershipFeeCreateNestedManyWithoutRecordedByInput
+  statsPerSeason?: Prisma.PlayerStatsCreateNestedManyWithoutPlayerInput
+  statsLifetime?: Prisma.PlayerStatsLifetimeCreateNestedOneWithoutPlayerInput
+  absences?: Prisma.PlayerAbsenceCreateNestedManyWithoutPlayerInput
+  comments?: Prisma.SessionCommentCreateNestedManyWithoutPlayerInput
+}
+
+export type PlayerUncheckedCreateWithoutEventResponsesInput = {
+  id?: string
+  email: string
+  emailVerified?: Date | string | null
+  passwordHash?: string | null
+  firstName?: string
+  lastName?: string
+  nickname?: string | null
+  dateOfBirth?: Date | string | null
+  addressStreet?: string | null
+  addressCity?: string | null
+  addressPostalCode?: string | null
+  avatarUrl?: string | null
+  role?: $Enums.Role
+  emailNotifications?: boolean
+  active?: boolean
+  createdAt?: Date | string
+  accounts?: Prisma.AccountUncheckedCreateNestedManyWithoutUserInput
+  authSessions?: Prisma.AuthSessionUncheckedCreateNestedManyWithoutUserInput
+  registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutPlayerInput
+  teamPlayers?: Prisma.TeamPlayerUncheckedCreateNestedManyWithoutPlayerInput
+  organizedSessions?: Prisma.SessionUncheckedCreateNestedManyWithoutOrganizerInput
+  goalsScored?: Prisma.GoalUncheckedCreateNestedManyWithoutScoredByInput
+  goalsAssisted?: Prisma.GoalUncheckedCreateNestedManyWithoutAssistedByInput
+  membershipFees?: Prisma.MembershipFeeUncheckedCreateNestedManyWithoutPlayerInput
+  feeRecordings?: Prisma.MembershipFeeUncheckedCreateNestedManyWithoutRecordedByInput
+  statsPerSeason?: Prisma.PlayerStatsUncheckedCreateNestedManyWithoutPlayerInput
+  statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedCreateNestedOneWithoutPlayerInput
+  absences?: Prisma.PlayerAbsenceUncheckedCreateNestedManyWithoutPlayerInput
+  comments?: Prisma.SessionCommentUncheckedCreateNestedManyWithoutPlayerInput
+}
+
+export type PlayerCreateOrConnectWithoutEventResponsesInput = {
+  where: Prisma.PlayerWhereUniqueInput
+  create: Prisma.XOR<Prisma.PlayerCreateWithoutEventResponsesInput, Prisma.PlayerUncheckedCreateWithoutEventResponsesInput>
+}
+
+export type PlayerUpsertWithoutEventResponsesInput = {
+  update: Prisma.XOR<Prisma.PlayerUpdateWithoutEventResponsesInput, Prisma.PlayerUncheckedUpdateWithoutEventResponsesInput>
+  create: Prisma.XOR<Prisma.PlayerCreateWithoutEventResponsesInput, Prisma.PlayerUncheckedCreateWithoutEventResponsesInput>
+  where?: Prisma.PlayerWhereInput
+}
+
+export type PlayerUpdateToOneWithWhereWithoutEventResponsesInput = {
+  where?: Prisma.PlayerWhereInput
+  data: Prisma.XOR<Prisma.PlayerUpdateWithoutEventResponsesInput, Prisma.PlayerUncheckedUpdateWithoutEventResponsesInput>
+}
+
+export type PlayerUpdateWithoutEventResponsesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  firstName?: Prisma.StringFieldUpdateOperationsInput | string
+  lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  nickname?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dateOfBirth?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  addressStreet?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  addressCity?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  addressPostalCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  emailNotifications?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AccountUpdateManyWithoutUserNestedInput
+  authSessions?: Prisma.AuthSessionUpdateManyWithoutUserNestedInput
+  registrations?: Prisma.SessionRegistrationUpdateManyWithoutPlayerNestedInput
+  teamPlayers?: Prisma.TeamPlayerUpdateManyWithoutPlayerNestedInput
+  organizedSessions?: Prisma.SessionUpdateManyWithoutOrganizerNestedInput
+  goalsScored?: Prisma.GoalUpdateManyWithoutScoredByNestedInput
+  goalsAssisted?: Prisma.GoalUpdateManyWithoutAssistedByNestedInput
+  membershipFees?: Prisma.MembershipFeeUpdateManyWithoutPlayerNestedInput
+  feeRecordings?: Prisma.MembershipFeeUpdateManyWithoutRecordedByNestedInput
+  statsPerSeason?: Prisma.PlayerStatsUpdateManyWithoutPlayerNestedInput
+  statsLifetime?: Prisma.PlayerStatsLifetimeUpdateOneWithoutPlayerNestedInput
+  absences?: Prisma.PlayerAbsenceUpdateManyWithoutPlayerNestedInput
+  comments?: Prisma.SessionCommentUpdateManyWithoutPlayerNestedInput
+}
+
+export type PlayerUncheckedUpdateWithoutEventResponsesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  emailVerified?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  firstName?: Prisma.StringFieldUpdateOperationsInput | string
+  lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  nickname?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  dateOfBirth?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  addressStreet?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  addressCity?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  addressPostalCode?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  emailNotifications?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  accounts?: Prisma.AccountUncheckedUpdateManyWithoutUserNestedInput
+  authSessions?: Prisma.AuthSessionUncheckedUpdateManyWithoutUserNestedInput
+  registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutPlayerNestedInput
+  teamPlayers?: Prisma.TeamPlayerUncheckedUpdateManyWithoutPlayerNestedInput
+  organizedSessions?: Prisma.SessionUncheckedUpdateManyWithoutOrganizerNestedInput
+  goalsScored?: Prisma.GoalUncheckedUpdateManyWithoutScoredByNestedInput
+  goalsAssisted?: Prisma.GoalUncheckedUpdateManyWithoutAssistedByNestedInput
+  membershipFees?: Prisma.MembershipFeeUncheckedUpdateManyWithoutPlayerNestedInput
+  feeRecordings?: Prisma.MembershipFeeUncheckedUpdateManyWithoutRecordedByNestedInput
+  statsPerSeason?: Prisma.PlayerStatsUncheckedUpdateManyWithoutPlayerNestedInput
+  statsLifetime?: Prisma.PlayerStatsLifetimeUncheckedUpdateOneWithoutPlayerNestedInput
+  absences?: Prisma.PlayerAbsenceUncheckedUpdateManyWithoutPlayerNestedInput
+  comments?: Prisma.SessionCommentUncheckedUpdateManyWithoutPlayerNestedInput
 }
 
 
@@ -2682,6 +2899,7 @@ export type PlayerCountOutputType = {
   statsPerSeason: number
   absences: number
   comments: number
+  eventResponses: number
 }
 
 export type PlayerCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2697,6 +2915,7 @@ export type PlayerCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions
   statsPerSeason?: boolean | PlayerCountOutputTypeCountStatsPerSeasonArgs
   absences?: boolean | PlayerCountOutputTypeCountAbsencesArgs
   comments?: boolean | PlayerCountOutputTypeCountCommentsArgs
+  eventResponses?: boolean | PlayerCountOutputTypeCountEventResponsesArgs
 }
 
 /**
@@ -2793,6 +3012,13 @@ export type PlayerCountOutputTypeCountCommentsArgs<ExtArgs extends runtime.Types
   where?: Prisma.SessionCommentWhereInput
 }
 
+/**
+ * PlayerCountOutputType without action
+ */
+export type PlayerCountOutputTypeCountEventResponsesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.EventResponseWhereInput
+}
+
 
 export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2824,6 +3050,7 @@ export type PlayerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   statsLifetime?: boolean | Prisma.Player$statsLifetimeArgs<ExtArgs>
   absences?: boolean | Prisma.Player$absencesArgs<ExtArgs>
   comments?: boolean | Prisma.Player$commentsArgs<ExtArgs>
+  eventResponses?: boolean | Prisma.Player$eventResponsesArgs<ExtArgs>
   _count?: boolean | Prisma.PlayerCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["player"]>
 
@@ -2899,6 +3126,7 @@ export type PlayerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   statsLifetime?: boolean | Prisma.Player$statsLifetimeArgs<ExtArgs>
   absences?: boolean | Prisma.Player$absencesArgs<ExtArgs>
   comments?: boolean | Prisma.Player$commentsArgs<ExtArgs>
+  eventResponses?: boolean | Prisma.Player$eventResponsesArgs<ExtArgs>
   _count?: boolean | Prisma.PlayerCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type PlayerIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2920,6 +3148,7 @@ export type $PlayerPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     statsLifetime: Prisma.$PlayerStatsLifetimePayload<ExtArgs> | null
     absences: Prisma.$PlayerAbsencePayload<ExtArgs>[]
     comments: Prisma.$SessionCommentPayload<ExtArgs>[]
+    eventResponses: Prisma.$EventResponsePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -3345,6 +3574,7 @@ export interface Prisma__PlayerClient<T, Null = never, ExtArgs extends runtime.T
   statsLifetime<T extends Prisma.Player$statsLifetimeArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$statsLifetimeArgs<ExtArgs>>): Prisma.Prisma__PlayerStatsLifetimeClient<runtime.Types.Result.GetResult<Prisma.$PlayerStatsLifetimePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   absences<T extends Prisma.Player$absencesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$absencesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PlayerAbsencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   comments<T extends Prisma.Player$commentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$commentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SessionCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  eventResponses<T extends Prisma.Player$eventResponsesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Player$eventResponsesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EventResponsePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4087,6 +4317,30 @@ export type Player$commentsArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   distinct?: Prisma.SessionCommentScalarFieldEnum | Prisma.SessionCommentScalarFieldEnum[]
+}
+
+/**
+ * Player.eventResponses
+ */
+export type Player$eventResponsesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the EventResponse
+   */
+  select?: Prisma.EventResponseSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the EventResponse
+   */
+  omit?: Prisma.EventResponseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.EventResponseInclude<ExtArgs> | null
+  where?: Prisma.EventResponseWhereInput
+  orderBy?: Prisma.EventResponseOrderByWithRelationInput | Prisma.EventResponseOrderByWithRelationInput[]
+  cursor?: Prisma.EventResponseWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.EventResponseScalarFieldEnum | Prisma.EventResponseScalarFieldEnum[]
 }
 
 /**

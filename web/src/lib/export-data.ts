@@ -136,6 +136,47 @@ export type ExportInvitationQuote = {
   usedAt: string
 }
 
+export type ExportEventQuestionOption = {
+  text: string
+  order: number
+  allowFreeText: boolean
+}
+
+export type ExportEventQuestion = {
+  text: string
+  type: string
+  order: number
+  options: ExportEventQuestionOption[]
+}
+
+export type ExportEventDateVote = {
+  dateIndex: number
+  availability: string
+}
+
+export type ExportEventAnswer = {
+  questionIndex: number
+  optionIndex: number | null
+  freeText: string | null
+}
+
+export type ExportEventResponse = {
+  playerEmail: string
+  createdAt: string
+  dateVotes: ExportEventDateVote[]
+  answers: ExportEventAnswer[]
+}
+
+export type ExportEvent = {
+  title: string
+  description: string | null
+  status: string
+  createdAt: string
+  dateOptions: string[]
+  questions: ExportEventQuestion[]
+  responses: ExportEventResponse[]
+}
+
 export type ExportBundle = {
   exportedAt: string
   version: number
@@ -157,6 +198,7 @@ export type ExportBundle = {
   appConfig?: ExportAppConfig[]                 // only in full export
   quoteCollection?: ExportQuoteCollectionItem[] // only in full export
   invitationQuotes?: ExportInvitationQuote[]    // only in full export
+  events?: ExportEvent[]                        // only in full export
 }
 
 // ─── Filter a full bundle down to a single season ────────────────────────────
@@ -230,6 +272,19 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
   const appConfig = seasonId ? null : await db.appConfig.findMany()
   const quoteCollection = seasonId ? null : await db.quoteCollection.findMany()
   const invitationQuotes = seasonId ? null : await db.invitationQuote.findMany({ orderBy: { usedAt: "asc" } })
+  const allEvents = seasonId ? null : await db.event.findMany({
+    orderBy: { createdAt: "asc" },
+    include: {
+      dateOptions: { orderBy: { order: "asc" } },
+      questions: {
+        orderBy: { order: "asc" },
+        include: { options: { orderBy: { order: "asc" } } },
+      },
+      responses: {
+        include: { dateVotes: true, answers: true },
+      },
+    },
+  })
 
   // ── transform ──
 
@@ -381,11 +436,35 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     usedAt: q.usedAt.toISOString(),
   }))
 
+  const exportEvents: ExportEvent[] | undefined = allEvents?.map((e) => {
+    const dateOptionDates = e.dateOptions.map((d) => d.date.toISOString())
+    const questions: ExportEventQuestion[] = e.questions.map((q) => ({
+      text: q.text,
+      type: q.type,
+      order: q.order,
+      options: q.options.map((o) => ({ text: o.text, order: o.order, allowFreeText: o.allowFreeText })),
+    }))
+    const responses: ExportEventResponse[] = e.responses.map((r) => ({
+      playerEmail: emailById.get(r.playerId) ?? "",
+      createdAt: r.createdAt.toISOString(),
+      dateVotes: r.dateVotes.map((v) => ({
+        dateIndex: e.dateOptions.findIndex((d) => d.id === v.dateOptionId),
+        availability: v.availability,
+      })),
+      answers: r.answers.map((a) => ({
+        questionIndex: e.questions.findIndex((q) => q.id === a.questionId),
+        optionIndex: a.optionId ? e.questions.find((q) => q.id === a.questionId)?.options.findIndex((o) => o.id === a.optionId) ?? null : null,
+        freeText: a.freeText,
+      })),
+    }))
+    return { title: e.title, description: e.description, status: e.status, createdAt: e.createdAt.toISOString(), dateOptions: dateOptionDates, questions, responses }
+  })
+
   const targetSeason = seasonId ? seasons.find((s) => s.id === seasonId) : undefined
 
   return {
     exportedAt: new Date().toISOString(),
-    version: 2,
+    version: 3,
     scope: seasonId ? "season" : "all",
     ...(targetSeason ? { seasonYear: targetSeason.year } : {}),
     players: exportPlayers,
@@ -404,13 +483,14 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     ...(exportAppConfig ? { appConfig: exportAppConfig } : {}),
     ...(exportQuoteCollection ? { quoteCollection: exportQuoteCollection } : {}),
     ...(exportInvitationQuotes ? { invitationQuotes: exportInvitationQuotes } : {}),
+    ...(exportEvents ? { events: exportEvents } : {}),
   }
 }
 
 // ─── Import: rebuild from natural keys, generate fresh IDs ───────────────────
 
 export async function importBundle(data: ExportBundle, mode: "replace" | "merge" = "replace") {
-  if (data.version !== 2) throw new Error("Unsupported export version. Only version 2 is supported.")
+  if (data.version < 2 || data.version > 3) throw new Error("Unsupported export version. Only versions 2–3 are supported.")
 
   // ── Wipe phase — skipped entirely in merge mode ──
   if (mode === "replace") {
@@ -430,6 +510,14 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
     await db.appConfig.deleteMany()
     await db.quoteCollection.deleteMany()
     await db.invitationQuote.deleteMany()
+    // Event survey data
+    await db.eventAnswer.deleteMany()
+    await db.eventDateVote.deleteMany()
+    await db.eventResponse.deleteMany()
+    await db.eventQuestionOption.deleteMany()
+    await db.eventQuestion.deleteMany()
+    await db.eventDateOption.deleteMany()
+    await db.event.deleteMany()
   } else {
     const existingSeason = await db.season.findUnique({ where: { year: Number(data.seasonYear!) } })
     if (existingSeason) {
@@ -667,6 +755,51 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
       await db.invitationQuote.createMany({
         data: (data.invitationQuotes ?? []).map((q) => ({ quote: q.quote, author: q.author, usedAt: new Date(q.usedAt) })),
       })
+    }
+    // Event survey restore
+    if ((data.events ?? []).length) {
+      for (const e of data.events ?? []) {
+        const event = await db.event.create({
+          data: { title: e.title, description: e.description, status: e.status as any, createdAt: new Date(e.createdAt) },
+        })
+        const dateOptionIds: string[] = []
+        for (let i = 0; i < e.dateOptions.length; i++) {
+          const opt = await db.eventDateOption.create({ data: { eventId: event.id, date: new Date(e.dateOptions[i]), order: i } })
+          dateOptionIds.push(opt.id)
+        }
+        const questionIds: string[] = []
+        const questionOptionIds: string[][] = []
+        for (const q of e.questions) {
+          const question = await db.eventQuestion.create({ data: { eventId: event.id, text: q.text, type: q.type as any, order: q.order } })
+          questionIds.push(question.id)
+          const optionIds: string[] = []
+          for (const o of q.options) {
+            const opt = await db.eventQuestionOption.create({ data: { questionId: question.id, text: o.text, order: o.order, allowFreeText: o.allowFreeText } })
+            optionIds.push(opt.id)
+          }
+          questionOptionIds.push(optionIds)
+        }
+        for (const r of e.responses) {
+          const playerId = playerIdByEmail.get(r.playerEmail)
+          if (!playerId) continue
+          const response = await db.eventResponse.create({ data: { eventId: event.id, playerId, createdAt: new Date(r.createdAt) } })
+          const dateVoteData = r.dateVotes
+            .filter((v) => v.dateIndex >= 0 && v.dateIndex < dateOptionIds.length)
+            .map((v) => ({ responseId: response.id, dateOptionId: dateOptionIds[v.dateIndex], availability: v.availability as any }))
+          if (dateVoteData.length) await db.eventDateVote.createMany({ data: dateVoteData })
+          const answerData = r.answers
+            .filter((a) => a.questionIndex >= 0 && a.questionIndex < questionIds.length)
+            .map((a) => ({
+              responseId: response.id,
+              questionId: questionIds[a.questionIndex],
+              optionId: a.optionIndex !== null && a.optionIndex >= 0 && a.optionIndex < questionOptionIds[a.questionIndex].length
+                ? questionOptionIds[a.questionIndex][a.optionIndex]
+                : null,
+              freeText: a.freeText,
+            }))
+          if (answerData.length) await db.eventAnswer.createMany({ data: answerData })
+        }
+      }
     }
   }
 }

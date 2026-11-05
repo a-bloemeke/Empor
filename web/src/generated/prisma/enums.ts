@@ -70,3 +70,28 @@ export const FeeStatus = {
 } as const
 
 export type FeeStatus = (typeof FeeStatus)[keyof typeof FeeStatus]
+
+
+export const EventStatus = {
+  DRAFT: 'DRAFT',
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED'
+} as const
+
+export type EventStatus = (typeof EventStatus)[keyof typeof EventStatus]
+
+
+export const EventQuestionType = {
+  SINGLE_CHOICE: 'SINGLE_CHOICE'
+} as const
+
+export type EventQuestionType = (typeof EventQuestionType)[keyof typeof EventQuestionType]
+
+
+export const EventAvailability = {
+  YES: 'YES',
+  NO: 'NO',
+  MAYBE: 'MAYBE'
+} as const
+
+export type EventAvailability = (typeof EventAvailability)[keyof typeof EventAvailability]

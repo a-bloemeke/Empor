@@ -13,7 +13,7 @@ export default async function SchedulePage() {
   const twoWeeksFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)
   const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
 
-  const [sessions, upcomingClosures] = await Promise.all([
+  const [sessions, upcomingClosures, openEvents] = await Promise.all([
     db.session.findMany({
       orderBy: { date: "asc" },
       include: {
@@ -25,6 +25,11 @@ export default async function SchedulePage() {
       where: { endDate: { gte: todayUTC }, startDate: { lte: twoWeeksFromNow } },
       orderBy: { startDate: "asc" },
     }).catch(() => [] as { id: string; startDate: Date; endDate: Date; reason: string | null; createdAt: Date }[]),
+    db.event.findMany({
+      where: { status: { in: ["OPEN", "CLOSED"] } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, description: true, status: true },
+    }),
   ])
 
   // Load current user's registrations
@@ -35,6 +40,16 @@ export default async function SchedulePage() {
       })
     : []
   const myRegMap = new Map(myRegistrations.map((r) => [r.sessionId, r.status]))
+
+  // Load current user's event responses
+  const myEventResponseIds = currentUserId && openEvents.length > 0
+    ? new Set(
+        (await db.eventResponse.findMany({
+          where: { playerId: currentUserId, eventId: { in: openEvents.map((e) => e.id) } },
+          select: { eventId: true },
+        })).map((r) => r.eventId)
+      )
+    : new Set<string>()
 
   // Load beer bringers for all sessions
   const beerRegs = await db.sessionRegistration.findMany({
@@ -79,6 +94,14 @@ export default async function SchedulePage() {
     reason: c.reason,
   }))
 
+  const events = openEvents.map((e) => ({
+    id: e.id,
+    title: e.title,
+    description: e.description,
+    status: e.status as string,
+    hasResponded: myEventResponseIds.has(e.id),
+  }))
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-1">{t("title")}</h1>
@@ -89,6 +112,7 @@ export default async function SchedulePage() {
         isOrganizer={isOrganizer}
         currentUserId={currentUserId}
         closures={closures}
+        events={events}
       />
     </div>
   )

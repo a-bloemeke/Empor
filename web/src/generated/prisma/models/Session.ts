@@ -41,6 +41,7 @@ export type SessionMinAggregateOutputType = {
   status: $Enums.SessionStatus | null
   organizerId: string | null
   lastStatusEmailSentAt: Date | null
+  subjectPrefix: string | null
   maxPlayers: number | null
 }
 
@@ -51,6 +52,7 @@ export type SessionMaxAggregateOutputType = {
   status: $Enums.SessionStatus | null
   organizerId: string | null
   lastStatusEmailSentAt: Date | null
+  subjectPrefix: string | null
   maxPlayers: number | null
 }
 
@@ -61,6 +63,7 @@ export type SessionCountAggregateOutputType = {
   status: number
   organizerId: number
   lastStatusEmailSentAt: number
+  subjectPrefix: number
   maxPlayers: number
   _all: number
 }
@@ -81,6 +84,7 @@ export type SessionMinAggregateInputType = {
   status?: true
   organizerId?: true
   lastStatusEmailSentAt?: true
+  subjectPrefix?: true
   maxPlayers?: true
 }
 
@@ -91,6 +95,7 @@ export type SessionMaxAggregateInputType = {
   status?: true
   organizerId?: true
   lastStatusEmailSentAt?: true
+  subjectPrefix?: true
   maxPlayers?: true
 }
 
@@ -101,6 +106,7 @@ export type SessionCountAggregateInputType = {
   status?: true
   organizerId?: true
   lastStatusEmailSentAt?: true
+  subjectPrefix?: true
   maxPlayers?: true
   _all?: true
 }
@@ -198,6 +204,7 @@ export type SessionGroupByOutputType = {
   status: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt: Date | null
+  subjectPrefix: string | null
   maxPlayers: number | null
   _count: SessionCountAggregateOutputType | null
   _avg: SessionAvgAggregateOutputType | null
@@ -231,6 +238,7 @@ export type SessionWhereInput = {
   status?: Prisma.EnumSessionStatusFilter<"Session"> | $Enums.SessionStatus
   organizerId?: Prisma.StringFilter<"Session"> | string
   lastStatusEmailSentAt?: Prisma.DateTimeNullableFilter<"Session"> | Date | string | null
+  subjectPrefix?: Prisma.StringNullableFilter<"Session"> | string | null
   maxPlayers?: Prisma.IntNullableFilter<"Session"> | number | null
   season?: Prisma.XOR<Prisma.SeasonScalarRelationFilter, Prisma.SeasonWhereInput>
   organizer?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
@@ -247,6 +255,7 @@ export type SessionOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   organizerId?: Prisma.SortOrder
   lastStatusEmailSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  subjectPrefix?: Prisma.SortOrderInput | Prisma.SortOrder
   maxPlayers?: Prisma.SortOrderInput | Prisma.SortOrder
   season?: Prisma.SeasonOrderByWithRelationInput
   organizer?: Prisma.PlayerOrderByWithRelationInput
@@ -266,6 +275,7 @@ export type SessionWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumSessionStatusFilter<"Session"> | $Enums.SessionStatus
   organizerId?: Prisma.StringFilter<"Session"> | string
   lastStatusEmailSentAt?: Prisma.DateTimeNullableFilter<"Session"> | Date | string | null
+  subjectPrefix?: Prisma.StringNullableFilter<"Session"> | string | null
   maxPlayers?: Prisma.IntNullableFilter<"Session"> | number | null
   season?: Prisma.XOR<Prisma.SeasonScalarRelationFilter, Prisma.SeasonWhereInput>
   organizer?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
@@ -282,6 +292,7 @@ export type SessionOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   organizerId?: Prisma.SortOrder
   lastStatusEmailSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  subjectPrefix?: Prisma.SortOrderInput | Prisma.SortOrder
   maxPlayers?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.SessionCountOrderByAggregateInput
   _avg?: Prisma.SessionAvgOrderByAggregateInput
@@ -300,6 +311,7 @@ export type SessionScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumSessionStatusWithAggregatesFilter<"Session"> | $Enums.SessionStatus
   organizerId?: Prisma.StringWithAggregatesFilter<"Session"> | string
   lastStatusEmailSentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Session"> | Date | string | null
+  subjectPrefix?: Prisma.StringNullableWithAggregatesFilter<"Session"> | string | null
   maxPlayers?: Prisma.IntNullableWithAggregatesFilter<"Session"> | number | null
 }
 
@@ -308,6 +320,7 @@ export type SessionCreateInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
@@ -324,6 +337,7 @@ export type SessionUncheckedCreateInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
@@ -336,6 +350,7 @@ export type SessionUpdateInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
@@ -352,6 +367,7 @@ export type SessionUncheckedUpdateInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
@@ -366,6 +382,7 @@ export type SessionCreateManyInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
 }
 
@@ -374,6 +391,7 @@ export type SessionUpdateManyMutationInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
@@ -384,6 +402,7 @@ export type SessionUncheckedUpdateManyInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
@@ -404,6 +423,7 @@ export type SessionCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   organizerId?: Prisma.SortOrder
   lastStatusEmailSentAt?: Prisma.SortOrder
+  subjectPrefix?: Prisma.SortOrder
   maxPlayers?: Prisma.SortOrder
 }
 
@@ -418,6 +438,7 @@ export type SessionMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   organizerId?: Prisma.SortOrder
   lastStatusEmailSentAt?: Prisma.SortOrder
+  subjectPrefix?: Prisma.SortOrder
   maxPlayers?: Prisma.SortOrder
 }
 
@@ -428,6 +449,7 @@ export type SessionMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   organizerId?: Prisma.SortOrder
   lastStatusEmailSentAt?: Prisma.SortOrder
+  subjectPrefix?: Prisma.SortOrder
   maxPlayers?: Prisma.SortOrder
 }
 
@@ -589,6 +611,7 @@ export type SessionCreateWithoutOrganizerInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
@@ -603,6 +626,7 @@ export type SessionUncheckedCreateWithoutOrganizerInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
@@ -646,6 +670,7 @@ export type SessionScalarWhereInput = {
   status?: Prisma.EnumSessionStatusFilter<"Session"> | $Enums.SessionStatus
   organizerId?: Prisma.StringFilter<"Session"> | string
   lastStatusEmailSentAt?: Prisma.DateTimeNullableFilter<"Session"> | Date | string | null
+  subjectPrefix?: Prisma.StringNullableFilter<"Session"> | string | null
   maxPlayers?: Prisma.IntNullableFilter<"Session"> | number | null
 }
 
@@ -654,6 +679,7 @@ export type SessionCreateWithoutSeasonInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
   registrations?: Prisma.SessionRegistrationCreateNestedManyWithoutSessionInput
@@ -668,6 +694,7 @@ export type SessionUncheckedCreateWithoutSeasonInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
@@ -706,6 +733,7 @@ export type SessionCreateWithoutRegistrationsInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
@@ -721,6 +749,7 @@ export type SessionUncheckedCreateWithoutRegistrationsInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
@@ -748,6 +777,7 @@ export type SessionUpdateWithoutRegistrationsInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
@@ -763,6 +793,7 @@ export type SessionUncheckedUpdateWithoutRegistrationsInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
@@ -774,6 +805,7 @@ export type SessionCreateWithoutCommentsInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
@@ -789,6 +821,7 @@ export type SessionUncheckedCreateWithoutCommentsInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
@@ -816,6 +849,7 @@ export type SessionUpdateWithoutCommentsInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
@@ -831,6 +865,7 @@ export type SessionUncheckedUpdateWithoutCommentsInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
@@ -842,6 +877,7 @@ export type SessionCreateWithoutTeamsInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
@@ -857,6 +893,7 @@ export type SessionUncheckedCreateWithoutTeamsInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   matches?: Prisma.MatchUncheckedCreateNestedManyWithoutSessionInput
@@ -884,6 +921,7 @@ export type SessionUpdateWithoutTeamsInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
@@ -899,6 +937,7 @@ export type SessionUncheckedUpdateWithoutTeamsInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   matches?: Prisma.MatchUncheckedUpdateManyWithoutSessionNestedInput
@@ -910,6 +949,7 @@ export type SessionCreateWithoutMatchesInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   season: Prisma.SeasonCreateNestedOneWithoutSessionsInput
   organizer: Prisma.PlayerCreateNestedOneWithoutOrganizedSessionsInput
@@ -925,6 +965,7 @@ export type SessionUncheckedCreateWithoutMatchesInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
   registrations?: Prisma.SessionRegistrationUncheckedCreateNestedManyWithoutSessionInput
   teams?: Prisma.TeamUncheckedCreateNestedManyWithoutSessionInput
@@ -952,6 +993,7 @@ export type SessionUpdateWithoutMatchesInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
@@ -967,6 +1009,7 @@ export type SessionUncheckedUpdateWithoutMatchesInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
@@ -979,6 +1022,7 @@ export type SessionCreateManyOrganizerInput = {
   date: Date | string
   status?: $Enums.SessionStatus
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
 }
 
@@ -987,6 +1031,7 @@ export type SessionUpdateWithoutOrganizerInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   season?: Prisma.SeasonUpdateOneRequiredWithoutSessionsNestedInput
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
@@ -1001,6 +1046,7 @@ export type SessionUncheckedUpdateWithoutOrganizerInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
@@ -1014,6 +1060,7 @@ export type SessionUncheckedUpdateManyWithoutOrganizerInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
@@ -1023,6 +1070,7 @@ export type SessionCreateManySeasonInput = {
   status?: $Enums.SessionStatus
   organizerId: string
   lastStatusEmailSentAt?: Date | string | null
+  subjectPrefix?: string | null
   maxPlayers?: number | null
 }
 
@@ -1031,6 +1079,7 @@ export type SessionUpdateWithoutSeasonInput = {
   date?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   organizer?: Prisma.PlayerUpdateOneRequiredWithoutOrganizedSessionsNestedInput
   registrations?: Prisma.SessionRegistrationUpdateManyWithoutSessionNestedInput
@@ -1045,6 +1094,7 @@ export type SessionUncheckedUpdateWithoutSeasonInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   registrations?: Prisma.SessionRegistrationUncheckedUpdateManyWithoutSessionNestedInput
   teams?: Prisma.TeamUncheckedUpdateManyWithoutSessionNestedInput
@@ -1058,6 +1108,7 @@ export type SessionUncheckedUpdateManyWithoutSeasonInput = {
   status?: Prisma.EnumSessionStatusFieldUpdateOperationsInput | $Enums.SessionStatus
   organizerId?: Prisma.StringFieldUpdateOperationsInput | string
   lastStatusEmailSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  subjectPrefix?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   maxPlayers?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
@@ -1126,6 +1177,7 @@ export type SessionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   status?: boolean
   organizerId?: boolean
   lastStatusEmailSentAt?: boolean
+  subjectPrefix?: boolean
   maxPlayers?: boolean
   season?: boolean | Prisma.SeasonDefaultArgs<ExtArgs>
   organizer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
@@ -1143,6 +1195,7 @@ export type SessionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   status?: boolean
   organizerId?: boolean
   lastStatusEmailSentAt?: boolean
+  subjectPrefix?: boolean
   maxPlayers?: boolean
   season?: boolean | Prisma.SeasonDefaultArgs<ExtArgs>
   organizer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
@@ -1155,6 +1208,7 @@ export type SessionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   status?: boolean
   organizerId?: boolean
   lastStatusEmailSentAt?: boolean
+  subjectPrefix?: boolean
   maxPlayers?: boolean
   season?: boolean | Prisma.SeasonDefaultArgs<ExtArgs>
   organizer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
@@ -1167,10 +1221,11 @@ export type SessionSelectScalar = {
   status?: boolean
   organizerId?: boolean
   lastStatusEmailSentAt?: boolean
+  subjectPrefix?: boolean
   maxPlayers?: boolean
 }
 
-export type SessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "seasonId" | "date" | "status" | "organizerId" | "lastStatusEmailSentAt" | "maxPlayers", ExtArgs["result"]["session"]>
+export type SessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "seasonId" | "date" | "status" | "organizerId" | "lastStatusEmailSentAt" | "subjectPrefix" | "maxPlayers", ExtArgs["result"]["session"]>
 export type SessionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   season?: boolean | Prisma.SeasonDefaultArgs<ExtArgs>
   organizer?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
@@ -1206,6 +1261,7 @@ export type $SessionPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     status: $Enums.SessionStatus
     organizerId: string
     lastStatusEmailSentAt: Date | null
+    subjectPrefix: string | null
     maxPlayers: number | null
   }, ExtArgs["result"]["session"]>
   composites: {}
@@ -1642,6 +1698,7 @@ export interface SessionFieldRefs {
   readonly status: Prisma.FieldRef<"Session", 'SessionStatus'>
   readonly organizerId: Prisma.FieldRef<"Session", 'String'>
   readonly lastStatusEmailSentAt: Prisma.FieldRef<"Session", 'DateTime'>
+  readonly subjectPrefix: Prisma.FieldRef<"Session", 'String'>
   readonly maxPlayers: Prisma.FieldRef<"Session", 'Int'>
 }
     
