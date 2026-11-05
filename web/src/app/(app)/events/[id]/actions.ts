@@ -12,6 +12,7 @@ export async function submitResponse(
   eventId: string,
   dateVotes: DateVoteInput[],
   answers: AnswerInput[],
+  declineReason: string | null,
 ): Promise<ActionResult> {
   const session = await auth()
   if (!session?.user?.id) return { error: "Nicht angemeldet." }
@@ -46,8 +47,8 @@ export async function submitResponse(
   await db.$transaction(async (tx) => {
     const response = await tx.eventResponse.upsert({
       where: { eventId_playerId: { eventId, playerId } },
-      create: { eventId, playerId },
-      update: { updatedAt: new Date() },
+      create: { eventId, playerId, declineReason: declineReason ?? null },
+      update: { updatedAt: new Date(), declineReason: declineReason ?? null },
     })
 
     await tx.eventDateVote.deleteMany({ where: { responseId: response.id } })

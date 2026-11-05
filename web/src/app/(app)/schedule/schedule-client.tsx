@@ -306,6 +306,7 @@ export function ScheduleClient({
   events?: EventCard[]
 }) {
   const t = useTranslations("schedule")
+  const te = useTranslations("events")
   const [open, setOpen] = useState(false)
   const [dateValue, setDateValue] = useState("")
   const [maxPlayersValue, setMaxPlayersValue] = useState("")
@@ -418,7 +419,7 @@ export function ScheduleClient({
           <div className="flex items-center px-4 py-3 text-white"
             style={{ background: "linear-gradient(90deg, oklch(0.25 0.10 280), oklch(0.40 0.14 280))" }}
           >
-            <h2 className="font-bold tracking-wide uppercase text-xs">Veranstaltungen</h2>
+            <h2 className="font-bold tracking-wide uppercase text-xs">{te("sectionTitle")}</h2>
           </div>
           <div className="divide-y">
             {events.map((e) => (
@@ -426,16 +427,16 @@ export function ScheduleClient({
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium">{e.title}</span>
-                    {e.status === "OPEN" && <Badge className="bg-green-600 text-white text-xs">Offen</Badge>}
-                    {e.status === "CLOSED" && <Badge variant="secondary" className="text-xs">Abgeschlossen</Badge>}
-                    {e.hasResponded && <Badge variant="outline" className="text-xs text-green-700 border-green-300 dark:text-green-400 dark:border-green-700">✓ Geantwortet</Badge>}
+                    {e.status === "OPEN" && <Badge className="bg-green-600 text-white text-xs">{te("statusOpen")}</Badge>}
+                    {e.status === "CLOSED" && <Badge variant="secondary" className="text-xs">{te("statusClosed")}</Badge>}
+                    {e.hasResponded && <Badge variant="outline" className="text-xs text-green-700 border-green-300 dark:text-green-400 dark:border-green-700">{te("responded")}</Badge>}
                   </div>
                   {e.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{e.description}</p>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isOrganizer && (
                     <Link href="/admin/events" className="text-xs text-amber-600 dark:text-amber-400 hover:underline">
-                      Verwalten
+                      {te("manage")}
                     </Link>
                   )}
                   <Link
@@ -444,9 +445,9 @@ export function ScheduleClient({
                   >
                     {e.status === "OPEN"
                       ? e.hasResponded
-                        ? "Antwort ändern"
-                        : "Teilnahme mitteilen"
-                      : "Ergebnisse ansehen"}
+                        ? te("changeResponse")
+                        : te("respond")
+                      : te("viewResults")}
                   </Link>
                 </div>
               </div>

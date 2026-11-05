@@ -2762,6 +2762,7 @@ export const EventResponseScalarFieldEnum = {
   id: 'id',
   eventId: 'eventId',
   playerId: 'playerId',
+  declineReason: 'declineReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

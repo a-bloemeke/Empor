@@ -23,19 +23,21 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   if (!event) notFound()
   if (event.status === "DRAFT" && !isOrganizer) notFound()
 
-  const existingResponse = currentUserId
+  const existingResponseRaw = currentUserId
     ? await db.eventResponse.findUnique({
         where: { eventId_playerId: { eventId: id, playerId: currentUserId } },
         include: { dateVotes: true, answers: true },
       })
     : null
 
-  // Compute results for CLOSED events or organizers
-  let results: null | {
+  type Results = {
     dateResults: { date: string; yes: number; maybe: number; no: number }[]
     questionResults: { questionId: string; questionText: string; options: { text: string; count: number; freeTexts: string[] }[] }[]
     totalResponses: number
-  } = null
+    declineReasons: string[]
+  }
+
+  let results: Results | null = null
 
   if (event.status === "CLOSED" || isOrganizer) {
     const allResponses = await db.eventResponse.findMany({
@@ -71,7 +73,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       return { questionId: q.id, questionText: q.text, options }
     })
 
-    results = { dateResults, questionResults, totalResponses: allResponses.length }
+    const declineReasons = allResponses
+      .filter((r) => r.declineReason)
+      .map((r) => r.declineReason as string)
+
+    results = { dateResults, questionResults, totalResponses: allResponses.length, declineReasons }
   }
 
   const serialized = {
@@ -85,17 +91,18 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       text: q.text,
       options: q.options.map((o) => ({ id: o.id, text: o.text, allowFreeText: o.allowFreeText })),
     })),
-    existingResponse: existingResponse
+    existingResponse: existingResponseRaw
       ? {
-          dateVotes: existingResponse.dateVotes.map((v) => ({
+          dateVotes: existingResponseRaw.dateVotes.map((v) => ({
             dateOptionId: v.dateOptionId,
             availability: v.availability as string,
           })),
-          answers: existingResponse.answers.map((a) => ({
+          answers: existingResponseRaw.answers.map((a) => ({
             questionId: a.questionId,
             optionId: a.optionId,
             freeText: a.freeText,
           })),
+          declineReason: existingResponseRaw.declineReason,
         }
       : null,
     results,

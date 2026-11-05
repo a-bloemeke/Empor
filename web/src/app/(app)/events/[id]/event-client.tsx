@@ -6,8 +6,10 @@ import { de } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 import { submitResponse } from "./actions"
 import Link from "next/link"
 
@@ -17,6 +19,7 @@ type Question = { id: string; text: string; options: QuestionOption[] }
 type ExistingResponse = {
   dateVotes: { dateOptionId: string; availability: string }[]
   answers: { questionId: string; optionId: string | null; freeText: string | null }[]
+  declineReason: string | null
 }
 type DateResult = { date: string; yes: number; maybe: number; no: number }
 type QuestionResult = {
@@ -28,6 +31,7 @@ type Results = {
   dateResults: DateResult[]
   questionResults: QuestionResult[]
   totalResponses: number
+  declineReasons: string[]
 }
 type EventData = {
   id: string
@@ -42,9 +46,10 @@ type EventData = {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "OPEN") return <Badge className="bg-green-600 text-white">Offen</Badge>
-  if (status === "CLOSED") return <Badge variant="secondary">Abgeschlossen</Badge>
-  return <Badge variant="outline">Entwurf</Badge>
+  const t = useTranslations("events")
+  if (status === "OPEN") return <Badge className="bg-green-600 text-white">{t("statusOpen")}</Badge>
+  if (status === "CLOSED") return <Badge variant="secondary">{t("statusClosed")}</Badge>
+  return <Badge variant="outline">{t("statusDraft")}</Badge>
 }
 
 function AvailabilityButton({
@@ -56,7 +61,8 @@ function AvailabilityButton({
   selected: boolean
   onClick: () => void
 }) {
-  const labels = { YES: "✓ Ja", MAYBE: "~ Vielleicht", NO: "✗ Nein" }
+  const t = useTranslations("events")
+  const labels = { YES: t("yes"), MAYBE: t("maybe"), NO: t("no") }
   const colors = {
     YES: selected ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-950/40",
     MAYBE: selected ? "bg-yellow-500 text-white border-yellow-500" : "border-yellow-300 text-yellow-700 hover:bg-yellow-50 dark:border-yellow-700 dark:text-yellow-400 dark:hover:bg-yellow-950/40",
@@ -82,10 +88,11 @@ function DateAvailabilityMatrix({
   votes: Record<string, "YES" | "MAYBE" | "NO">
   onChange: (dateOptionId: string, value: "YES" | "MAYBE" | "NO") => void
 }) {
+  const t = useTranslations("events")
   return (
     <div className="space-y-2">
-      <h2 className="text-base font-semibold">Terminfindung</h2>
-      <p className="text-sm text-muted-foreground">Bitte markiere für jeden vorgeschlagenen Termin deine Verfügbarkeit.</p>
+      <h2 className="text-base font-semibold">{t("datePoll")}</h2>
+      <p className="text-sm text-muted-foreground">{t("datePollHint")}</p>
       <div className="space-y-2 mt-3">
         {dateOptions.map((d) => (
           <div key={d.id} className="flex items-center justify-between gap-4 rounded-lg border p-3">
@@ -147,42 +154,40 @@ function QuestionForm({
   )
 }
 
-function ResultsView({ results, dateOptions, questions }: { results: Results; dateOptions: DateOption[]; questions: Question[] }) {
+function ResultsView({ results, dateOptions }: { results: Results; dateOptions: DateOption[] }) {
+  const t = useTranslations("events")
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-base font-semibold mb-1">Ergebnisse</h2>
-        <p className="text-xs text-muted-foreground">{results.totalResponses} Antwort{results.totalResponses !== 1 ? "en" : ""} eingegangen</p>
+        <h2 className="text-base font-semibold mb-1">{t("results")}</h2>
+        <p className="text-xs text-muted-foreground">{t("responsesCount", { count: results.totalResponses })}</p>
       </div>
 
       {results.dateResults.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Terminfindung</h3>
+          <h3 className="text-sm font-semibold">{t("datePoll")}</h3>
           <div className="rounded-lg border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left px-3 py-2 font-medium">Datum</th>
-                  <th className="px-3 py-2 text-center font-medium text-green-700 dark:text-green-400">✓ Ja</th>
-                  <th className="px-3 py-2 text-center font-medium text-yellow-700 dark:text-yellow-400">~ Vielleicht</th>
-                  <th className="px-3 py-2 text-center font-medium text-red-600 dark:text-red-400">✗ Nein</th>
+                  <th className="text-left px-3 py-2 font-medium">{t("dateColumn")}</th>
+                  <th className="px-3 py-2 text-center font-medium text-green-700 dark:text-green-400">{t("yes")}</th>
+                  <th className="px-3 py-2 text-center font-medium text-yellow-700 dark:text-yellow-400">{t("maybe")}</th>
+                  <th className="px-3 py-2 text-center font-medium text-red-600 dark:text-red-400">{t("no")}</th>
                 </tr>
               </thead>
               <tbody>
                 {results.dateResults
                   .slice()
                   .sort((a, b) => b.yes - a.yes || b.maybe - a.maybe)
-                  .map((r) => {
-                    const dateOption = dateOptions.find((d) => d.date === r.date)
-                    return (
-                      <tr key={r.date} className="border-t">
-                        <td className="px-3 py-2">{format(new Date(r.date), "EEE, d. MMM yyyy", { locale: de })}</td>
-                        <td className="px-3 py-2 text-center font-semibold text-green-700 dark:text-green-400">{r.yes}</td>
-                        <td className="px-3 py-2 text-center text-yellow-700 dark:text-yellow-400">{r.maybe}</td>
-                        <td className="px-3 py-2 text-center text-red-600 dark:text-red-400">{r.no}</td>
-                      </tr>
-                    )
-                  })}
+                  .map((r) => (
+                    <tr key={r.date} className="border-t">
+                      <td className="px-3 py-2">{format(new Date(r.date), "EEE, d. MMM yyyy", { locale: de })}</td>
+                      <td className="px-3 py-2 text-center font-semibold text-green-700 dark:text-green-400">{r.yes}</td>
+                      <td className="px-3 py-2 text-center text-yellow-700 dark:text-yellow-400">{r.maybe}</td>
+                      <td className="px-3 py-2 text-center text-red-600 dark:text-red-400">{r.no}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -211,8 +216,8 @@ function ResultsView({ results, dateOptions, questions }: { results: Results; da
                       </div>
                       {o.freeTexts.length > 0 && (
                         <ul className="mt-1 ml-2 space-y-0.5">
-                          {o.freeTexts.map((t, i) => (
-                            <li key={i} className="text-xs text-muted-foreground">„{t}"</li>
+                          {o.freeTexts.map((text, i) => (
+                            <li key={i} className="text-xs text-muted-foreground">„{text}"</li>
                           ))}
                         </ul>
                       )}
@@ -224,11 +229,24 @@ function ResultsView({ results, dateOptions, questions }: { results: Results; da
           })}
         </div>
       )}
+
+      {results.declineReasons.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">{t("ausredeTitle")}</h3>
+          <ul className="space-y-1">
+            {results.declineReasons.map((reason, i) => (
+              <li key={i} className="text-sm text-muted-foreground rounded-lg border px-3 py-2">„{reason}"</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   )
 }
 
 export function EventClient({ event }: { event: EventData }) {
+  const t = useTranslations("events")
+
   const [dateVotes, setDateVotes] = useState<Record<string, "YES" | "MAYBE" | "NO">>(() => {
     const init: Record<string, "YES" | "MAYBE" | "NO"> = {}
     if (event.existingResponse) {
@@ -259,8 +277,13 @@ export function EventClient({ event }: { event: EventData }) {
     return init
   })
 
+  const [declineReason, setDeclineReason] = useState(event.existingResponse?.declineReason ?? "")
   const [pending, startTransition] = useTransition()
   const [submitted, setSubmitted] = useState(!!event.existingResponse)
+
+  // Show "Ausrede" section when all voted dates are NO (and at least one date option has a vote)
+  const votedDates = event.dateOptions.filter((d) => dateVotes[d.id])
+  const allDeclined = votedDates.length > 0 && votedDates.every((d) => dateVotes[d.id] === "NO")
 
   function handleDateVoteChange(dateOptionId: string, value: "YES" | "MAYBE" | "NO") {
     setDateVotes((prev) => ({ ...prev, [dateOptionId]: value }))
@@ -278,6 +301,11 @@ export function EventClient({ event }: { event: EventData }) {
   }
 
   function handleSubmit() {
+    if (allDeclined && !declineReason.trim()) {
+      toast.error(t("ausredeRequired"))
+      return
+    }
+
     const dvotes = event.dateOptions
       .filter((d) => dateVotes[d.id])
       .map((d) => ({ dateOptionId: d.id, availability: dateVotes[d.id] }))
@@ -291,12 +319,12 @@ export function EventClient({ event }: { event: EventData }) {
       .filter((a) => a.optionId || a.freeText)
 
     startTransition(async () => {
-      const res = await submitResponse(event.id, dvotes, answers)
+      const res = await submitResponse(event.id, dvotes, answers, allDeclined ? declineReason.trim() || null : null)
       if ("error" in res) {
         toast.error(res.error)
         return
       }
-      toast.success(event.existingResponse ? "Antwort aktualisiert." : "Antwort gespeichert.")
+      toast.success(event.existingResponse ? t("saved") : t("saved"))
       setSubmitted(true)
     })
   }
@@ -314,7 +342,7 @@ export function EventClient({ event }: { event: EventData }) {
         {event.description && <p className="text-muted-foreground">{event.description}</p>}
         {event.isOrganizer && (
           <Link href="/admin/events" className="text-xs text-amber-600 dark:text-amber-400 hover:underline mt-1 inline-block">
-            ⚙ Veranstaltung verwalten →
+            {t("adminLink")}
           </Link>
         )}
       </div>
@@ -330,9 +358,22 @@ export function EventClient({ event }: { event: EventData }) {
               />
             )}
 
+            {allDeclined && (
+              <div className="space-y-2">
+                <h2 className="text-base font-semibold text-red-700 dark:text-red-400">{t("ausredeTitle")}</h2>
+                <p className="text-sm text-muted-foreground">{t("ausredeHint")}</p>
+                <Textarea
+                  placeholder={t("ausredePlaceholder")}
+                  value={declineReason}
+                  onChange={(e) => setDeclineReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+
             {event.questions.length > 0 && (
               <div className="space-y-5">
-                <h2 className="text-base font-semibold">Weitere Fragen</h2>
+                <h2 className="text-base font-semibold">{t("moreQuestions")}</h2>
                 {event.questions.map((q) => (
                   <QuestionForm
                     key={q.id}
@@ -348,10 +389,10 @@ export function EventClient({ event }: { event: EventData }) {
 
             <div className="flex items-center gap-3">
               <Button onClick={handleSubmit} disabled={pending}>
-                {pending ? "Wird gespeichert…" : submitted ? "Antwort aktualisieren" : "Antwort speichern"}
+                {pending ? t("saving") : submitted ? t("updateResponse") : t("saveResponse")}
               </Button>
               {submitted && !pending && (
-                <span className="text-sm text-green-600 dark:text-green-400">✓ Gespeichert</span>
+                <span className="text-sm text-green-600 dark:text-green-400">{t("saved")}</span>
               )}
             </div>
           </CardContent>
@@ -361,17 +402,9 @@ export function EventClient({ event }: { event: EventData }) {
       {showResults && event.results && (
         <Card>
           <CardContent className="pt-6">
-            <ResultsView
-              results={event.results}
-              dateOptions={event.dateOptions}
-              questions={event.questions}
-            />
+            <ResultsView results={event.results} dateOptions={event.dateOptions} />
           </CardContent>
         </Card>
-      )}
-
-      {event.status === "CLOSED" && !showResults && (
-        <p className="text-sm text-muted-foreground">Diese Umfrage ist abgeschlossen. Keine Ergebnisse verfügbar.</p>
       )}
     </div>
   )

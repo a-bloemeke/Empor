@@ -40,6 +40,8 @@ import {
   addQuestionOption,
   updateQuestionOption,
   removeQuestionOption,
+  getEventEmailDefaults,
+  sendEventStatusEmailAction,
 } from "./actions"
 
 type QuestionOption = { id: string; text: string; order: number; allowFreeText: boolean }
@@ -379,6 +381,127 @@ function QuestionsPanel({ event }: { event: Event }) {
   )
 }
 
+function SendEmailDialog({ event }: { event: Event }) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const [subject, setSubject] = useState("")
+  const [introText, setIntroText] = useState("")
+  const [allPlayers, setAllPlayers] = useState<{ id: string; name: string; email: string }[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [respondedIds, setRespondedIds] = useState<Set<string>>(new Set())
+
+  async function handleOpenChange(val: boolean) {
+    setOpen(val)
+    if (!val) return
+    setLoading(true)
+    try {
+      const res = await getEventEmailDefaults(event.id)
+      if ("error" in res) { toast.error(res.error); setOpen(false); return }
+      setSubject(res.subject)
+      setAllPlayers(res.allPlayers)
+      setRespondedIds(new Set(res.respondedPlayerIds))
+      setSelectedIds(new Set(res.allPlayers.map((p) => p.id)))
+    } catch (e) {
+      toast.error((e as Error).message)
+      setOpen(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelectedIds(checked ? new Set(allPlayers.map((p) => p.id)) : new Set())
+  }
+
+  function togglePlayer(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function handleSend() {
+    if (!subject.trim()) { toast.error("Betreff ist erforderlich."); return }
+    if (selectedIds.size === 0) { toast.error("Bitte mindestens einen Empfänger wählen."); return }
+    startTransition(async () => {
+      const res = await sendEventStatusEmailAction(event.id, subject, introText, Array.from(selectedIds))
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`E-Mail an ${selectedIds.size} Empfänger gesendet.`)
+      setOpen(false)
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        ✉ E-Mail senden
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Planungsstand verschicken</DialogTitle>
+        </DialogHeader>
+        {loading ? (
+          <p className="text-sm text-muted-foreground py-4">Wird geladen…</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email-subject">Betreff *</Label>
+              <Input id="email-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email-intro">Einleitungstext (optional)</Label>
+              <Textarea
+                id="email-intro"
+                placeholder="Kurze Intro-Nachricht an die Empfänger…"
+                value={introText}
+                onChange={(e) => setIntroText(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Empfänger ({selectedIds.size} / {allPlayers.length})</Label>
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 hover:underline"
+                  onClick={() => toggleAll(selectedIds.size < allPlayers.length)}
+                >
+                  {selectedIds.size < allPlayers.length ? "Alle auswählen" : "Alle abwählen"}
+                </button>
+              </div>
+              <div className="rounded-lg border divide-y max-h-48 overflow-y-auto text-sm">
+                {allPlayers.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(p.id)}
+                      onChange={() => togglePlayer(p.id)}
+                      className="rounded"
+                    />
+                    <span className="flex-1">{p.name}</span>
+                    {respondedIds.has(p.id) && (
+                      <span className="text-xs text-green-600 font-medium">✓</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">✓ = hat bereits geantwortet</p>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={handleSend} disabled={pending || loading} className="bg-amber-500 hover:bg-amber-600 text-white">
+            {pending ? "Wird gesendet…" : "Senden"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function EventDetailPanel({ event }: { event: Event }) {
   const [pending, startTransition] = useTransition()
 
@@ -418,6 +541,7 @@ function EventDetailPanel({ event }: { event: Event }) {
           <div className="flex items-center gap-2 shrink-0">
             <StatusBadge status={event.status} />
             <EditTitleDialog event={event} />
+            {event.status !== "DRAFT" && <SendEmailDialog event={event} />}
             {event.status === "DRAFT" && (
               <Button size="sm" variant="outline" className="text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-950/40" disabled={pending} onClick={handleOpen}>
                 Öffnen
