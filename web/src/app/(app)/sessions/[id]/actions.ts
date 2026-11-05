@@ -1274,7 +1274,7 @@ export async function recordGoal(
   assistedByPlayerId?: string,
 ) {
   const authSession = await auth()
-  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
   const match = await db.match.findUnique({ where: { id: matchId } })
   if (!match) throw new Error("Match not found.")
@@ -1321,7 +1321,7 @@ export async function deleteMatch(matchId: string): Promise<{ error: string } | 
 
 export async function undoLastGoal(matchId: string) {
   const authSession = await auth()
-  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
   const match = await db.match.findUnique({ where: { id: matchId } })
   if (!match) throw new Error("Match not found.")
@@ -1346,7 +1346,7 @@ export async function undoLastGoal(matchId: string) {
 
 export async function deleteGoal(goalId: string) {
   const authSession = await auth()
-  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
   const goal = await db.goal.findUnique({ where: { id: goalId }, include: { match: true } })
   if (!goal) throw new Error("Goal not found.")
@@ -1381,7 +1381,7 @@ export async function updateGoal(
   assistedByPlayerId: string | undefined,
 ) {
   const authSession = await auth()
-  if (!authSession?.user?.id) throw new Error("Unauthorized")
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
 
   const goal = await db.goal.findUnique({ where: { id: goalId }, include: { match: true } })
   if (!goal) throw new Error("Goal not found.")

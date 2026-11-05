@@ -277,26 +277,31 @@ function EditProfileDialog({
 function ChangePasswordDialog({
   playerId,
   canEdit,
+  isOwnProfile,
 }: {
   playerId: string
   canEdit: boolean
+  isOwnProfile: boolean
 }) {
   const t = useTranslations("player")
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirm, setConfirm] = useState("")
 
   if (!canEdit) return null
 
   function handleSave() {
+    if (isOwnProfile && !currentPassword) { toast.error(t("currentPasswordRequired")); return }
     if (newPassword.length < 8) { toast.error(t("passwordTooShort")); return }
     if (newPassword !== confirm) { toast.error(t("passwordMismatch")); return }
     startTransition(async () => {
       try {
-        await changePassword(playerId, { newPassword })
+        await changePassword(playerId, { newPassword, currentPassword: isOwnProfile ? currentPassword : undefined })
         toast.success(t("passwordChanged"))
         setOpen(false)
+        setCurrentPassword("")
         setNewPassword("")
         setConfirm("")
       } catch (e) { toast.error((e as Error).message) }
@@ -311,6 +316,17 @@ function ChangePasswordDialog({
           <DialogTitle>{t("changePassword")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {isOwnProfile && (
+            <div className="space-y-1.5">
+              <Label htmlFor="currentPassword">{t("currentPassword")}</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="newPassword">{t("newPassword")}</Label>
             <Input
@@ -418,7 +434,7 @@ export function PlayerClient({
         </div>
         <div className="flex gap-2">
           <EditProfileDialog player={player} canEdit={canEdit} isOrganizer={isOrganizer} />
-          <ChangePasswordDialog playerId={player.id} canEdit={canEdit} />
+          <ChangePasswordDialog playerId={player.id} canEdit={canEdit} isOwnProfile={isCurrentUser} />
         </div>
       </div>
 

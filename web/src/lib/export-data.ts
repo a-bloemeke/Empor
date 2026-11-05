@@ -547,14 +547,16 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
         firstName: p.firstName, lastName: p.lastName, nickname: p.nickname ?? null,
         dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
         addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
-        addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
+        addressPostalCode: p.addressPostalCode ?? null,
+        // role intentionally excluded — never change an existing player's role via import
       } : {}, // merge: don't overwrite existing player data
       create: {
         email: p.email, firstName: p.firstName, lastName: p.lastName,
         nickname: p.nickname ?? null,
         dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
         addressStreet: p.addressStreet ?? null, addressCity: p.addressCity ?? null,
-        addressPostalCode: p.addressPostalCode ?? null, role: p.role as any,
+        addressPostalCode: p.addressPostalCode ?? null,
+        role: (p.role === "ORGANIZER" || p.role === "PLAYER") ? p.role : "PLAYER",
       },
     })
     playerIdByEmail.set(p.email, row.id)

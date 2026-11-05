@@ -366,6 +366,8 @@
     "nameRequired": "First and last name are required.",
     "profileUpdated": "Profile updated.",
     "changePassword": "Change Password",
+    "currentPassword": "Current password",
+    "currentPasswordRequired": "Please enter your current password.",
     "newPassword": "New password",
     "passwordHint": "Min. 8 characters",
     "confirmPassword": "Confirm password",

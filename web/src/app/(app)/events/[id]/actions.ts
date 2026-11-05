@@ -28,6 +28,11 @@ export async function submitResponse(
   if (!event) return { error: "Veranstaltung nicht gefunden." }
   if (event.status !== "OPEN") return { error: "Diese Umfrage ist nicht mehr offen." }
 
+  if (declineReason && declineReason.length > 500) return { error: "Begründung zu lang (max. 500 Zeichen)." }
+  for (const a of answers) {
+    if (a.freeText && a.freeText.length > 500) return { error: "Freitext zu lang (max. 500 Zeichen)." }
+  }
+
   const validDateIds = new Set(event.dateOptions.map((d) => d.id))
   for (const v of dateVotes) {
     if (!validDateIds.has(v.dateOptionId)) return { error: "Ungültige Datumsangabe." }
