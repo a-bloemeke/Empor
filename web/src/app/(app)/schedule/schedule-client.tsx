@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { format } from "date-fns"
+import { de } from "date-fns/locale"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -54,6 +55,8 @@ type EventCard = {
   description: string | null
   status: string
   hasResponded: boolean
+  responseCount: number
+  dateVoteSummary: { date: string; yes: number; maybe: number; no: number }[]
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -432,6 +435,18 @@ export function ScheduleClient({
                     {e.hasResponded && <Badge variant="outline" className="text-xs text-green-700 border-green-300 dark:text-green-400 dark:border-green-700">{te("responded")}</Badge>}
                   </div>
                   {e.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{e.description}</p>}
+                  {e.dateVoteSummary.length > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      {e.dateVoteSummary.map((d) => (
+                        <div key={d.date} className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="w-24 shrink-0">{format(new Date(d.date), "d. MMM", { locale: de })}</span>
+                          <span className="text-green-600 dark:text-green-400">✓ {d.yes}</span>
+                          <span className="text-amber-500">~ {d.maybe}</span>
+                          <span className="text-red-500">✗ {d.no}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isOrganizer && (

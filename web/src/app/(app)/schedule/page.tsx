@@ -28,7 +28,14 @@ export default async function SchedulePage() {
     db.event.findMany({
       where: { status: { in: ["OPEN", "CLOSED"] } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, description: true, status: true },
+      select: {
+        id: true, title: true, description: true, status: true,
+        _count: { select: { responses: true } },
+        dateOptions: {
+          select: { id: true, date: true, order: true, votes: { select: { availability: true } } },
+          orderBy: { order: "asc" },
+        },
+      },
     }),
   ])
 
@@ -100,6 +107,13 @@ export default async function SchedulePage() {
     description: e.description,
     status: e.status as string,
     hasResponded: myEventResponseIds.has(e.id),
+    responseCount: e._count.responses,
+    dateVoteSummary: e.dateOptions.map((d) => ({
+      date: d.date.toISOString(),
+      yes: d.votes.filter((v) => v.availability === "YES").length,
+      maybe: d.votes.filter((v) => v.availability === "MAYBE").length,
+      no: d.votes.filter((v) => v.availability === "NO").length,
+    })),
   }))
 
   return (

@@ -62,7 +62,6 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
   await checkOrganizer()
   const event = await db.event.findUnique({ where: { id }, select: { status: true } })
   if (!event) return { error: "Veranstaltung nicht gefunden." }
-  if (event.status !== "DRAFT") return { error: "Nur Entwürfe können gelöscht werden." }
   await db.event.delete({ where: { id } })
   revalidate()
   return { ok: true }

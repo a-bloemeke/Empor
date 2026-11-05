@@ -522,7 +522,10 @@ function EventDetailPanel({ event }: { event: Event }) {
   }
 
   function handleDelete() {
-    if (!confirm("Veranstaltung wirklich löschen?")) return
+    const msg = event.status !== "DRAFT"
+      ? `Veranstaltung „${event.title}" wirklich löschen? Alle ${event.responseCount} Antworten gehen verloren.`
+      : "Veranstaltung wirklich löschen?"
+    if (!confirm(msg)) return
     startTransition(async () => {
       const res = await deleteEvent(event.id)
       if ("error" in res) toast.error(res.error)
@@ -552,11 +555,9 @@ function EventDetailPanel({ event }: { event: Event }) {
                 Schließen
               </Button>
             )}
-            {event.status === "DRAFT" && (
-              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={pending} onClick={handleDelete}>
-                Löschen
-              </Button>
-            )}
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" disabled={pending} onClick={handleDelete}>
+              Löschen
+            </Button>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">{event.responseCount} Antwort{event.responseCount !== 1 ? "en" : ""}</p>
