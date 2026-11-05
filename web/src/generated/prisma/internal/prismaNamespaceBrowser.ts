@@ -70,7 +70,14 @@ export const ModelName = {
   PlayerAbsence: 'PlayerAbsence',
   InvitationQuote: 'InvitationQuote',
   QuoteCollection: 'QuoteCollection',
-  HallClosure: 'HallClosure'
+  HallClosure: 'HallClosure',
+  Event: 'Event',
+  EventDateOption: 'EventDateOption',
+  EventQuestion: 'EventQuestion',
+  EventQuestionOption: 'EventQuestionOption',
+  EventResponse: 'EventResponse',
+  EventDateVote: 'EventDateVote',
+  EventAnswer: 'EventAnswer'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -164,6 +171,7 @@ export const SessionScalarFieldEnum = {
   status: 'status',
   organizerId: 'organizerId',
   lastStatusEmailSentAt: 'lastStatusEmailSentAt',
+  subjectPrefix: 'subjectPrefix',
   maxPlayers: 'maxPlayers'
 } as const
 
@@ -334,6 +342,82 @@ export const HallClosureScalarFieldEnum = {
 } as const
 
 export type HallClosureScalarFieldEnum = (typeof HallClosureScalarFieldEnum)[keyof typeof HallClosureScalarFieldEnum]
+
+
+export const EventScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  description: 'description',
+  status: 'status',
+  createdAt: 'createdAt'
+} as const
+
+export type EventScalarFieldEnum = (typeof EventScalarFieldEnum)[keyof typeof EventScalarFieldEnum]
+
+
+export const EventDateOptionScalarFieldEnum = {
+  id: 'id',
+  eventId: 'eventId',
+  date: 'date',
+  order: 'order'
+} as const
+
+export type EventDateOptionScalarFieldEnum = (typeof EventDateOptionScalarFieldEnum)[keyof typeof EventDateOptionScalarFieldEnum]
+
+
+export const EventQuestionScalarFieldEnum = {
+  id: 'id',
+  eventId: 'eventId',
+  text: 'text',
+  type: 'type',
+  order: 'order'
+} as const
+
+export type EventQuestionScalarFieldEnum = (typeof EventQuestionScalarFieldEnum)[keyof typeof EventQuestionScalarFieldEnum]
+
+
+export const EventQuestionOptionScalarFieldEnum = {
+  id: 'id',
+  questionId: 'questionId',
+  text: 'text',
+  order: 'order',
+  allowFreeText: 'allowFreeText'
+} as const
+
+export type EventQuestionOptionScalarFieldEnum = (typeof EventQuestionOptionScalarFieldEnum)[keyof typeof EventQuestionOptionScalarFieldEnum]
+
+
+export const EventResponseScalarFieldEnum = {
+  id: 'id',
+  eventId: 'eventId',
+  playerId: 'playerId',
+  declineReason: 'declineReason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type EventResponseScalarFieldEnum = (typeof EventResponseScalarFieldEnum)[keyof typeof EventResponseScalarFieldEnum]
+
+
+export const EventDateVoteScalarFieldEnum = {
+  id: 'id',
+  responseId: 'responseId',
+  dateOptionId: 'dateOptionId',
+  availability: 'availability'
+} as const
+
+export type EventDateVoteScalarFieldEnum = (typeof EventDateVoteScalarFieldEnum)[keyof typeof EventDateVoteScalarFieldEnum]
+
+
+export const EventAnswerScalarFieldEnum = {
+  id: 'id',
+  responseId: 'responseId',
+  questionId: 'questionId',
+  optionId: 'optionId',
+  freeText: 'freeText'
+} as const
+
+export type EventAnswerScalarFieldEnum = (typeof EventAnswerScalarFieldEnum)[keyof typeof EventAnswerScalarFieldEnum]
 
 
 export const SortOrder = {

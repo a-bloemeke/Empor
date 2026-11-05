@@ -141,3 +141,38 @@ export type QuoteCollection = Prisma.QuoteCollectionModel
  * 
  */
 export type HallClosure = Prisma.HallClosureModel
+/**
+ * Model Event
+ * 
+ */
+export type Event = Prisma.EventModel
+/**
+ * Model EventDateOption
+ * 
+ */
+export type EventDateOption = Prisma.EventDateOptionModel
+/**
+ * Model EventQuestion
+ * 
+ */
+export type EventQuestion = Prisma.EventQuestionModel
+/**
+ * Model EventQuestionOption
+ * 
+ */
+export type EventQuestionOption = Prisma.EventQuestionOptionModel
+/**
+ * Model EventResponse
+ * 
+ */
+export type EventResponse = Prisma.EventResponseModel
+/**
+ * Model EventDateVote
+ * 
+ */
+export type EventDateVote = Prisma.EventDateVoteModel
+/**
+ * Model EventAnswer
+ * 
+ */
+export type EventAnswer = Prisma.EventAnswerModel

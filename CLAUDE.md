@@ -86,6 +86,13 @@ PlayerStatsLifetime (same fields, lifetime totals)
 AppConfig (key/value: "emailFrom", "requireApproval")
 PlayerAbsence (startDate, endDate — hides player from "no answer" lists)
 HallClosure (startDate, endDate, reason? — blocks session creation on that date; shown in /schedule within 2 weeks)
+Event (title, description?, status: DRAFT|OPEN|CLOSED — special events like Christmas party)
+  └── EventDateOption (date, order — multiple date options for Doodle-style availability)
+  └── EventQuestion (text, type: SINGLE_CHOICE, order)
+        └── EventQuestionOption (text, order, allowFreeText — for "other" suggestion input)
+  └── EventResponse (per player, unique [eventId, playerId])
+        ├── EventDateVote (availability: YES|NO|MAYBE per date option)
+        └── EventAnswer (optionId?, freeText? — one answer per question)
 ```
 
 `passwordHash = null` means guest player (added by organizer, cannot log in).
@@ -110,10 +117,12 @@ REGISTERED → CANCELLED (self: 1h cutoff; organizer: anytime) → auto-promotes
 |---|---|
 | `/schedule` | `schedule/page.tsx`, `schedule/actions.ts`, `schedule-client.tsx` |
 | `/anleitung` | `anleitung/page.tsx` — static German player how-to guide; mirrors `public/spieler-anleitung.txt` (email attachment). Public route (in `auth.ts` allowlist), linked from homepage hero. |
+| `/events/[id]` | `events/[id]/page.tsx`, `actions.ts`, `event-client.tsx` — player survey response + results |
 | `/sessions/[id]` | `sessions/[id]/page.tsx`, `actions.ts`, `session-client.tsx` |
 | `/sessions/[id]/scoreboard` | `(fullscreen)/sessions/[id]/scoreboard/page.tsx`, `scoreboard-client.tsx` |
 | `/admin/settings` | `admin/settings/page.tsx`, `actions.ts`, `settings-client.tsx` |
 | `/admin/closures` | `admin/closures/` — hall closure periods |
+| `/admin/events` | `admin/events/` — create/manage event surveys, view results |
 | `/admin/players` | `admin/players/` |
 | `/admin/membership` | `admin/membership/` |
 | `/leaderboard` | `leaderboard/` |

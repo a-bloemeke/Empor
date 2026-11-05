@@ -495,3 +495,130 @@ ${appUrl}/schedule`
   const transporter = createTransport()
   await transporter.sendMail({ from, to: organizerEmails, subject, text })
 }
+
+export async function sendEventStatusEmail(
+  event: { id: string; title: string },
+  subject: string,
+  introText: string,
+  recipientEmails: string[],
+  results: {
+    dateResults: { date: Date; yes: number; maybe: number; no: number }[]
+    questionResults: { questionText: string; options: { text: string; count: number; freeTexts: string[] }[] }[]
+    totalResponses: number
+    declineReasons: string[]
+  },
+) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("SMTP is not configured on this server.")
+  }
+  if (recipientEmails.length === 0) throw new Error("No recipients selected.")
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+  const link = `${appUrl}/events/${event.id}`
+
+  const rowStyle = "padding:6px 12px;border-bottom:1px solid #e5e5e5;font-size:14px"
+  const headerStyle = "padding:6px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#fff"
+
+  // Date availability table
+  const sortedDates = [...results.dateResults].sort((a, b) => b.yes - a.yes || b.maybe - a.maybe)
+  const dateRowsHtml = sortedDates.map((d, i) => {
+    const dateStr = format(d.date, "EEE, d. MMMM yyyy", { locale: de })
+    return `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
+      <td style="${rowStyle}">${dateStr}</td>
+      <td style="${rowStyle};text-align:center;color:#166534;font-weight:600">${d.yes}</td>
+      <td style="${rowStyle};text-align:center;color:#92400e">${d.maybe}</td>
+      <td style="${rowStyle};text-align:center;color:#991b1b">${d.no}</td>
+    </tr>`
+  }).join("")
+
+  const dateSectionHtml = sortedDates.length > 0 ? `
+<table style="border-collapse:collapse;width:100%;margin-bottom:16px;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+  <thead>
+    <tr style="background:#1e3a5f">
+      <th style="${headerStyle};text-align:left">Datum</th>
+      <th style="${headerStyle};text-align:center">✓ Ja</th>
+      <th style="${headerStyle};text-align:center">~ Vielleicht</th>
+      <th style="${headerStyle};text-align:center">✗ Nein</th>
+    </tr>
+  </thead>
+  <tbody>${dateRowsHtml}</tbody>
+</table>` : ""
+
+  // Question results
+  const questionSectionsHtml = results.questionResults.map((q) => {
+    const total = q.options.reduce((s, o) => s + o.count, 0)
+    const optionRows = q.options.map((o, i) => {
+      const pct = total > 0 ? Math.round((o.count / total) * 100) : 0
+      const freeTextHtml = o.freeTexts.length > 0
+        ? `<div style="font-size:12px;color:#666;margin-top:4px">${o.freeTexts.map(t => `„${t.replace(/&/g,"&amp;")}"`)  .join(", ")}</div>`
+        : ""
+      return `<tr style="background:${i % 2 === 0 ? "#fff" : "#f9fafb"}">
+        <td style="${rowStyle}">${o.text.replace(/&/g,"&amp;")}${freeTextHtml}</td>
+        <td style="${rowStyle};text-align:right;font-weight:600">${o.count}</td>
+        <td style="${rowStyle};width:100px">
+          <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden">
+            <div style="background:#166534;height:8px;width:${pct}%"></div>
+          </div>
+        </td>
+      </tr>`
+    }).join("")
+    return `
+<p style="font-weight:600;font-size:14px;margin:16px 0 6px">${q.questionText.replace(/&/g,"&amp;")}</p>
+<table style="border-collapse:collapse;width:100%;margin-bottom:8px;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+  <tbody>${optionRows}</tbody>
+</table>`
+  }).join("")
+
+  const declineHtml = results.declineReasons.length > 0 ? `
+<p style="font-weight:600;font-size:14px;margin:16px 0 6px">Ausreden (${results.declineReasons.length})</p>
+<ul style="margin:0 0 16px;padding-left:20px;font-size:14px;color:#444">
+  ${results.declineReasons.map(r => `<li style="margin-bottom:4px">„${r.replace(/&/g,"&amp;")}"</li>`).join("")}
+</ul>` : ""
+
+  const introHtml = introText.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")
+  const html = `
+<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:540px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <h1 style="font-size:18px;font-weight:700;margin:0 0 4px">${event.title.replace(/&/g,"&amp;")}</h1>
+  <p style="margin:0 0 16px;font-size:13px;color:#666">${results.totalResponses} Antwort${results.totalResponses !== 1 ? "en" : ""} eingegangen</p>
+  ${introText ? `<p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${introHtml}</p>` : ""}
+  ${dateSectionHtml}
+  ${questionSectionsHtml}
+  ${declineHtml}
+  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Umfrage ansehen →</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+</body>
+</html>`
+
+  // Plain text version
+  const dateLines = sortedDates.map(d =>
+    `${format(d.date, "EEE, d. MMMM yyyy", { locale: de })}: ✓${d.yes} ~${d.maybe} ✗${d.no}`
+  ).join("\n")
+
+  const questionLines = results.questionResults.map(q => {
+    const opts = q.options.map(o => `  ${o.text}: ${o.count}${o.freeTexts.length ? " (" + o.freeTexts.map(t => `„${t}"`).join(", ") + ")" : ""}`).join("\n")
+    return `${q.questionText}\n${opts}`
+  }).join("\n\n")
+
+  const declineLines = results.declineReasons.length > 0
+    ? `Ausreden:\n${results.declineReasons.map(r => `- „${r}"`).join("\n")}`
+    : ""
+
+  const text = [
+    event.title,
+    `${results.totalResponses} Antworten eingegangen`,
+    introText,
+    dateLines && `Terminfindung:\n${dateLines}`,
+    questionLines,
+    declineLines,
+    link,
+  ].filter(Boolean).join("\n\n")
+
+  const transporter = createTransport()
+  await transporter.sendMail({ from, to: recipientEmails, subject, text, html })
+  return recipientEmails.length
+}

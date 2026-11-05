@@ -48,6 +48,14 @@ type HallClosure = {
   reason: string | null
 }
 
+type EventCard = {
+  id: string
+  title: string
+  description: string | null
+  status: string
+  hasResponded: boolean
+}
+
 function StatusBadge({ status }: { status: string }) {
   const t = useTranslations("schedule")
   if (status === "SCHEDULED") return <Badge>{t("statusScheduled")}</Badge>
@@ -288,14 +296,17 @@ export function ScheduleClient({
   isOrganizer,
   currentUserId,
   closures,
+  events = [],
 }: {
   upcoming: GameSession[]
   past: GameSession[]
   isOrganizer: boolean
   currentUserId: string
   closures: HallClosure[]
+  events?: EventCard[]
 }) {
   const t = useTranslations("schedule")
+  const te = useTranslations("events")
   const [open, setOpen] = useState(false)
   const [dateValue, setDateValue] = useState("")
   const [maxPlayersValue, setMaxPlayersValue] = useState("")
@@ -403,6 +414,47 @@ export function ScheduleClient({
 
   return (
     <div className="space-y-8">
+      {events.length > 0 && (
+        <section className="overflow-hidden rounded-xl border border-border shadow-sm">
+          <div className="flex items-center px-4 py-3 text-white"
+            style={{ background: "linear-gradient(90deg, oklch(0.25 0.10 280), oklch(0.40 0.14 280))" }}
+          >
+            <h2 className="font-bold tracking-wide uppercase text-xs">{te("sectionTitle")}</h2>
+          </div>
+          <div className="divide-y">
+            {events.map((e) => (
+              <div key={e.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{e.title}</span>
+                    {e.status === "OPEN" && <Badge className="bg-green-600 text-white text-xs">{te("statusOpen")}</Badge>}
+                    {e.status === "CLOSED" && <Badge variant="secondary" className="text-xs">{te("statusClosed")}</Badge>}
+                    {e.hasResponded && <Badge variant="outline" className="text-xs text-green-700 border-green-300 dark:text-green-400 dark:border-green-700">{te("responded")}</Badge>}
+                  </div>
+                  {e.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{e.description}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isOrganizer && (
+                    <Link href="/admin/events" className="text-xs text-amber-600 dark:text-amber-400 hover:underline">
+                      {te("manage")}
+                    </Link>
+                  )}
+                  <Link
+                    href={`/events/${e.id}`}
+                    className="text-xs font-medium px-2.5 py-1 rounded border border-border hover:bg-muted transition-colors"
+                  >
+                    {e.status === "OPEN"
+                      ? e.hasResponded
+                        ? te("changeResponse")
+                        : te("respond")
+                      : te("viewResults")}
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="overflow-hidden rounded-xl border border-border shadow-sm">
         <div className="flex items-center justify-between px-4 py-3 text-white"
           style={{ background: "linear-gradient(90deg, oklch(0.20 0.07 150), oklch(0.35 0.12 150))" }}
