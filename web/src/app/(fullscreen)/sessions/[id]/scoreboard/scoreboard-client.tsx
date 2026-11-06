@@ -322,31 +322,13 @@ function GoalDrawer({
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
           <h2 className="mb-6 text-lg font-semibold">{t("goalTitle", { team: teamName })}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
-              <div className="flex flex-col gap-2">
-                {players.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setScorerId(p.id)}
-                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
-                      scorerId === p.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-muted/40 hover:bg-muted"
-                    }`}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-muted-foreground">{t("assist")}</Label>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setAssisterId("")}
-                  className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                  className={`rounded-xl border-2 px-4 py-3 text-base font-semibold transition-colors ${
                     assisterId === ""
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-muted/40 hover:bg-muted"
@@ -358,8 +340,26 @@ function GoalDrawer({
                   <button
                     key={p.id}
                     onClick={() => setAssisterId(p.id)}
-                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                    className={`rounded-xl border-2 px-4 py-3 text-base font-semibold transition-colors ${
                       assisterId === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {players.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setScorerId(p.id)}
+                    className={`rounded-xl border-2 px-4 py-3 text-base font-semibold transition-colors ${
+                      scorerId === p.id
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-muted/40 hover:bg-muted"
                     }`}
@@ -446,31 +446,13 @@ function EditGoalDrawer({
         <Drawer.Popup className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl bg-background p-6 pb-safe shadow-xl outline-none">
           <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-muted" />
           <h2 className="mb-4 text-lg font-semibold">{t("editGoal")}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
-              <div className="flex flex-col gap-2">
-                {allPlayers.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setScorerId(p.id)}
-                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
-                      scorerId === p.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-muted/40 hover:bg-muted"
-                    }`}
-                  >
-                    {p.displayName}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-muted-foreground">{t("assist")}</Label>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setAssisterId("")}
-                  className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                  className={`rounded-xl border-2 px-4 py-3 text-base font-semibold transition-colors ${
                     assisterId === ""
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-muted/40 hover:bg-muted"
@@ -482,8 +464,26 @@ function EditGoalDrawer({
                   <button
                     key={p.id}
                     onClick={() => setAssisterId(p.id)}
-                    className={`rounded-xl border-2 px-4 py-4 text-lg font-semibold text-left transition-colors ${
+                    className={`rounded-xl border-2 px-4 py-3 text-base font-semibold transition-colors ${
                       assisterId === p.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-muted/40 hover:bg-muted"
+                    }`}
+                  >
+                    {p.displayName}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="block text-center text-lg font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
+              <div className="flex flex-wrap gap-2">
+                {allPlayers.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setScorerId(p.id)}
+                    className={`rounded-xl border-2 px-4 py-3 text-base font-semibold transition-colors ${
+                      scorerId === p.id
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-muted/40 hover:bg-muted"
                     }`}
