@@ -10,6 +10,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "All fields are required." }, { status: 400 })
   }
 
+  if (firstName.length > 100 || lastName.length > 100) {
+    return NextResponse.json({ error: "Name too long." }, { status: 400 })
+  }
+  if (email.length > 254) {
+    return NextResponse.json({ error: "Email too long." }, { status: 400 })
+  }
+  if (password.length < 8) {
+    return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 })
+  }
+  if (password.length > 128) {
+    return NextResponse.json({ error: "Password too long." }, { status: 400 })
+  }
+
   const existing = await db.player.findUnique({ where: { email } })
   if (existing) {
     return NextResponse.json({ error: "Email already in use." }, { status: 409 })

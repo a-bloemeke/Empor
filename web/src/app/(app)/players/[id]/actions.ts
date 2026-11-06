@@ -62,7 +62,7 @@ export async function updateProfileAdmin(
 
 export async function changePassword(
   playerId: string,
-  data: { newPassword: string },
+  data: { newPassword: string; currentPassword?: string },
 ) {
   const authSession = await auth()
   if (!authSession?.user?.id) throw new Error("Unauthorized")
@@ -71,6 +71,17 @@ export async function changePassword(
   }
 
   if (data.newPassword.length < 8) throw new Error("Password must be at least 8 characters.")
+  if (data.newPassword.length > 128) throw new Error("Password too long.")
+
+  // Players changing their own password must confirm the current one
+  const isOwnAccount = authSession.user.id === playerId && authSession.user.role !== "ORGANIZER"
+  if (isOwnAccount) {
+    if (!data.currentPassword) throw new Error("Current password is required.")
+    const player = await db.player.findUnique({ where: { id: playerId }, select: { passwordHash: true } })
+    if (!player?.passwordHash) throw new Error("No password set on this account.")
+    const valid = await bcrypt.compare(data.currentPassword, player.passwordHash)
+    if (!valid) throw new Error("Current password is incorrect.")
+  }
 
   const hash = await bcrypt.hash(data.newPassword, 12)
   await db.player.update({ where: { id: playerId }, data: { passwordHash: hash } })
@@ -108,6 +119,9 @@ export async function deleteAbsence(absenceId: string, playerId: string) {
   if (authSession.user.id !== playerId && authSession.user.role !== "ORGANIZER") {
     throw new Error("Unauthorized")
   }
+
+  const absence = await db.playerAbsence.findUnique({ where: { id: absenceId } })
+  if (!absence || absence.playerId !== playerId) throw new Error("Absence not found.")
 
   await db.playerAbsence.delete({ where: { id: absenceId } })
 

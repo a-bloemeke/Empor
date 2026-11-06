@@ -2238,36 +2238,51 @@ function GoalDialog({
           <DialogTitle>{t("recordGoal")} — {teamName}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t("scorer")}</Label>
-            <Select value={scorerId} onValueChange={(v) => { if (v !== null) setScorerId(v) }}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("selectScorerPlaceholder")}>
-                  {(v: string) => players.find((p) => p.id === v)?.name ?? t("selectScorerPlaceholder")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {players.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <Label className="block text-center font-bold uppercase tracking-wide pb-1 border-b-2 border-muted-foreground">{t("assist")}</Label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setAssisterId("")}
+                className={`rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+                  assisterId === ""
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-muted/40 hover:bg-muted"
+                }`}
+              >
+                {t("noAssist")}
+              </button>
+              {assistCandidates.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setAssisterId(p.id)}
+                  className={`rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    assisterId === p.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>{t("assist")}</Label>
-            <Select value={assisterId} onValueChange={(v) => setAssisterId(v ?? "")}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder={t("noAssist")}>
-                  {(v: string) => v ? (assistCandidates.find((p) => p.id === v)?.name ?? t("noAssist")) : t("noAssist")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">{t("noAssist")}</SelectItem>
-                {assistCandidates.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <Label className="block text-center font-bold uppercase tracking-wide pb-1 border-b-2 border-primary">{t("scorer")}</Label>
+            <div className="flex flex-wrap gap-2">
+              {players.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setScorerId(p.id)}
+                  className={`rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition-colors ${
+                    scorerId === p.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-muted/40 hover:bg-muted"
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <DialogFooter>
