@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useTransition, useMemo } from "react"
+import React, { useState, useTransition, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -2695,6 +2695,12 @@ export function SessionClient({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [pins, setPins] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    if (session.status !== "IN_PROGRESS") return
+    const id = setInterval(() => router.refresh(), 2000)
+    return () => clearInterval(id)
+  }, [session.status, router])
 
   const activeMatch = session.matches.find((m) => m.status === "IN_PROGRESS")
   const pendingMatches = session.matches.filter((m) => m.status === "PENDING")
