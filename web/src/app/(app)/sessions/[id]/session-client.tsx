@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useTransition, useMemo } from "react"
+import React, { useState, useTransition, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -56,6 +56,7 @@ import {
   reopenSession,
   addRematch,
   addNewMatch,
+  addNewMatchManual,
   deleteTeam,
   deleteMatch,
   getDefaultInvitation,
@@ -989,7 +990,7 @@ function buildSplit(registered: Registration[], numTeams: number, metric: "point
 
 // ─── New Match Dialog — preview teams before committing ──────────────────────
 
-type NewMatchMode = "RANDOM" | "BALANCED" | "STRENGTH"
+type NewMatchMode = "RANDOM" | "BALANCED" | "STRENGTH" | "MANUAL"
 
 function buildNewMatchSplit(registered: Registration[], mode: NewMatchMode): Registration[][] {
   if (mode === "BALANCED" || mode === "STRENGTH") {
@@ -1021,11 +1022,27 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
   const [nameHome, nameAway] = nextTeamNames(existingNames, 2)
   const shortNames = disambiguateNames(registered.map((r) => ({ id: r.playerId, name: r.playerName })))
 
+  // Manual assignment: "A" = home, "B" = away
+  const [manualAssignment, setManualAssignment] = useState<Record<string, "A" | "B">>(() =>
+    Object.fromEntries(registered.map((r) => [r.playerId, "A"]))
+  )
+
+  // Re-initialise manual assignment when registered players change (dialog re-open)
+  useEffect(() => {
+    if (open) {
+      setManualAssignment(Object.fromEntries(registered.map((r) => [r.playerId, "A" as const])))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   const split = React.useMemo(
-    () => buildNewMatchSplit(registered, mode),
+    () => mode === "MANUAL" ? [[], []] : buildNewMatchSplit(registered, mode as Exclude<NewMatchMode, "MANUAL">),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [open, seed, mode]
   )
+
+  const manualHome = registered.filter((r) => manualAssignment[r.playerId] === "A")
+  const manualAway = registered.filter((r) => manualAssignment[r.playerId] === "B")
 
   const ratingLabel = (p: Registration) => {
     if (mode === "STRENGTH" || mode === "BALANCED") return p.strength.toFixed(2)
@@ -1035,7 +1052,15 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
   function handleConfirm() {
     startTransition(async () => {
       try {
-        await addNewMatch(session.id, mode)
+        if (mode === "MANUAL") {
+          if (manualHome.length === 0 || manualAway.length === 0) {
+            toast.error("Beide Teams brauchen mindestens einen Spieler.")
+            return
+          }
+          await addNewMatchManual(session.id, manualHome.map((p) => p.playerId), manualAway.map((p) => p.playerId))
+        } else {
+          await addNewMatch(session.id, mode)
+        }
         toast.success("New match created.")
         setOpen(false)
         router.refresh()
@@ -1054,11 +1079,12 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
         </DialogHeader>
         <div className="space-y-4">
           {/* Mode picker */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {([
               { value: "RANDOM",   label: t("random"),    desc: t("shufflePlayers") },
               { value: "BALANCED", label: t("byPoints"),  desc: t("balanceByPoints") },
               { value: "STRENGTH", label: t("byStrength"), desc: t("balanceByStrength") },
+              { value: "MANUAL",   label: "Manuell",       desc: "Spieler selbst zuweisen" },
             ] as { value: NewMatchMode; label: string; desc: string }[]).map(({ value, label, desc }) => (
               <button
                 key={value}
@@ -1075,35 +1101,72 @@ function NewMatchDialog({ session, disabled }: { session: SessionData; disabled:
             ))}
           </div>
 
-          {/* Team preview */}
-          <div className="space-y-2">
-            {[split[0], split[1]].map((team, ti) => {
-              const total = team.reduce((s, p) => s + p.strength, 0)
-              const avg = team.length > 0 ? total / team.length : 0
-              const showStrength = mode === "STRENGTH" || mode === "BALANCED"
-              return (
-              <div key={ti} className="rounded-lg border border-border/60 overflow-hidden">
-                <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white flex justify-between"
-                  style={{ background: "oklch(0.30 0.10 150)" }}
-                >
-                  <span>{ti === 0 ? nameHome : nameAway}</span>
-                  {showStrength && (
-                    <span className="font-normal opacity-80">∑ {total.toFixed(2)} · Ø {avg.toFixed(2)}</span>
-                  )}
-                </div>
-                <ul className="divide-y divide-border/40">
-                  {team.map((p) => (
-                    <li key={p.playerId} className="px-3 py-1.5 text-sm flex items-center justify-between">
-                      <span>{shortNames.get(p.playerId) ?? p.playerName}</span>
-                      {ratingLabel(p) && (
-                        <span className="text-xs text-muted-foreground tabular-nums">{ratingLabel(p)}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+          {mode === "MANUAL" ? (
+            /* Manual player assignment */
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Jeden Spieler einem Team zuweisen.</p>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-x-2 gap-y-1 items-center">
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide" />
+                <div className="text-[10px] font-semibold text-center w-10">{nameHome}</div>
+                <div className="text-[10px] font-semibold text-center w-10">{nameAway}</div>
+                {registered.map((r) => (
+                  <React.Fragment key={r.playerId}>
+                    <span className="text-sm truncate">{shortNames.get(r.playerId) ?? r.playerName}</span>
+                    {(["A", "B"] as const).map((slot, si) => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() => setManualAssignment((prev) => ({ ...prev, [r.playerId]: slot }))}
+                        className={`w-10 h-7 rounded border text-xs font-medium transition-colors ${
+                          manualAssignment[r.playerId] === slot
+                            ? si === 0
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-orange-500 text-white border-orange-500"
+                            : "border-border hover:bg-muted/60"
+                        }`}
+                      >
+                        {slot === "A" ? nameHome : nameAway}
+                      </button>
+                    ))}
+                  </React.Fragment>
+                ))}
               </div>
-            )})}
-          </div>
+              <div className="flex gap-4 pt-1 text-xs text-muted-foreground">
+                <span className="text-blue-700 dark:text-blue-400">{nameHome}: {manualHome.length}</span>
+                <span className="text-orange-600 dark:text-orange-400">{nameAway}: {manualAway.length}</span>
+              </div>
+            </div>
+          ) : (
+            /* Auto-split team preview */
+            <div className="space-y-2">
+              {[split[0], split[1]].map((team, ti) => {
+                const total = team.reduce((s, p) => s + p.strength, 0)
+                const avg = team.length > 0 ? total / team.length : 0
+                const showStrength = mode === "STRENGTH" || mode === "BALANCED"
+                return (
+                <div key={ti} className="rounded-lg border border-border/60 overflow-hidden">
+                  <div className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white flex justify-between"
+                    style={{ background: "oklch(0.30 0.10 150)" }}
+                  >
+                    <span>{ti === 0 ? nameHome : nameAway}</span>
+                    {showStrength && (
+                      <span className="font-normal opacity-80">∑ {total.toFixed(2)} · Ø {avg.toFixed(2)}</span>
+                    )}
+                  </div>
+                  <ul className="divide-y divide-border/40">
+                    {team.map((p) => (
+                      <li key={p.playerId} className="px-3 py-1.5 text-sm flex items-center justify-between">
+                        <span>{shortNames.get(p.playerId) ?? p.playerName}</span>
+                        {ratingLabel(p) && (
+                          <span className="text-xs text-muted-foreground tabular-nums">{ratingLabel(p)}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )})}
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
@@ -2695,6 +2758,12 @@ export function SessionClient({
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [pins, setPins] = useState<Record<number, string>>({})
+
+  useEffect(() => {
+    if (session.status !== "IN_PROGRESS") return
+    const id = setInterval(() => router.refresh(), 2000)
+    return () => clearInterval(id)
+  }, [session.status, router])
 
   const activeMatch = session.matches.find((m) => m.status === "IN_PROGRESS")
   const pendingMatches = session.matches.filter((m) => m.status === "PENDING")

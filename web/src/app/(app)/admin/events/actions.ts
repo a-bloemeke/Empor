@@ -206,6 +206,53 @@ export async function getEventEmailDefaults(eventId: string): Promise<
   }
 }
 
+export async function getEventResponses(eventId: string): Promise<
+  | { error: string }
+  | {
+      ok: true
+      responses: {
+        playerId: string
+        playerName: string
+        declineReason: string | null
+        dateVotes: { dateOptionId: string; availability: string }[]
+        answers: { questionId: string; optionId: string | null; optionText: string | null; freeText: string | null }[]
+      }[]
+    }
+> {
+  await checkOrganizer()
+  const event = await db.event.findUnique({
+    where: { id: eventId },
+    include: {
+      responses: {
+        include: {
+          player: { select: { firstName: true, lastName: true, nickname: true } },
+          dateVotes: true,
+          answers: { include: { option: { select: { text: true } } } },
+        },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  })
+  if (!event) return { error: "Veranstaltung nicht gefunden." }
+  return {
+    ok: true,
+    responses: event.responses.map((r) => ({
+      playerId: r.playerId,
+      playerName: r.player.nickname
+        ? `${r.player.firstName} "${r.player.nickname}" ${r.player.lastName}`
+        : `${r.player.firstName} ${r.player.lastName}`.trim(),
+      declineReason: r.declineReason,
+      dateVotes: r.dateVotes.map((v) => ({ dateOptionId: v.dateOptionId, availability: v.availability as string })),
+      answers: r.answers.map((a) => ({
+        questionId: a.questionId,
+        optionId: a.optionId,
+        optionText: a.option?.text ?? null,
+        freeText: a.freeText,
+      })),
+    })),
+  }
+}
+
 export async function sendEventStatusEmailAction(
   eventId: string,
   subject: string,

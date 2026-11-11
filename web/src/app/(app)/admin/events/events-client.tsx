@@ -42,6 +42,7 @@ import {
   removeQuestionOption,
   getEventEmailDefaults,
   sendEventStatusEmailAction,
+  getEventResponses,
 } from "./actions"
 
 type QuestionOption = { id: string; text: string; order: number; allowFreeText: boolean }
@@ -502,6 +503,123 @@ function SendEmailDialog({ event }: { event: Event }) {
   )
 }
 
+type PlayerResponse = {
+  playerId: string
+  playerName: string
+  declineReason: string | null
+  dateVotes: { dateOptionId: string; availability: string }[]
+  answers: { questionId: string; optionId: string | null; optionText: string | null; freeText: string | null }[]
+}
+
+function AvailabilityIcon({ availability }: { availability: string | undefined }) {
+  if (availability === "YES") return <span className="text-green-600 font-bold">✓</span>
+  if (availability === "MAYBE") return <span className="text-yellow-600 font-bold">~</span>
+  if (availability === "NO") return <span className="text-red-500 font-bold">✗</span>
+  return <span className="text-muted-foreground">–</span>
+}
+
+function ResponsesPanel({ event }: { event: Event }) {
+  const [responses, setResponses] = useState<PlayerResponse[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const res = await getEventResponses(event.id)
+      if ("error" in res) { toast.error(res.error); return }
+      setResponses(res.responses)
+      setOpen(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (event.status === "DRAFT") return null
+
+  if (!open || responses === null) {
+    return (
+      <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        {loading ? "Wird geladen…" : `Antworten anzeigen (${event.responseCount})`}
+      </Button>
+    )
+  }
+
+  if (responses.length === 0) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold">Antworten</h3>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setOpen(false)}>Verbergen</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Noch keine Antworten.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-semibold">Antworten ({responses.length})</h3>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setOpen(false)}>Verbergen</Button>
+      </div>
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="text-xs w-full">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Spieler</th>
+              {event.dateOptions.map((d) => (
+                <th key={d.id} className="text-center px-2 py-2 font-medium whitespace-nowrap">
+                  {format(new Date(d.date), "d. MMM", { locale: de })}
+                </th>
+              ))}
+              {event.questions.map((q) => (
+                <th key={q.id} className="text-left px-3 py-2 font-medium whitespace-nowrap max-w-[120px]">
+                  <span className="block truncate" title={q.text}>{q.text}</span>
+                </th>
+              ))}
+              {responses.some((r) => r.declineReason) && (
+                <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Absage</th>
+              )}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {responses.map((r) => (
+              <tr key={r.playerId} className={r.declineReason ? "bg-red-50/40 dark:bg-red-950/10" : ""}>
+                <td className="px-3 py-2 font-medium whitespace-nowrap">{r.playerName}</td>
+                {event.dateOptions.map((d) => {
+                  const vote = r.dateVotes.find((v) => v.dateOptionId === d.id)
+                  return (
+                    <td key={d.id} className="text-center px-2 py-2">
+                      <AvailabilityIcon availability={vote?.availability} />
+                    </td>
+                  )
+                })}
+                {event.questions.map((q) => {
+                  const answer = r.answers.find((a) => a.questionId === q.id)
+                  const text = answer
+                    ? answer.freeText
+                      ? `${answer.optionText ?? ""} (${answer.freeText})`.trim()
+                      : answer.optionText ?? "–"
+                    : "–"
+                  return (
+                    <td key={q.id} className="px-3 py-2 max-w-[160px]">
+                      <span className="block truncate" title={text}>{text}</span>
+                    </td>
+                  )
+                })}
+                {responses.some((r2) => r2.declineReason) && (
+                  <td className="px-3 py-2 text-red-600 dark:text-red-400">{r.declineReason ?? ""}</td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 function EventDetailPanel({ event }: { event: Event }) {
   const [pending, startTransition] = useTransition()
 
@@ -565,6 +683,7 @@ function EventDetailPanel({ event }: { event: Event }) {
       <CardContent className="space-y-6">
         <DateOptionsPanel event={event} />
         <QuestionsPanel event={event} />
+        <ResponsesPanel event={event} />
         {event.status !== "DRAFT" && (
           <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-3">
             <p className="text-xs text-blue-700 dark:text-blue-400">

@@ -1572,6 +1572,51 @@ export async function addNewMatch(
   revalidate(sessionId)
 }
 
+export async function addNewMatchManual(
+  sessionId: string,
+  homePlayerIds: string[],
+  awayPlayerIds: string[],
+) {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
+
+  if (homePlayerIds.length === 0 || awayPlayerIds.length === 0)
+    throw new Error("Both teams need at least one player.")
+
+  const session = await db.session.findUnique({
+    where: { id: sessionId },
+    include: { teams: true, matches: true },
+  })
+  if (!session) throw new Error("Session not found.")
+  if (session.matches.some((m) => m.status === "IN_PROGRESS")) throw new Error("End the current match first.")
+
+  const existingNames = session.teams.map((t) => t.name)
+  const [nameHome, nameAway] = nextTeamNames(existingNames, 2)
+
+  const [newHome, newAway] = await Promise.all([
+    db.team.create({
+      data: {
+        sessionId,
+        name: nameHome,
+        players: { create: homePlayerIds.map((playerId) => ({ playerId })) },
+      },
+    }),
+    db.team.create({
+      data: {
+        sessionId,
+        name: nameAway,
+        players: { create: awayPlayerIds.map((playerId) => ({ playerId })) },
+      },
+    }),
+  ])
+
+  await db.match.create({
+    data: { sessionId, homeTeamId: newHome.id, awayTeamId: newAway.id, roundNumber: null },
+  })
+
+  revalidate(sessionId)
+}
+
 export async function deleteTeam(teamId: string) {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") throw new Error("Unauthorized")
