@@ -18,7 +18,7 @@ import { SportsTable } from "@/components/app/sports-table"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { createGuest, createPlayer, deletePlayer, setEmailNotifications, setPlayerActive } from "./actions"
+import { createGuest, createPlayer, deletePlayer, setEmailNotifications, setPlayerActive, convertGuestToFullPlayer } from "./actions"
 import { toast } from "sonner"
 import { useTranslations } from "next-intl"
 
@@ -32,6 +32,67 @@ type Player = {
   isGuest: boolean
   emailNotifications: boolean
   active: boolean
+}
+
+function ConvertGuestDialog({ player }: { player: Player }) {
+  const [open, setOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+  const isRealEmail = !player.email.endsWith("@empor.guest")
+  const [firstName, setFirstName] = useState(player.firstName)
+  const [lastName, setLastName] = useState(player.lastName === "(Gast)" ? "" : player.lastName)
+  const [email, setEmail] = useState(isRealEmail ? player.email : "")
+  const [password, setPassword] = useState("")
+
+  function handleConvert() {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
+      toast.error("Alle Felder sind erforderlich."); return
+    }
+    startTransition(async () => {
+      const res = await convertGuestToFullPlayer(player.id, firstName, lastName, email, password)
+      if ("error" in res) { toast.error(res.error); return }
+      if (!res.emailSent) toast.warning("Konto erstellt, aber Willkommens-E-Mail konnte nicht gesendet werden.")
+      else toast.success(`${firstName.trim()} ${lastName.trim()} hat jetzt ein Konto.`)
+      setOpen(false)
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<button className="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100" />}>
+        → Konto
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Konto erstellen für {player.displayName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Vorname</Label>
+              <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Max" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nachname</Label>
+              <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Müller" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>E-Mail-Adresse</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="max@example.com" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Temporäres Passwort</Label>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mind. 6 Zeichen" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleConvert} disabled={pending}>
+            {pending ? "Wird erstellt…" : "Konto erstellen"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function CreateGuestDialog() {
@@ -334,13 +395,16 @@ export function PlayersClient({ players }: { players: Player[] }) {
                       </Link>
                     </TableCell>
                     <TableCell className="text-right">
-                      <button
-                        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                        disabled={pending && deletingId === p.id}
-                        onClick={() => handleDelete(p.id, p.displayName)}
-                      >
-                        {t("delete")}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <ConvertGuestDialog player={p} />
+                        <button
+                          className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                          disabled={pending && deletingId === p.id}
+                          onClick={() => handleDelete(p.id, p.displayName)}
+                        >
+                          {t("delete")}
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

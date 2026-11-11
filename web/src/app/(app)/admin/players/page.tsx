@@ -9,7 +9,7 @@ export default async function AdminPlayersPage() {
   if (session?.user?.role !== "ORGANIZER") redirect("/schedule")
 
   const players = await db.player.findMany({
-    select: { id: true, firstName: true, lastName: true, nickname: true, email: true, role: true, emailNotifications: true, active: true },
+    select: { id: true, firstName: true, lastName: true, nickname: true, email: true, role: true, emailNotifications: true, active: true, passwordHash: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   })
 
@@ -24,7 +24,7 @@ export default async function AdminPlayersPage() {
         displayName: displayNames.get(p.id) ?? p.firstName,
         email: p.email,
         role: p.role as string,
-        isGuest: p.email.endsWith("@empor.guest"),
+        isGuest: p.passwordHash === null,
         emailNotifications: p.emailNotifications,
         active: p.active,
       }))}
