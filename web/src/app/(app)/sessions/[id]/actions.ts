@@ -108,9 +108,11 @@ export async function sendInvitation(
 
   const players = await db.player.findMany({
     where: { id: { in: recipientIds }, passwordHash: { not: null } },
-    select: { email: true },
+    select: { id: true, email: true, firstName: true },
   })
-  const emails = players.map((p) => p.email).filter(Boolean) as string[]
+  const recipients = players
+    .filter((p): p is typeof p & { email: string } => Boolean(p.email))
+    .map((p) => ({ id: p.id, email: p.email, firstName: p.firstName }))
 
   const trimmedPrefix = subjectPrefix?.trim() || null
   const finalSubject = trimmedPrefix ? `${trimmedPrefix}... | ${subject}` : subject
@@ -120,7 +122,7 @@ export async function sendInvitation(
       { id: session.id, date: session.date },
       finalSubject,
       body,
-      emails,
+      recipients,
       quote,
     )
 
@@ -351,14 +353,16 @@ export async function sendSummaryEmail(
 
   const players = await db.player.findMany({
     where: { id: { in: recipientIds }, passwordHash: { not: null } },
-    select: { email: true },
+    select: { id: true, email: true, firstName: true },
   })
-  const emails = players.map((p) => p.email).filter(Boolean) as string[]
+  const summaryRecipients = players
+    .filter((p): p is typeof p & { email: string } => Boolean(p.email))
+    .map((p) => ({ id: p.id, email: p.email, firstName: p.firstName }))
 
   const finalSubject = session.subjectPrefix ? `${session.subjectPrefix}... | ${subject}` : subject
 
   try {
-    const count = await sendGameDayInvitation({ id: session.id, date: session.date }, finalSubject, body, emails)
+    const count = await sendGameDayInvitation({ id: session.id, date: session.date }, finalSubject, body, summaryRecipients)
     return { ok: true, count }
   } catch (e) {
     return { error: (e as Error).message }
@@ -531,22 +535,38 @@ export async function sendStatusUpdate(
       : [],
   }
 
-  const recipients = await db.player.findMany({
+  const recipientPlayers = await db.player.findMany({
     where: { id: { in: recipientIds }, passwordHash: { not: null } },
-    select: { email: true },
+    select: { id: true, email: true, firstName: true },
   })
-  const emails = recipients.map((p) => p.email).filter(Boolean) as string[]
+
+  const registrationStatusById = new Map(
+    session.registrations.map((r) => [r.playerId, r.status])
+  )
+
+  const recipients = recipientPlayers
+    .filter((p): p is typeof p & { email: string } => Boolean(p.email))
+    .map((p) => {
+      const regStatus = registrationStatusById.get(p.id)
+      const status: "REGISTERED" | "MAYBE" | "CANCELLED" | "NO_ANSWER" =
+        regStatus === "REGISTERED" ? "REGISTERED"
+        : regStatus === "MAYBE" ? "MAYBE"
+        : regStatus === "CANCELLED" ? "CANCELLED"
+        : "NO_ANSWER"
+      return { id: p.id, email: p.email, firstName: p.firstName, status }
+    })
+
   const finalSubject = session.subjectPrefix ? `${session.subjectPrefix}... | ${subject}` : subject
 
   try {
-    await sendStatusUpdateEmail({ id: session.id, date: session.date }, finalSubject, body, emails, lists, delta)
+    await sendStatusUpdateEmail({ id: session.id, date: session.date }, finalSubject, body, recipients, lists, delta)
   } catch (e) {
     return { error: (e as Error).message }
   }
 
   await db.session.update({ where: { id: sessionId }, data: { lastStatusEmailSentAt: new Date() } })
 
-  return { ok: true as const, count: emails.length }
+  return { ok: true as const, count: recipients.length }
 }
 
 function revalidate(sessionId: string) {

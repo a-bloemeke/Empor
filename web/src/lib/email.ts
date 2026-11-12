@@ -15,22 +15,47 @@ function createTransport() {
   })
 }
 
+async function getOrganizerSignOff(): Promise<{ plain: string; html: string }> {
+  const organizers = await db.player.findMany({
+    where: { role: "ORGANIZER", active: true },
+    select: { firstName: true },
+    orderBy: { firstName: "asc" },
+  })
+  const names = organizers.map((o) => o.firstName).join(", ")
+  const plain = names ? `Grüße vom aktuellen Orga-Team\n${names}` : "Grüße vom aktuellen Orga-Team"
+  const html = names
+    ? `<p style="margin:0;color:#888;font-size:12px">Grüße vom aktuellen Orga-Team<br/><strong>${names}</strong></p>`
+    : `<p style="margin:0;color:#888;font-size:12px">Grüße vom aktuellen Orga-Team</p>`
+  return { plain, html }
+}
+
+async function buildPlayerStatsMap(playerIds: string[]): Promise<Map<string, { goals: number }>> {
+  if (playerIds.length === 0) return new Map()
+  const activeSeason = await db.season.findFirst({ where: { status: "ACTIVE" }, select: { id: true } })
+  if (!activeSeason) return new Map()
+  const stats = await db.playerStats.findMany({
+    where: { playerId: { in: playerIds }, seasonId: activeSeason.id },
+    select: { playerId: true, goals: true },
+  })
+  return new Map(stats.map((s) => [s.playerId, { goals: s.goals }]))
+}
+
+function stripLegacySignOff(body: string): string {
+  return body.replace(/\n+Empor Lichtenberg\s*$/, "").trimEnd()
+}
+
 export function buildDefaultInvitation(session: { id: string; date: Date }): { subject: string; body: string } {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
   const link = `${appUrl}/sessions/${session.id}`
 
   const subject = `📅 Neuer Spieltag – ${dateStr} · 20:00 Uhr`
-  const body = `Hey Kicker,
-
-ein neuer Spieltag wurde angelegt. Wenn du kommen kannst / willst, dann registriere dich auf unserer Webseite.
+  const body = `Ein neuer Spieltag wurde angelegt. Wenn du kommen kannst / willst, dann registriere dich auf unserer Webseite.
 
 Datum: ${dateStr}
 Uhrzeit: 20:00 Uhr
 
-${link}
-
-Empor Lichtenberg`
+${link}`
 
   return { subject, body }
 }
@@ -39,22 +64,21 @@ export async function sendGameDayInvitation(
   session: { id: string; date: Date },
   subject: string,
   plainTextBody: string,
-  recipientEmails: string[],
+  recipients: { email: string; firstName: string; id: string }[],
   quote?: { text: string; author: string },
 ) {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error("SMTP is not configured on this server.")
   }
-  if (recipientEmails.length === 0) throw new Error("No recipients selected.")
+  if (recipients.length === 0) throw new Error("No recipients selected.")
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
 
-  const htmlBody = plainTextBody
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br/>")
+  const signOff = await getOrganizerSignOff()
+  const statsMap = await buildPlayerStatsMap(recipients.map((r) => r.id))
+
+  const strippedBody = stripLegacySignOff(plainTextBody).replace(/^Hey Kicker,\s*\n+/, "").trimStart()
 
   const quoteHtml = quote?.text
     ? `<hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5"/>
@@ -63,32 +87,50 @@ export async function sendGameDayInvitation(
   <footer style="font-size:12px;color:#888">— ${quote.author}</footer>
 </blockquote>`
     : ""
-
   const quotePlain = quote?.text ? `\n\n"${quote.text}"\n— ${quote.author}` : ""
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const link = `${appUrl}/sessions/${session.id}`
 
   const transporter = createTransport()
-  await transporter.sendMail({
-    from,
-    to: recipientEmails,
-    subject,
-    text: plainTextBody + quotePlain,
-    html: `
+
+  for (const recipient of recipients) {
+    const stats = statsMap.get(recipient.id)
+    const statsHtml =
+      stats && stats.goals > 0
+        ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin:16px 0;font-size:13px;color:#166534">⚽ Du hast diese Saison schon <strong>${stats.goals} Tor${stats.goals !== 1 ? "e" : ""}</strong> erzielt – bleib am Ball!</div>`
+        : ""
+    const statsPlain =
+      stats && stats.goals > 0
+        ? `\n\n⚽ Du hast diese Saison schon ${stats.goals} Tor${stats.goals !== 1 ? "e" : ""} erzielt – bleib am Ball!`
+        : ""
+
+    const bodyHtml = strippedBody
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br/>")
+
+    const fullPlain = `Hey ${recipient.firstName},\n\n${strippedBody}${statsPlain}${quotePlain}\n\n${signOff.plain}`
+
+    const html = `
 <!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
-  <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${htmlBody}</p>
+  <p style="margin:0 0 8px">Hey ${recipient.firstName},</p>
+  <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${bodyHtml}</p>
   <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">
     Jetzt anmelden →
   </a>
+  ${statsHtml}
   ${quoteHtml}
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
-</html>`,
-  })
+</html>`
+
+    await transporter.sendMail({ from, to: recipient.email, subject, text: fullPlain, html })
+  }
 
   if (quote?.text && quote?.author) {
     await db.invitationQuote.create({
@@ -96,14 +138,14 @@ export async function sendGameDayInvitation(
     })
   }
 
-  return recipientEmails.length
+  return recipients.length
 }
 
 export async function sendStatusUpdateEmail(
   session: { id: string; date: Date },
   subject: string,
   plainTextBody: string,
-  recipientEmails: string[],
+  recipients: { email: string; firstName: string; id: string; status: "REGISTERED" | "MAYBE" | "CANCELLED" | "NO_ANSWER" }[],
   lists: {
     registered: string[]
     maybe: string[]
@@ -118,17 +160,15 @@ export async function sendStatusUpdateEmail(
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error("SMTP is not configured on this server.")
   }
-  if (recipientEmails.length === 0) throw new Error("No recipients selected.")
+  if (recipients.length === 0) throw new Error("No recipients selected.")
 
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
   const link = `${appUrl}/sessions/${session.id}`
+  const dateStr = format(session.date, "EEEE, d. MMMM yyyy", { locale: de })
 
-  const introHtml = plainTextBody
-    .split("\n\n")[0]
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br/>")
+  const signOff = await getOrganizerSignOff()
 
   const rowStyle = "padding:6px 12px;border-bottom:1px solid #e5e5e5;font-size:14px"
   const headerStyle = "padding:6px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#fff"
@@ -168,22 +208,51 @@ export async function sendStatusUpdateEmail(
 </div>`
     : ""
 
-  const html = `
+  const statusBadgeConfig = {
+    REGISTERED: { icon: "✅", text: "Angemeldet", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
+    MAYBE: { icon: "❓", text: "Vielleicht", color: "#92400e", bg: "#fffbeb", border: "#fde68a" },
+    CANCELLED: { icon: "❌", text: "Abgesagt", color: "#991b1b", bg: "#fef2f2", border: "#fecaca" },
+    NO_ANSWER: { icon: "⏳", text: "Noch keine Antwort", color: "#374151", bg: "#f9fafb", border: "#e5e7eb" },
+  }
+
+  const introHtml = plainTextBody
+    .split("\n\n")[0]
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br/>")
+
+  const transporter = createTransport()
+
+  for (const recipient of recipients) {
+    const badge = statusBadgeConfig[recipient.status]
+    const personalSubject =
+      recipient.status === "NO_ANSWER"
+        ? `⏳ Noch nicht angemeldet – Spieltag ${dateStr}`
+        : subject
+
+    const statusBadgeHtml = `<div style="background:${badge.bg};border:1px solid ${badge.border};border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:14px;color:${badge.color}"><strong>Dein Status: ${badge.icon} ${badge.text}</strong></div>`
+    const statusPlain = `Dein Status: ${badge.icon} ${badge.text}`
+
+    const html = `
 <!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a">
-  <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${introHtml}</p>
+  <p style="margin:0 0 8px">Hey ${recipient.firstName},</p>
+  <p style="white-space:pre-line;margin:0 0 16px;line-height:1.6">${introHtml}</p>
+  ${statusBadgeHtml}
   ${deltaHtml}
   ${tablesHtml}
   <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spieltag ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
-  const transporter = createTransport()
-  await transporter.sendMail({ from, to: recipientEmails, subject, text: plainTextBody, html })
-  return recipientEmails.length
+    const fullPlain = `Hey ${recipient.firstName},\n\n${plainTextBody}\n\n${statusPlain}\n\n${signOff.plain}`
+
+    await transporter.sendMail({ from, to: recipient.email, subject: personalSubject, text: fullPlain, html })
+  }
+
+  return recipients.length
 }
 
 export async function sendGameDayCancellation(
@@ -200,7 +269,10 @@ export async function sendGameDayCancellation(
   const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
   const from = config?.value ?? process.env.SMTP_USER!
 
-  const htmlBody = plainTextBody
+  const signOff = await getOrganizerSignOff()
+  const strippedBody = stripLegacySignOff(plainTextBody)
+
+  const htmlBody = strippedBody
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -212,12 +284,14 @@ export async function sendGameDayCancellation(
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
   <p style="white-space:pre-line;margin:0 0 24px;line-height:1.6">${htmlBody}</p>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
+  const fullPlain = `${strippedBody}\n\n${signOff.plain}`
+
   const transporter = createTransport()
-  await transporter.sendMail({ from, to: recipientEmails, subject, text: plainTextBody, html })
+  await transporter.sendMail({ from, to: recipientEmails, subject, text: fullPlain, html })
   return recipientEmails.length
 }
 
@@ -319,7 +393,8 @@ export async function sendRsvpConfirmation(
   const scheduleLink = `${appUrl}/schedule`
 
   const subject = `✅ Anmeldung bestätigt – ${dateStr}`
-  const text = `Hey ${player.firstName},\n\ndeine Anmeldung für den Spieltag am ${dateStr} um 20:00 Uhr wurde bestätigt.\n\nUm abzusagen, besuche die Spielplan-Seite: ${scheduleLink}\n\nEmpor Lichtenberg`
+  const signOff = await getOrganizerSignOff()
+  const text = `Hey ${player.firstName},\n\ndeine Anmeldung für den Spieltag am ${dateStr} um 20:00 Uhr wurde bestätigt.\n\nUm abzusagen, besuche die Spielplan-Seite: ${scheduleLink}\n\n${signOff.plain}`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -328,7 +403,7 @@ export async function sendRsvpConfirmation(
   <a href="${scheduleLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
   <p style="margin:24px 0 0;color:#555;font-size:13px">Um abzusagen, öffne den Spielplan und klicke auf "Absagen" neben dem Spieltag.</p>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
@@ -382,7 +457,8 @@ export async function sendWelcomeEmail(player: { email: string; firstName: strin
   const loginLink = `${appUrl}/login`
 
   const subject = `Willkommen bei Empor! 🎉`
-  const text = `Hey ${player.firstName},\n\ndein Konto bei Empor Lichtenberg ist jetzt aktiv. Du kannst dich ab sofort einloggen:\n${loginLink}\n\nEmpor Lichtenberg`
+  const signOff = await getOrganizerSignOff()
+  const text = `Hey ${player.firstName},\n\ndein Konto bei Empor Lichtenberg ist jetzt aktiv. Du kannst dich ab sofort einloggen:\n${loginLink}\n\n${signOff.plain}`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -390,7 +466,7 @@ export async function sendWelcomeEmail(player: { email: string; firstName: strin
   <p style="margin:0 0 16px">dein Konto bei <strong>Empor Lichtenberg</strong> ist jetzt aktiv. Du kannst dich ab sofort einloggen und deine Anmeldungen selbst verwalten.</p>
   <a href="${loginLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Jetzt einloggen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
@@ -413,7 +489,8 @@ export async function sendWaitlistConfirmation(
   const scheduleLink = `${appUrl}/schedule`
 
   const subject = `⏳ Warteliste – Spieltag ${dateStr}`
-  const text = `Hey ${player.firstName},\n\nder Spieltag am ${dateStr} ist bereits voll. Du stehst jetzt auf der Warteliste und wirst automatisch angemeldet, wenn ein Platz frei wird.\n\n${scheduleLink}\n\nEmpor Lichtenberg`
+  const signOff = await getOrganizerSignOff()
+  const text = `Hey ${player.firstName},\n\nder Spieltag am ${dateStr} ist bereits voll. Du stehst jetzt auf der Warteliste und wirst automatisch angemeldet, wenn ein Platz frei wird.\n\n${scheduleLink}\n\n${signOff.plain}`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -421,7 +498,7 @@ export async function sendWaitlistConfirmation(
   <p style="margin:0 0 16px">der Spieltag am <strong>${dateStr}</strong> ist bereits voll. Du stehst jetzt auf der <strong>Warteliste</strong> und wirst automatisch angemeldet, sobald ein Platz frei wird.</p>
   <a href="${scheduleLink}" style="display:inline-block;background:#1e40af;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
@@ -443,7 +520,8 @@ export async function sendWaitlistPromotion(
   const scheduleLink = `${appUrl}/schedule`
 
   const subject = `✅ Platz frei! Spieltag ${dateStr}`
-  const text = `Hey ${player.firstName},\n\nein Platz ist frei geworden! Du bist jetzt für den Spieltag am ${dateStr} angemeldet.\n\n${scheduleLink}\n\nEmpor Lichtenberg`
+  const signOff = await getOrganizerSignOff()
+  const text = `Hey ${player.firstName},\n\nein Platz ist frei geworden! Du bist jetzt für den Spieltag am ${dateStr} angemeldet.\n\n${scheduleLink}\n\n${signOff.plain}`
   const html = `<!DOCTYPE html>
 <html lang="de">
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
@@ -451,7 +529,7 @@ export async function sendWaitlistPromotion(
   <p style="margin:0 0 16px">🎉 Ein Platz ist frei geworden! Du bist jetzt für den Spieltag am <strong>${dateStr}</strong> angemeldet.</p>
   <a href="${scheduleLink}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Spielplan ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
@@ -578,6 +656,7 @@ export async function sendEventStatusEmail(
 </ul>` : ""
 
   const introHtml = introText.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br/>")
+  const signOff = await getOrganizerSignOff()
   const html = `
 <!DOCTYPE html>
 <html lang="de">
@@ -590,7 +669,7 @@ export async function sendEventStatusEmail(
   ${declineHtml}
   <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Umfrage ansehen →</a>
   <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
-  <p style="margin:0;color:#888;font-size:12px">Empor Lichtenberg</p>
+  ${signOff.html}
 </body>
 </html>`
 
