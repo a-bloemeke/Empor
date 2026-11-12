@@ -74,9 +74,7 @@ export async function GET(req: NextRequest) {
   const cancelledList = cancelled.map(dname).join(", ")
   const noAnswerList = noAnswer.map(dname).join(", ")
 
-  const body = `Hey Kicker,
-
-kurzes Update zum Spieltag am ${dateStr}:
+  const body = `kurzes Update zum Spieltag am ${dateStr}:
 
 ${trafficLight} Aktuell ${count} von mindestens ${MIN_PLAYERS} Spielern angemeldet.
 ${statusText}
@@ -84,13 +82,22 @@ ${statusText}
 ✅ Zugesagt (${count}):
 ${registeredList}
 ${cancelledList ? `\n❌ Abgesagt (${cancelled.length}):\n${cancelledList}\n` : ""}${noAnswerList ? `\n⏳ Noch keine Antwort (${noAnswer.length}):\n${noAnswerList}\n` : ""}
-${link}
-
-Empor Lichtenberg`
+${link}`
 
   // Send to all active players with email notifications enabled
-  const recipients = allActivePlayers.filter((p) => p.emailNotifications).map((p) => p.email)
-  if (recipients.length === 0) {
+  const registrationStatusById = new Map(session.registrations.map((r) => [r.playerId, r.status]))
+  const cronRecipients = allActivePlayers
+    .filter((p) => p.emailNotifications && p.email)
+    .map((p) => {
+      const regStatus = registrationStatusById.get(p.id)
+      const status: "REGISTERED" | "MAYBE" | "CANCELLED" | "NO_ANSWER" =
+        regStatus === "REGISTERED" ? "REGISTERED"
+        : regStatus === "MAYBE" ? "MAYBE"
+        : regStatus === "CANCELLED" ? "CANCELLED"
+        : "NO_ANSWER"
+      return { id: p.id, email: p.email, firstName: p.firstName, status }
+    })
+  if (cronRecipients.length === 0) {
     return NextResponse.json({ skipped: "No recipients with email notifications" })
   }
 
@@ -98,7 +105,7 @@ Empor Lichtenberg`
     { id: session.id, date: session.date },
     subject,
     body,
-    recipients,
+    cronRecipients,
     {
       registered: registered.map(dname),
       maybe: maybe.map(dname),
@@ -107,5 +114,5 @@ Empor Lichtenberg`
     },
   )
 
-  return NextResponse.json({ ok: true, sessionId: session.id, recipients: recipients.length })
+  return NextResponse.json({ ok: true, sessionId: session.id, recipients: cronRecipients.length })
 }
