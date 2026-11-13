@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { setFeeStatus, addPlayersToYear, removePlayerFromYear, createCampaign, closeCampaign, reopenCampaign, sendMembershipInvitation } from "./actions"
+import { setFeeStatus, addPlayersToYear, removePlayerFromYear, createCampaign, closeCampaign, reopenCampaign, deleteCampaign, sendMembershipInvitation } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { SportsTable } from "@/components/app/sports-table"
@@ -107,6 +107,15 @@ function CampaignPanel({ year, campaign, playerCount }: { year: number; campaign
       const res = await reopenCampaign(year)
       if ("error" in res) { toast.error(res.error); return }
       toast.success(`Kampagne ${year} wieder geöffnet.`)
+    })
+  }
+
+  function handleDelete() {
+    if (!window.confirm(`Kampagne ${year} löschen? Nicht bezahlte Einträge werden entfernt, bereits bezahlte Beiträge bleiben erhalten.`)) return
+    startTransition(async () => {
+      const res = await deleteCampaign(year)
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Kampagne ${year} gelöscht. ${res.removedFees} offene Einträge entfernt.`)
     })
   }
 
@@ -214,12 +223,18 @@ function CampaignPanel({ year, campaign, playerCount }: { year: number; campaign
             >
               Kampagne schließen
             </Button>
+            <Button size="sm" variant="ghost" onClick={handleDelete} disabled={pending} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+              Löschen
+            </Button>
           </div>
         )}
         {campaign.status === "CLOSED" && (
-          <div className="shrink-0">
+          <div className="flex flex-col gap-2 shrink-0">
             <Button size="sm" variant="outline" onClick={handleReopen} disabled={pending}>
               Wieder öffnen
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDelete} disabled={pending} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+              Löschen
             </Button>
           </div>
         )}

@@ -120,6 +120,19 @@ export async function reopenCampaign(year: number): Promise<{ ok: true } | { err
   return { ok: true }
 }
 
+export async function deleteCampaign(year: number): Promise<{ ok: true; removedFees: number } | { error: string }> {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
+
+  const campaign = await db.membershipCampaign.findUnique({ where: { year } })
+  if (!campaign) return { error: "Kampagne nicht gefunden." }
+
+  const { count } = await db.membershipFee.deleteMany({ where: { year, status: "NOT_PAID" } })
+  await db.membershipCampaign.delete({ where: { year } })
+  revalidate()
+  return { ok: true, removedFees: count }
+}
+
 export async function sendMembershipInvitation(year: number): Promise<{ ok: true; sent: number } | { error: string }> {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
