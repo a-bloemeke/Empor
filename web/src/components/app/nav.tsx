@@ -107,6 +107,9 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
                     <DropdownMenuItem onClick={() => router.push(`/players/${session?.user?.id}`)}>
                       {t("profile")}
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push("/membership")}>
+                      {t("membership")}
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setLocaleCookie(locale === "de" ? "en" : "de")}>
                       🌐 {locale === "de" ? t("switchToEn") : t("switchToDe")}
@@ -149,6 +152,9 @@ export function Nav({ isOrganizer }: { isOrganizer: boolean }) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => router.push(`/players/${session?.user?.id}`)}>
                     {t("profile")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/membership")}>
+                    {t("membership")}
                   </DropdownMenuItem>
                   {isOrganizer && (
                     <>

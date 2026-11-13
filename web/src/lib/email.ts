@@ -701,3 +701,128 @@ export async function sendEventStatusEmail(
   await transporter.sendMail({ from, to: recipientEmails, subject, text, html })
   return recipientEmails.length
 }
+
+type MembershipCampaignInfo = {
+  year: number
+  amount: number
+  bankName: string | null
+  iban: string | null
+  bic: string | null
+  paypalHandle: string | null
+}
+
+function formatIban(iban: string): string {
+  return iban.replace(/\s/g, "").replace(/(.{4})/g, "$1 ").trim()
+}
+
+function buildMembershipPaymentDetailsHtml(campaign: MembershipCampaignInfo): string {
+  const rows: string[] = []
+  if (campaign.bankName) rows.push(`<tr><td style="padding:4px 16px 4px 0;color:#555;font-size:13px">Bank</td><td style="font-size:13px"><strong>${campaign.bankName}</strong></td></tr>`)
+  if (campaign.iban) rows.push(`<tr><td style="padding:4px 16px 4px 0;color:#555;font-size:13px">IBAN</td><td style="font-family:monospace;font-size:13px"><strong>${formatIban(campaign.iban)}</strong></td></tr>`)
+  if (campaign.bic) rows.push(`<tr><td style="padding:4px 16px 4px 0;color:#555;font-size:13px">BIC</td><td style="font-size:13px"><strong>${campaign.bic}</strong></td></tr>`)
+  if (campaign.paypalHandle) {
+    const paypalUrl = `https://paypal.me/${campaign.paypalHandle.replace(/^@/, "")}`
+    rows.push(`<tr><td style="padding:4px 16px 4px 0;color:#555;font-size:13px">PayPal</td><td style="font-size:13px"><a href="${paypalUrl}" style="color:#166534">${campaign.paypalHandle}</a></td></tr>`)
+  }
+  if (rows.length === 0) return ""
+  return `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin:16px 0">
+  <p style="margin:0 0 8px;font-weight:600;font-size:13px;color:#374151">Zahlungsdetails</p>
+  <table style="border-collapse:collapse">${rows.join("")}</table>
+</div>`
+}
+
+function buildMembershipPaymentDetailsPlain(campaign: MembershipCampaignInfo): string {
+  const lines: string[] = []
+  if (campaign.bankName) lines.push(`Bank: ${campaign.bankName}`)
+  if (campaign.iban) lines.push(`IBAN: ${formatIban(campaign.iban)}`)
+  if (campaign.bic) lines.push(`BIC: ${campaign.bic}`)
+  if (campaign.paypalHandle) lines.push(`PayPal: ${campaign.paypalHandle}`)
+  return lines.join("\n")
+}
+
+export async function sendMembershipInvitationEmail(
+  campaign: MembershipCampaignInfo,
+  recipients: { email: string; firstName: string; id: string }[],
+): Promise<number> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("SMTP is not configured on this server.")
+  }
+  if (recipients.length === 0) throw new Error("No recipients selected.")
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const signOff = await getOrganizerSignOff()
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+  const link = `${appUrl}/membership`
+  const amountFormatted = campaign.amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+  const paymentDetailsHtml = buildMembershipPaymentDetailsHtml(campaign)
+  const paymentDetailsPlain = buildMembershipPaymentDetailsPlain(campaign)
+
+  const transporter = createTransport()
+
+  for (const recipient of recipients) {
+    const subject = `💳 Mitgliedsbeitrag ${campaign.year} – ${amountFormatted}`
+    const fullPlain = `Hey ${recipient.firstName},\n\nder Mitgliedsbeitrag für die Saison ${campaign.year} beträgt ${amountFormatted}. Bitte überweise den Betrag an folgende Bankverbindung oder bezahle per PayPal:\n\n${paymentDetailsPlain}\n\nBitte gib uns kurz Rückmeldung, ob du überweist oder ob du kein Interesse an der nächsten Saison hast:\n${link}\n\n${signOff.plain}`
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <p style="margin:0 0 8px">Hey ${recipient.firstName},</p>
+  <p style="margin:0 0 16px">der Mitgliedsbeitrag für die Saison <strong>${campaign.year}</strong> beträgt <strong>${amountFormatted}</strong>. Bitte überweise den Betrag an folgende Bankverbindung oder bezahle per PayPal.</p>
+  ${paymentDetailsHtml}
+  <p style="margin:0 0 16px;font-size:14px;color:#555">Bitte gib uns kurz Rückmeldung, ob du überweist oder ob du kein Interesse an der nächsten Saison hast.</p>
+  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Jetzt Rückmeldung geben →</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  ${signOff.html}
+</body>
+</html>`
+
+    await transporter.sendMail({ from, to: recipient.email, subject, text: fullPlain, html })
+  }
+
+  return recipients.length
+}
+
+export async function sendMembershipReminderEmail(
+  campaign: MembershipCampaignInfo,
+  recipients: { email: string; firstName: string; id: string }[],
+): Promise<number> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("SMTP is not configured on this server.")
+  }
+  if (recipients.length === 0) return 0
+
+  const config = await db.appConfig.findUnique({ where: { key: "emailFrom" } })
+  const from = config?.value ?? process.env.SMTP_USER!
+  const signOff = await getOrganizerSignOff()
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://empor-lichtenberg.vercel.app"
+  const link = `${appUrl}/membership`
+  const amountFormatted = campaign.amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+  const paymentDetailsHtml = buildMembershipPaymentDetailsHtml(campaign)
+  const paymentDetailsPlain = buildMembershipPaymentDetailsPlain(campaign)
+
+  const transporter = createTransport()
+
+  for (const recipient of recipients) {
+    const subject = `⏰ Erinnerung: Mitgliedsbeitrag ${campaign.year} (${amountFormatted})`
+    const fullPlain = `Hey ${recipient.firstName},\n\ndu hast noch keine Rückmeldung zum Mitgliedsbeitrag ${campaign.year} (${amountFormatted}) gegeben.\n\nBitte teile uns kurz mit, ob du überweist oder ob du kein Interesse an der nächsten Saison hast:\n${link}\n\nZahlungsdetails:\n${paymentDetailsPlain}\n\n${signOff.plain}`
+
+    const html = `
+<!DOCTYPE html>
+<html lang="de">
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1a1a1a">
+  <p style="margin:0 0 8px">Hey ${recipient.firstName},</p>
+  <p style="margin:0 0 16px">du hast noch keine Rückmeldung zum Mitgliedsbeitrag <strong>${campaign.year}</strong> (${amountFormatted}) gegeben. Bitte teile uns kurz mit, ob du überweist oder ob du kein Interesse an der nächsten Saison hast.</p>
+  ${paymentDetailsHtml}
+  <a href="${link}" style="display:inline-block;background:#166534;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px">Jetzt Rückmeldung geben →</a>
+  <hr style="margin:32px 0;border:none;border-top:1px solid #e5e5e5"/>
+  ${signOff.html}
+</body>
+</html>`
+
+    await transporter.sendMail({ from, to: recipient.email, subject, text: fullPlain, html })
+  }
+
+  return recipients.length
+}

@@ -64,6 +64,7 @@ export const ModelName = {
   Match: 'Match',
   Goal: 'Goal',
   MembershipFee: 'MembershipFee',
+  MembershipCampaign: 'MembershipCampaign',
   PlayerStats: 'PlayerStats',
   PlayerStatsLifetime: 'PlayerStatsLifetime',
   AppConfig: 'AppConfig',
@@ -256,10 +257,29 @@ export const MembershipFeeScalarFieldEnum = {
   year: 'year',
   status: 'status',
   paidAt: 'paidAt',
-  recordedById: 'recordedById'
+  recordedById: 'recordedById',
+  playerIntent: 'playerIntent',
+  intentAt: 'intentAt',
+  reminderLastSentAt: 'reminderLastSentAt'
 } as const
 
 export type MembershipFeeScalarFieldEnum = (typeof MembershipFeeScalarFieldEnum)[keyof typeof MembershipFeeScalarFieldEnum]
+
+
+export const MembershipCampaignScalarFieldEnum = {
+  id: 'id',
+  year: 'year',
+  amount: 'amount',
+  bankName: 'bankName',
+  iban: 'iban',
+  bic: 'bic',
+  paypalHandle: 'paypalHandle',
+  status: 'status',
+  lastInvitationSentAt: 'lastInvitationSentAt',
+  createdAt: 'createdAt'
+} as const
+
+export type MembershipCampaignScalarFieldEnum = (typeof MembershipCampaignScalarFieldEnum)[keyof typeof MembershipCampaignScalarFieldEnum]
 
 
 export const PlayerStatsScalarFieldEnum = {

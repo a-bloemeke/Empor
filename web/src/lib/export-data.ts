@@ -74,6 +74,18 @@ export type ExportFee = {
   status: string
   paidAt: string | null
   recordedByEmail: string
+  playerIntent: string | null
+  intentAt: string | null
+}
+
+export type ExportMembershipCampaign = {
+  year: number
+  amount: number
+  bankName: string | null
+  iban: string | null
+  bic: string | null
+  paypalHandle: string | null
+  status: string
 }
 
 export type ExportSeasonStat = {
@@ -190,6 +202,7 @@ export type ExportBundle = {
   matches: ExportMatch[]
   goals: ExportGoal[]
   fees: ExportFee[]
+  membershipCampaigns?: ExportMembershipCampaign[]  // only in full export
   seasonStats: ExportSeasonStat[]
   lifetimeStats?: ExportLifetimeStat[]          // only in full export
   comments?: ExportSessionComment[]
@@ -230,7 +243,7 @@ export function filterBundleToSeason(data: ExportBundle, year: number): ExportBu
     fees:          data.fees.filter((f) => Number(f.year) === year),
     seasonStats:   data.seasonStats.filter((s) => Number(s.seasonYear) === year),
     comments:      (data.comments ?? []).filter((c) => sessionDates.has(c.sessionDate)),
-    // lifetime stats and global tables intentionally omitted from season scope
+    // lifetime stats, global tables, and campaigns intentionally omitted from season scope
   }
 }
 
@@ -285,6 +298,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
       },
     },
   })
+  const allCampaigns = seasonId ? null : await db.membershipCampaign.findMany({ orderBy: { year: "asc" } })
 
   // ── transform ──
 
@@ -372,6 +386,8 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     status: f.status,
     paidAt: f.paidAt?.toISOString() ?? null,
     recordedByEmail: emailById.get(f.recordedById)!,
+    playerIntent: f.playerIntent ?? null,
+    intentAt: f.intentAt?.toISOString() ?? null,
   }))
 
   const exportSeasonStats: ExportSeasonStat[] = seasonStats.map((s) => ({
@@ -436,8 +452,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     usedAt: q.usedAt.toISOString(),
   }))
 
-  const exportEvents: ExportEvent[] | undefined = allEvents?.map((e) => {
-    const dateOptionDates = e.dateOptions.map((d) => d.date.toISOString())
+  const exportEvents: ExportEvent[] | undefined = allEvents?.map((e) => {    const dateOptionDates = e.dateOptions.map((d) => d.date.toISOString())
     const questions: ExportEventQuestion[] = e.questions.map((q) => ({
       text: q.text,
       type: q.type,
@@ -459,6 +474,15 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     }))
     return { title: e.title, description: e.description, status: e.status, createdAt: e.createdAt.toISOString(), dateOptions: dateOptionDates, questions, responses }
   })
+  const exportCampaigns: ExportMembershipCampaign[] | undefined = allCampaigns?.map((c) => ({
+    year: c.year,
+    amount: c.amount,
+    bankName: c.bankName,
+    iban: c.iban,
+    bic: c.bic,
+    paypalHandle: c.paypalHandle,
+    status: c.status,
+  }))
 
   const targetSeason = seasonId ? seasons.find((s) => s.id === seasonId) : undefined
 
@@ -484,6 +508,7 @@ export async function buildExport(seasonId?: string): Promise<ExportBundle> {
     ...(exportQuoteCollection ? { quoteCollection: exportQuoteCollection } : {}),
     ...(exportInvitationQuotes ? { invitationQuotes: exportInvitationQuotes } : {}),
     ...(exportEvents ? { events: exportEvents } : {}),
+    ...(exportCampaigns ? { membershipCampaigns: exportCampaigns } : {}),
   }
 }
 
@@ -498,6 +523,7 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
     await db.playerStatsLifetime.deleteMany()
     await db.playerStats.deleteMany()
     await db.membershipFee.deleteMany()
+    await db.membershipCampaign.deleteMany()
     await db.goal.deleteMany()
     await db.match.deleteMany()
     await db.teamPlayer.deleteMany()
@@ -670,7 +696,7 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
     const playerId = playerIdByEmail.get(f.playerEmail)
     const recordedById = playerIdByEmail.get(f.recordedByEmail)
     if (!playerId || !recordedById) return []
-    return [{ playerId, year: Number(f.year), status: f.status as any, paidAt: f.paidAt ? new Date(f.paidAt) : null, recordedById }]
+    return [{ playerId, year: Number(f.year), status: f.status as any, paidAt: f.paidAt ? new Date(f.paidAt) : null, recordedById, playerIntent: (f.playerIntent as any) ?? null, intentAt: f.intentAt ? new Date(f.intentAt) : null }]
   })
   if (feeData.length) await db.membershipFee.createMany({ data: feeData, skipDuplicates: true })
 
@@ -801,6 +827,15 @@ export async function importBundle(data: ExportBundle, mode: "replace" | "merge"
             }))
           if (answerData.length) await db.eventAnswer.createMany({ data: answerData })
         }
+      }
+    }
+    if ((data.membershipCampaigns ?? []).length) {
+      for (const c of data.membershipCampaigns ?? []) {
+        await db.membershipCampaign.upsert({
+          where: { year: Number(c.year) },
+          update: { amount: c.amount, bankName: c.bankName, iban: c.iban, bic: c.bic, paypalHandle: c.paypalHandle, status: c.status as any },
+          create: { year: Number(c.year), amount: c.amount, bankName: c.bankName, iban: c.iban, bic: c.bic, paypalHandle: c.paypalHandle, status: c.status as any },
+        })
       }
     }
   }

@@ -83,6 +83,11 @@ export type Goal = Prisma.GoalModel
  */
 export type MembershipFee = Prisma.MembershipFeeModel
 /**
+ * Model MembershipCampaign
+ * 
+ */
+export type MembershipCampaign = Prisma.MembershipCampaignModel
+/**
  * Model PlayerStats
  * 
  */

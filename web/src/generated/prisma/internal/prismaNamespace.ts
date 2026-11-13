@@ -397,6 +397,7 @@ export const ModelName = {
   Match: 'Match',
   Goal: 'Goal',
   MembershipFee: 'MembershipFee',
+  MembershipCampaign: 'MembershipCampaign',
   PlayerStats: 'PlayerStats',
   PlayerStatsLifetime: 'PlayerStatsLifetime',
   AppConfig: 'AppConfig',
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "account" | "authSession" | "verificationToken" | "player" | "season" | "session" | "sessionRegistration" | "sessionComment" | "team" | "teamPlayer" | "match" | "goal" | "membershipFee" | "playerStats" | "playerStatsLifetime" | "appConfig" | "playerAbsence" | "invitationQuote" | "quoteCollection" | "hallClosure" | "event" | "eventDateOption" | "eventQuestion" | "eventQuestionOption" | "eventResponse" | "eventDateVote" | "eventAnswer"
+    modelProps: "account" | "authSession" | "verificationToken" | "player" | "season" | "session" | "sessionRegistration" | "sessionComment" | "team" | "teamPlayer" | "match" | "goal" | "membershipFee" | "membershipCampaign" | "playerStats" | "playerStatsLifetime" | "appConfig" | "playerAbsence" | "invitationQuote" | "quoteCollection" | "hallClosure" | "event" | "eventDateOption" | "eventQuestion" | "eventQuestionOption" | "eventResponse" | "eventDateVote" | "eventAnswer"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1389,6 +1390,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.MembershipFeeCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.MembershipFeeCountAggregateOutputType> | number
+        }
+      }
+    }
+    MembershipCampaign: {
+      payload: Prisma.$MembershipCampaignPayload<ExtArgs>
+      fields: Prisma.MembershipCampaignFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MembershipCampaignFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MembershipCampaignFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>
+        }
+        findFirst: {
+          args: Prisma.MembershipCampaignFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MembershipCampaignFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>
+        }
+        findMany: {
+          args: Prisma.MembershipCampaignFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>[]
+        }
+        create: {
+          args: Prisma.MembershipCampaignCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>
+        }
+        createMany: {
+          args: Prisma.MembershipCampaignCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MembershipCampaignCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>[]
+        }
+        delete: {
+          args: Prisma.MembershipCampaignDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>
+        }
+        update: {
+          args: Prisma.MembershipCampaignUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>
+        }
+        deleteMany: {
+          args: Prisma.MembershipCampaignDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MembershipCampaignUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MembershipCampaignUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>[]
+        }
+        upsert: {
+          args: Prisma.MembershipCampaignUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MembershipCampaignPayload>
+        }
+        aggregate: {
+          args: Prisma.MembershipCampaignAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMembershipCampaign>
+        }
+        groupBy: {
+          args: Prisma.MembershipCampaignGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MembershipCampaignGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MembershipCampaignCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MembershipCampaignCountAggregateOutputType> | number
         }
       }
     }
@@ -2627,10 +2702,29 @@ export const MembershipFeeScalarFieldEnum = {
   year: 'year',
   status: 'status',
   paidAt: 'paidAt',
-  recordedById: 'recordedById'
+  recordedById: 'recordedById',
+  playerIntent: 'playerIntent',
+  intentAt: 'intentAt',
+  reminderLastSentAt: 'reminderLastSentAt'
 } as const
 
 export type MembershipFeeScalarFieldEnum = (typeof MembershipFeeScalarFieldEnum)[keyof typeof MembershipFeeScalarFieldEnum]
+
+
+export const MembershipCampaignScalarFieldEnum = {
+  id: 'id',
+  year: 'year',
+  amount: 'amount',
+  bankName: 'bankName',
+  iban: 'iban',
+  bic: 'bic',
+  paypalHandle: 'paypalHandle',
+  status: 'status',
+  lastInvitationSentAt: 'lastInvitationSentAt',
+  createdAt: 'createdAt'
+} as const
+
+export type MembershipCampaignScalarFieldEnum = (typeof MembershipCampaignScalarFieldEnum)[keyof typeof MembershipCampaignScalarFieldEnum]
 
 
 export const PlayerStatsScalarFieldEnum = {
@@ -2969,6 +3063,20 @@ export type ListEnumFeeStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
 
 
 /**
+ * Reference to a field of type 'FeeIntent'
+ */
+export type EnumFeeIntentFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FeeIntent'>
+    
+
+
+/**
+ * Reference to a field of type 'FeeIntent[]'
+ */
+export type ListEnumFeeIntentFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FeeIntent[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -2979,6 +3087,20 @@ export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, '
  * Reference to a field of type 'Float[]'
  */
 export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+/**
+ * Reference to a field of type 'CampaignStatus'
+ */
+export type EnumCampaignStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CampaignStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'CampaignStatus[]'
+ */
+export type ListEnumCampaignStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CampaignStatus[]'>
     
 
 
@@ -3146,6 +3268,7 @@ export type GlobalOmitConfig = {
   match?: Prisma.MatchOmit
   goal?: Prisma.GoalOmit
   membershipFee?: Prisma.MembershipFeeOmit
+  membershipCampaign?: Prisma.MembershipCampaignOmit
   playerStats?: Prisma.PlayerStatsOmit
   playerStatsLifetime?: Prisma.PlayerStatsLifetimeOmit
   appConfig?: Prisma.AppConfigOmit

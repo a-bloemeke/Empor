@@ -72,6 +72,22 @@ export const FeeStatus = {
 export type FeeStatus = (typeof FeeStatus)[keyof typeof FeeStatus]
 
 
+export const FeeIntent = {
+  CONFIRMED: 'CONFIRMED',
+  DECLINED: 'DECLINED'
+} as const
+
+export type FeeIntent = (typeof FeeIntent)[keyof typeof FeeIntent]
+
+
+export const CampaignStatus = {
+  ACTIVE: 'ACTIVE',
+  CLOSED: 'CLOSED'
+} as const
+
+export type CampaignStatus = (typeof CampaignStatus)[keyof typeof CampaignStatus]
+
+
 export const EventStatus = {
   DRAFT: 'DRAFT',
   OPEN: 'OPEN',

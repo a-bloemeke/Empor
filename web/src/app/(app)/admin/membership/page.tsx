@@ -16,24 +16,24 @@ export default async function MembershipPage({
   const { year: yearParam } = await searchParams
   const year = yearParam ? parseInt(yearParam) : currentYear
 
-  // The roster for a year = players who have a MembershipFee record for that year
-  const fees = await db.membershipFee.findMany({
-    where: { year },
-    include: {
-      player: { select: { id: true, firstName: true, lastName: true, nickname: true } },
-    },
-  })
-  const rosteredIds = new Set(fees.map((f) => f.playerId))
+  const [fees, allActive, campaign] = await Promise.all([
+    db.membershipFee.findMany({
+      where: { year },
+      include: {
+        player: { select: { id: true, firstName: true, lastName: true, nickname: true } },
+      },
+    }),
+    db.player.findMany({
+      where: { active: true, passwordHash: { not: null } },
+      select: { id: true, firstName: true, lastName: true, nickname: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    }),
+    db.membershipCampaign.findUnique({ where: { year } }),
+  ])
 
-  // Active players not yet on this year's roster (shown in the Add dialog)
-  const allActive = await db.player.findMany({
-    where: { active: true, passwordHash: { not: null } },
-    select: { id: true, firstName: true, lastName: true, nickname: true },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-  })
+  const rosteredIds = new Set(fees.map((f) => f.playerId))
   const availablePlayers = allActive.filter((p) => !rosteredIds.has(p.id))
 
-  // Build display names across both sets for consistent disambiguation
   const rosteredPlayers = fees.map((f) => f.player)
   const displayNames = buildPlayerNames([...rosteredPlayers, ...availablePlayers])
 
@@ -43,6 +43,8 @@ export default async function MembershipPage({
       name: displayNames.get(f.playerId) ?? f.player.firstName,
       status: f.status as string,
       paidAt: f.paidAt?.toISOString() ?? null,
+      playerIntent: f.playerIntent as string | null,
+      intentAt: f.intentAt?.toISOString() ?? null,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -57,6 +59,17 @@ export default async function MembershipPage({
       availableToAdd={availableToAdd}
       year={year}
       defaultYear={currentYear}
+      campaign={campaign ? {
+        year: campaign.year,
+        amount: campaign.amount,
+        bankName: campaign.bankName,
+        iban: campaign.iban,
+        bic: campaign.bic,
+        paypalHandle: campaign.paypalHandle,
+        status: campaign.status as string,
+        lastInvitationSentAt: campaign.lastInvitationSentAt?.toISOString() ?? null,
+      } : null}
     />
   )
 }
+
