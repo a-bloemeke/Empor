@@ -107,6 +107,19 @@ export async function closeCampaign(year: number): Promise<{ ok: true } | { erro
   return { ok: true }
 }
 
+export async function reopenCampaign(year: number): Promise<{ ok: true } | { error: string }> {
+  const authSession = await auth()
+  if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }
+
+  const campaign = await db.membershipCampaign.findUnique({ where: { year } })
+  if (!campaign) return { error: "Kampagne nicht gefunden." }
+  if (campaign.status !== "CLOSED") return { error: "Kampagne ist bereits aktiv." }
+
+  await db.membershipCampaign.update({ where: { year }, data: { status: "ACTIVE" } })
+  revalidate()
+  return { ok: true }
+}
+
 export async function sendMembershipInvitation(year: number): Promise<{ ok: true; sent: number } | { error: string }> {
   const authSession = await auth()
   if (authSession?.user?.role !== "ORGANIZER") return { error: "Nicht autorisiert." }

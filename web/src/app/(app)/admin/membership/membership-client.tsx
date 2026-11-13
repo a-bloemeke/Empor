@@ -32,7 +32,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { setFeeStatus, addPlayersToYear, removePlayerFromYear, createCampaign, closeCampaign, sendMembershipInvitation } from "./actions"
+import { setFeeStatus, addPlayersToYear, removePlayerFromYear, createCampaign, closeCampaign, reopenCampaign, sendMembershipInvitation } from "./actions"
 import { toast } from "sonner"
 import Link from "next/link"
 import { SportsTable } from "@/components/app/sports-table"
@@ -76,7 +76,7 @@ function IntentBadge({ intent }: { intent: string | null }) {
 function CampaignPanel({ year, campaign, playerCount }: { year: number; campaign: Campaign | null; playerCount: number }) {
   const [pending, startTransition] = useTransition()
   const [formOpen, setFormOpen] = useState(false)
-  const [amount, setAmount] = useState("")
+  const [amount, setAmount] = useState("12")
   const [bankName, setBankName] = useState("")
   const [iban, setIban] = useState("")
   const [bic, setBic] = useState("")
@@ -99,6 +99,14 @@ function CampaignPanel({ year, campaign, playerCount }: { year: number; campaign
       const res = await closeCampaign(year)
       if ("error" in res) { toast.error(res.error); return }
       toast.success(`Kampagne ${year} geschlossen.`)
+    })
+  }
+
+  function handleReopen() {
+    startTransition(async () => {
+      const res = await reopenCampaign(year)
+      if ("error" in res) { toast.error(res.error); return }
+      toast.success(`Kampagne ${year} wieder geöffnet.`)
     })
   }
 
@@ -205,6 +213,13 @@ function CampaignPanel({ year, campaign, playerCount }: { year: number; campaign
               className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/40"
             >
               Kampagne schließen
+            </Button>
+          </div>
+        )}
+        {campaign.status === "CLOSED" && (
+          <div className="shrink-0">
+            <Button size="sm" variant="outline" onClick={handleReopen} disabled={pending}>
+              Wieder öffnen
             </Button>
           </div>
         )}
