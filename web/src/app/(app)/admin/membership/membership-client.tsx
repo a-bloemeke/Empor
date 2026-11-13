@@ -241,7 +241,7 @@ export function MembershipClient({
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  const yearOptions = Array.from({ length: 5 }, (_, i) => defaultYear - 2 + i)
+  const yearOptions = Array.from({ length: 5 }, (_, i) => defaultYear - 1 + i)
 
   function handleYearChange(v: string | null) {
     if (!v) return

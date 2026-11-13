@@ -14,7 +14,7 @@ export default async function MembershipPage({
 
   const currentYear = new Date().getFullYear()
   const { year: yearParam } = await searchParams
-  const year = yearParam ? parseInt(yearParam) : currentYear
+  const year = yearParam ? parseInt(yearParam) : currentYear + 1
 
   const [fees, allActive, campaign] = await Promise.all([
     db.membershipFee.findMany({
