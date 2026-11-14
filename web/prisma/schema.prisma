@@ -51,6 +51,16 @@ enum FeeStatus {
   PAID
 }
 
+enum FeeIntent {
+  CONFIRMED
+  DECLINED
+}
+
+enum CampaignStatus {
+  ACTIVE
+  CLOSED
+}
+
 enum EventStatus {
   DRAFT
   OPEN
@@ -251,17 +261,33 @@ model Goal {
 }
 
 model MembershipFee {
-  id             String    @id @default(cuid())
-  playerId       String
-  year           Int
-  status         FeeStatus @default(NOT_PAID)
-  paidAt         DateTime?
-  recordedById   String
+  id                 String      @id @default(cuid())
+  playerId           String
+  year               Int
+  status             FeeStatus   @default(NOT_PAID)
+  paidAt             DateTime?
+  recordedById       String
+  playerIntent       FeeIntent?
+  intentAt           DateTime?
+  reminderLastSentAt DateTime?
 
   player     Player @relation(fields: [playerId], references: [id])
   recordedBy Player @relation("recordedBy", fields: [recordedById], references: [id])
 
   @@unique([playerId, year])
+}
+
+model MembershipCampaign {
+  id                   String         @id @default(cuid())
+  year                 Int            @unique
+  amount               Float
+  bankName             String?
+  iban                 String?
+  bic                  String?
+  paypalHandle         String?
+  status               CampaignStatus @default(ACTIVE)
+  lastInvitationSentAt DateTime?
+  createdAt            DateTime       @default(now())
 }
 
 model PlayerStats {

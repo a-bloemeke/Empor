@@ -19,8 +19,8 @@ function baseBundle(): ExportBundle {
       { year: 2026, status: "ACTIVE" },
     ],
     sessions: [
-      { seasonYear: 2025, date: "2025-06-01T18:00:00Z", status: "COMPLETED", organizerEmail: "a@x.com" },
-      { seasonYear: 2026, date: "2026-06-01T18:00:00Z", status: "COMPLETED", organizerEmail: "a@x.com" },
+      { seasonYear: 2025, date: "2025-06-01T18:00:00Z", status: "COMPLETED", organizerEmail: "a@x.com", maxPlayers: 12 },
+      { seasonYear: 2026, date: "2026-06-01T18:00:00Z", status: "COMPLETED", organizerEmail: "a@x.com", maxPlayers: 12 },
     ],
     registrations: [
       { sessionDate: "2025-06-01T18:00:00Z", playerEmail: "a@x.com", status: "REGISTERED", registeredAt: "2025-06-01T10:00:00Z", cancelledAt: null, beerBringer: false, registeredByEmail: "a@x.com" },
@@ -39,8 +39,8 @@ function baseBundle(): ExportBundle {
       { sessionDate: "2026-06-01T18:00:00Z", roundNumber: null, homeTeam: "Team A", awayTeam: "Team B", scorerEmail: "a@x.com", assisterEmail: null, teamName: "Team A", scoredAt: "2026-06-01T18:05:00Z" },
     ],
     fees: [
-      { playerEmail: "a@x.com", year: 2025, status: "PAID", paidAt: "2025-01-15T00:00:00Z", recordedByEmail: "a@x.com" },
-      { playerEmail: "a@x.com", year: 2026, status: "NOT_PAID", paidAt: null, recordedByEmail: "a@x.com" },
+      { playerEmail: "a@x.com", year: 2025, status: "PAID", paidAt: "2025-01-15T00:00:00Z", recordedByEmail: "a@x.com", playerIntent: null, intentAt: null },
+      { playerEmail: "a@x.com", year: 2026, status: "NOT_PAID", paidAt: null, recordedByEmail: "a@x.com", playerIntent: null, intentAt: null },
     ],
     seasonStats: [
       { playerEmail: "a@x.com", seasonYear: 2025, sessionsPlayed: 1, matchesPlayed: 1, goals: 1, assists: 0, score: 1, points: 3, beers: 0 },

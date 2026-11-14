@@ -41,6 +41,9 @@ export type MembershipFeeMinAggregateOutputType = {
   status: $Enums.FeeStatus | null
   paidAt: Date | null
   recordedById: string | null
+  playerIntent: $Enums.FeeIntent | null
+  intentAt: Date | null
+  reminderLastSentAt: Date | null
 }
 
 export type MembershipFeeMaxAggregateOutputType = {
@@ -50,6 +53,9 @@ export type MembershipFeeMaxAggregateOutputType = {
   status: $Enums.FeeStatus | null
   paidAt: Date | null
   recordedById: string | null
+  playerIntent: $Enums.FeeIntent | null
+  intentAt: Date | null
+  reminderLastSentAt: Date | null
 }
 
 export type MembershipFeeCountAggregateOutputType = {
@@ -59,6 +65,9 @@ export type MembershipFeeCountAggregateOutputType = {
   status: number
   paidAt: number
   recordedById: number
+  playerIntent: number
+  intentAt: number
+  reminderLastSentAt: number
   _all: number
 }
 
@@ -78,6 +87,9 @@ export type MembershipFeeMinAggregateInputType = {
   status?: true
   paidAt?: true
   recordedById?: true
+  playerIntent?: true
+  intentAt?: true
+  reminderLastSentAt?: true
 }
 
 export type MembershipFeeMaxAggregateInputType = {
@@ -87,6 +99,9 @@ export type MembershipFeeMaxAggregateInputType = {
   status?: true
   paidAt?: true
   recordedById?: true
+  playerIntent?: true
+  intentAt?: true
+  reminderLastSentAt?: true
 }
 
 export type MembershipFeeCountAggregateInputType = {
@@ -96,6 +111,9 @@ export type MembershipFeeCountAggregateInputType = {
   status?: true
   paidAt?: true
   recordedById?: true
+  playerIntent?: true
+  intentAt?: true
+  reminderLastSentAt?: true
   _all?: true
 }
 
@@ -192,6 +210,9 @@ export type MembershipFeeGroupByOutputType = {
   status: $Enums.FeeStatus
   paidAt: Date | null
   recordedById: string
+  playerIntent: $Enums.FeeIntent | null
+  intentAt: Date | null
+  reminderLastSentAt: Date | null
   _count: MembershipFeeCountAggregateOutputType | null
   _avg: MembershipFeeAvgAggregateOutputType | null
   _sum: MembershipFeeSumAggregateOutputType | null
@@ -224,6 +245,9 @@ export type MembershipFeeWhereInput = {
   status?: Prisma.EnumFeeStatusFilter<"MembershipFee"> | $Enums.FeeStatus
   paidAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
   recordedById?: Prisma.StringFilter<"MembershipFee"> | string
+  playerIntent?: Prisma.EnumFeeIntentNullableFilter<"MembershipFee"> | $Enums.FeeIntent | null
+  intentAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
+  reminderLastSentAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   recordedBy?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
 }
@@ -235,6 +259,9 @@ export type MembershipFeeOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   paidAt?: Prisma.SortOrderInput | Prisma.SortOrder
   recordedById?: Prisma.SortOrder
+  playerIntent?: Prisma.SortOrderInput | Prisma.SortOrder
+  intentAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  reminderLastSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   player?: Prisma.PlayerOrderByWithRelationInput
   recordedBy?: Prisma.PlayerOrderByWithRelationInput
 }
@@ -250,6 +277,9 @@ export type MembershipFeeWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumFeeStatusFilter<"MembershipFee"> | $Enums.FeeStatus
   paidAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
   recordedById?: Prisma.StringFilter<"MembershipFee"> | string
+  playerIntent?: Prisma.EnumFeeIntentNullableFilter<"MembershipFee"> | $Enums.FeeIntent | null
+  intentAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
+  reminderLastSentAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
   player?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
   recordedBy?: Prisma.XOR<Prisma.PlayerScalarRelationFilter, Prisma.PlayerWhereInput>
 }, "id" | "playerId_year">
@@ -261,6 +291,9 @@ export type MembershipFeeOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   paidAt?: Prisma.SortOrderInput | Prisma.SortOrder
   recordedById?: Prisma.SortOrder
+  playerIntent?: Prisma.SortOrderInput | Prisma.SortOrder
+  intentAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  reminderLastSentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.MembershipFeeCountOrderByAggregateInput
   _avg?: Prisma.MembershipFeeAvgOrderByAggregateInput
   _max?: Prisma.MembershipFeeMaxOrderByAggregateInput
@@ -278,6 +311,9 @@ export type MembershipFeeScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumFeeStatusWithAggregatesFilter<"MembershipFee"> | $Enums.FeeStatus
   paidAt?: Prisma.DateTimeNullableWithAggregatesFilter<"MembershipFee"> | Date | string | null
   recordedById?: Prisma.StringWithAggregatesFilter<"MembershipFee"> | string
+  playerIntent?: Prisma.EnumFeeIntentNullableWithAggregatesFilter<"MembershipFee"> | $Enums.FeeIntent | null
+  intentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"MembershipFee"> | Date | string | null
+  reminderLastSentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"MembershipFee"> | Date | string | null
 }
 
 export type MembershipFeeCreateInput = {
@@ -285,6 +321,9 @@ export type MembershipFeeCreateInput = {
   year: number
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
   player: Prisma.PlayerCreateNestedOneWithoutMembershipFeesInput
   recordedBy: Prisma.PlayerCreateNestedOneWithoutFeeRecordingsInput
 }
@@ -296,6 +335,9 @@ export type MembershipFeeUncheckedCreateInput = {
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
   recordedById: string
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
 }
 
 export type MembershipFeeUpdateInput = {
@@ -303,6 +345,9 @@ export type MembershipFeeUpdateInput = {
   year?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   player?: Prisma.PlayerUpdateOneRequiredWithoutMembershipFeesNestedInput
   recordedBy?: Prisma.PlayerUpdateOneRequiredWithoutFeeRecordingsNestedInput
 }
@@ -314,6 +359,9 @@ export type MembershipFeeUncheckedUpdateInput = {
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recordedById?: Prisma.StringFieldUpdateOperationsInput | string
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type MembershipFeeCreateManyInput = {
@@ -323,6 +371,9 @@ export type MembershipFeeCreateManyInput = {
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
   recordedById: string
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
 }
 
 export type MembershipFeeUpdateManyMutationInput = {
@@ -330,6 +381,9 @@ export type MembershipFeeUpdateManyMutationInput = {
   year?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type MembershipFeeUncheckedUpdateManyInput = {
@@ -339,6 +393,9 @@ export type MembershipFeeUncheckedUpdateManyInput = {
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recordedById?: Prisma.StringFieldUpdateOperationsInput | string
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type MembershipFeeListRelationFilter = {
@@ -363,6 +420,9 @@ export type MembershipFeeCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   paidAt?: Prisma.SortOrder
   recordedById?: Prisma.SortOrder
+  playerIntent?: Prisma.SortOrder
+  intentAt?: Prisma.SortOrder
+  reminderLastSentAt?: Prisma.SortOrder
 }
 
 export type MembershipFeeAvgOrderByAggregateInput = {
@@ -376,6 +436,9 @@ export type MembershipFeeMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   paidAt?: Prisma.SortOrder
   recordedById?: Prisma.SortOrder
+  playerIntent?: Prisma.SortOrder
+  intentAt?: Prisma.SortOrder
+  reminderLastSentAt?: Prisma.SortOrder
 }
 
 export type MembershipFeeMinOrderByAggregateInput = {
@@ -385,6 +448,9 @@ export type MembershipFeeMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   paidAt?: Prisma.SortOrder
   recordedById?: Prisma.SortOrder
+  playerIntent?: Prisma.SortOrder
+  intentAt?: Prisma.SortOrder
+  reminderLastSentAt?: Prisma.SortOrder
 }
 
 export type MembershipFeeSumOrderByAggregateInput = {
@@ -479,11 +545,18 @@ export type EnumFeeStatusFieldUpdateOperationsInput = {
   set?: $Enums.FeeStatus
 }
 
+export type NullableEnumFeeIntentFieldUpdateOperationsInput = {
+  set?: $Enums.FeeIntent | null
+}
+
 export type MembershipFeeCreateWithoutPlayerInput = {
   id?: string
   year: number
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
   recordedBy: Prisma.PlayerCreateNestedOneWithoutFeeRecordingsInput
 }
 
@@ -493,6 +566,9 @@ export type MembershipFeeUncheckedCreateWithoutPlayerInput = {
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
   recordedById: string
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
 }
 
 export type MembershipFeeCreateOrConnectWithoutPlayerInput = {
@@ -510,6 +586,9 @@ export type MembershipFeeCreateWithoutRecordedByInput = {
   year: number
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
   player: Prisma.PlayerCreateNestedOneWithoutMembershipFeesInput
 }
 
@@ -519,6 +598,9 @@ export type MembershipFeeUncheckedCreateWithoutRecordedByInput = {
   year: number
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
 }
 
 export type MembershipFeeCreateOrConnectWithoutRecordedByInput = {
@@ -557,6 +639,9 @@ export type MembershipFeeScalarWhereInput = {
   status?: Prisma.EnumFeeStatusFilter<"MembershipFee"> | $Enums.FeeStatus
   paidAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
   recordedById?: Prisma.StringFilter<"MembershipFee"> | string
+  playerIntent?: Prisma.EnumFeeIntentNullableFilter<"MembershipFee"> | $Enums.FeeIntent | null
+  intentAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
+  reminderLastSentAt?: Prisma.DateTimeNullableFilter<"MembershipFee"> | Date | string | null
 }
 
 export type MembershipFeeUpsertWithWhereUniqueWithoutRecordedByInput = {
@@ -581,6 +666,9 @@ export type MembershipFeeCreateManyPlayerInput = {
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
   recordedById: string
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
 }
 
 export type MembershipFeeCreateManyRecordedByInput = {
@@ -589,6 +677,9 @@ export type MembershipFeeCreateManyRecordedByInput = {
   year: number
   status?: $Enums.FeeStatus
   paidAt?: Date | string | null
+  playerIntent?: $Enums.FeeIntent | null
+  intentAt?: Date | string | null
+  reminderLastSentAt?: Date | string | null
 }
 
 export type MembershipFeeUpdateWithoutPlayerInput = {
@@ -596,6 +687,9 @@ export type MembershipFeeUpdateWithoutPlayerInput = {
   year?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recordedBy?: Prisma.PlayerUpdateOneRequiredWithoutFeeRecordingsNestedInput
 }
 
@@ -605,6 +699,9 @@ export type MembershipFeeUncheckedUpdateWithoutPlayerInput = {
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recordedById?: Prisma.StringFieldUpdateOperationsInput | string
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type MembershipFeeUncheckedUpdateManyWithoutPlayerInput = {
@@ -613,6 +710,9 @@ export type MembershipFeeUncheckedUpdateManyWithoutPlayerInput = {
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   recordedById?: Prisma.StringFieldUpdateOperationsInput | string
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type MembershipFeeUpdateWithoutRecordedByInput = {
@@ -620,6 +720,9 @@ export type MembershipFeeUpdateWithoutRecordedByInput = {
   year?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   player?: Prisma.PlayerUpdateOneRequiredWithoutMembershipFeesNestedInput
 }
 
@@ -629,6 +732,9 @@ export type MembershipFeeUncheckedUpdateWithoutRecordedByInput = {
   year?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type MembershipFeeUncheckedUpdateManyWithoutRecordedByInput = {
@@ -637,6 +743,9 @@ export type MembershipFeeUncheckedUpdateManyWithoutRecordedByInput = {
   year?: Prisma.IntFieldUpdateOperationsInput | number
   status?: Prisma.EnumFeeStatusFieldUpdateOperationsInput | $Enums.FeeStatus
   paidAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  playerIntent?: Prisma.NullableEnumFeeIntentFieldUpdateOperationsInput | $Enums.FeeIntent | null
+  intentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  reminderLastSentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -648,6 +757,9 @@ export type MembershipFeeSelect<ExtArgs extends runtime.Types.Extensions.Interna
   status?: boolean
   paidAt?: boolean
   recordedById?: boolean
+  playerIntent?: boolean
+  intentAt?: boolean
+  reminderLastSentAt?: boolean
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   recordedBy?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["membershipFee"]>
@@ -659,6 +771,9 @@ export type MembershipFeeSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   status?: boolean
   paidAt?: boolean
   recordedById?: boolean
+  playerIntent?: boolean
+  intentAt?: boolean
+  reminderLastSentAt?: boolean
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   recordedBy?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["membershipFee"]>
@@ -670,6 +785,9 @@ export type MembershipFeeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   status?: boolean
   paidAt?: boolean
   recordedById?: boolean
+  playerIntent?: boolean
+  intentAt?: boolean
+  reminderLastSentAt?: boolean
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   recordedBy?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["membershipFee"]>
@@ -681,9 +799,12 @@ export type MembershipFeeSelectScalar = {
   status?: boolean
   paidAt?: boolean
   recordedById?: boolean
+  playerIntent?: boolean
+  intentAt?: boolean
+  reminderLastSentAt?: boolean
 }
 
-export type MembershipFeeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "playerId" | "year" | "status" | "paidAt" | "recordedById", ExtArgs["result"]["membershipFee"]>
+export type MembershipFeeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "playerId" | "year" | "status" | "paidAt" | "recordedById" | "playerIntent" | "intentAt" | "reminderLastSentAt", ExtArgs["result"]["membershipFee"]>
 export type MembershipFeeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   player?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
   recordedBy?: boolean | Prisma.PlayerDefaultArgs<ExtArgs>
@@ -710,6 +831,9 @@ export type $MembershipFeePayload<ExtArgs extends runtime.Types.Extensions.Inter
     status: $Enums.FeeStatus
     paidAt: Date | null
     recordedById: string
+    playerIntent: $Enums.FeeIntent | null
+    intentAt: Date | null
+    reminderLastSentAt: Date | null
   }, ExtArgs["result"]["membershipFee"]>
   composites: {}
 }
@@ -1141,6 +1265,9 @@ export interface MembershipFeeFieldRefs {
   readonly status: Prisma.FieldRef<"MembershipFee", 'FeeStatus'>
   readonly paidAt: Prisma.FieldRef<"MembershipFee", 'DateTime'>
   readonly recordedById: Prisma.FieldRef<"MembershipFee", 'String'>
+  readonly playerIntent: Prisma.FieldRef<"MembershipFee", 'FeeIntent'>
+  readonly intentAt: Prisma.FieldRef<"MembershipFee", 'DateTime'>
+  readonly reminderLastSentAt: Prisma.FieldRef<"MembershipFee", 'DateTime'>
 }
     
 
